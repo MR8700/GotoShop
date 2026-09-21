@@ -53,22 +53,22 @@ export default function VitrinePage({
     <div className="flex flex-col w-full gap-space-md max-w-lg mx-auto pb-32">
       {/* Personalized Welcome Banner for Client / Owner */}
       {mode === "client" && customer && (
-        <div className="flex items-center justify-between px-3.5 py-2 rounded-2xl bg-surface-container border border-secondary/25 shadow-sm">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary/15 text-secondary text-sm font-bold">
-              👋
+        <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-surface-container border border-secondary/20 shadow-sm animate-fade-in">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-secondary/15 text-secondary text-sm font-bold">
+              ✨
             </span>
             <div className="min-w-0">
               <p className="text-xs font-bold text-on-surface truncate">
-                Bonjour, {customer.name} !
+                Ravi de vous revoir, {customer.name}
               </p>
-              <p className="text-[11px] text-secondary truncate">
-                Livraison express & avantages actifs sur {customer.city}
+              <p className="text-[11px] text-on-surface-variant truncate">
+                Merci pour votre fidélité ! Vos avantages sont actifs.
               </p>
             </div>
           </div>
-          <span className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[10px] font-bold shrink-0">
-            Membre Club
+          <span className="px-2.5 py-1 rounded-full bg-secondary/15 text-secondary text-[10px] font-bold shrink-0">
+            Membre VIP
           </span>
         </div>
       )}
@@ -76,18 +76,18 @@ export default function VitrinePage({
       {mode === "client" && !customer && (
         <div
           onClick={onOpenCustomerAuth}
-          className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-primary-container/25 via-surface-container to-surface-container border border-primary/25 shadow-sm cursor-pointer hover:border-primary/50 transition-all group active:scale-[0.99]"
+          className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-surface-container border border-white/5 hover:border-primary/30 transition-all cursor-pointer shadow-sm group active:scale-[0.98] tap-scale animate-fade-in"
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary text-xs font-bold">
-              ★
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary text-xs font-bold">
+              ⭐
             </span>
             <div className="min-w-0">
               <p className="text-xs font-bold text-on-surface truncate group-hover:text-primary transition-colors">
-                Rejoignez le Club Privilège en 3s
+                Club Privilège Awa
               </p>
               <p className="text-[11px] text-on-surface-variant truncate">
-                Gagnez des points fidélité et mémorisez votre GPS sur chaque commande
+                Points fidélité & livraison GPS en 1 clic
               </p>
             </div>
           </div>
@@ -99,17 +99,17 @@ export default function VitrinePage({
       )}
 
       {mode === "owner" && (
-        <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-primary-container/20 to-surface-container border border-primary/30 shadow-md text-xs">
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-surface-container border border-primary/20 shadow-md text-xs">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-surface shadow-sm">
               <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
             </span>
             <div className="min-w-0">
               <p className="text-xs font-bold text-on-surface truncate">
-                Gestion Produits & Vitrine Awa
+                Gestion Vitrine & Articles
               </p>
               <p className="text-[11px] text-on-surface-variant truncate">
-                Cliquez sur « Modifier » ou « Supprimer » sur chaque article.
+                Modifiez vos produits et ajustez les stocks
               </p>
             </div>
           </div>
@@ -118,35 +118,33 @@ export default function VitrinePage({
             className="px-3 py-1.5 rounded-xl bg-primary text-surface font-label-md text-xs font-bold shrink-0 shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
           >
             <span className="material-symbols-outlined text-[16px]">add</span>
-            <span>Nouveau Produit</span>
+            <span>Nouveau</span>
           </button>
         </div>
       )}
 
       {/* Sticky/Floating Top Flash Promo Pill */}
       {store?.is_flash_active && (
-        <div className="sticky top-2 z-30 w-full">
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary-container via-surface-container-high to-surface-container-low p-[1px] shadow-xl">
-            <div className="relative flex items-center justify-between gap-space-xs rounded-xl bg-surface-container-high/90 px-space-sm py-2 backdrop-blur-md">
-              <div className="flex items-center gap-space-xs min-w-0">
-                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-container text-on-primary-container font-bold animate-bounce text-sm">
-                  ⚡
+        <div className="sticky top-16 z-30 w-full animate-fade-in">
+          <div className="flex items-center justify-between gap-2 rounded-2xl bg-surface-container/95 border border-primary/25 px-3.5 py-2 shadow-lg backdrop-blur-md">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary text-sm font-bold">
+                ⚡
+              </span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-primary truncate">
+                  {store?.flash_title || "Vente Flash Express"}
                 </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary truncate font-bold">
-                    {store?.flash_title || "Vente Flash Express"}
-                  </span>
-                  <span className="font-body-sm text-body-sm text-on-surface truncate">
-                    {store?.flash_subtitle || "Ouaga & Abidjan • Envoi sous 2h chrono"}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 flex-shrink-0 bg-surface-container-highest px-2 py-1 rounded-full">
-                <span className="material-symbols-outlined text-primary text-[14px]">timer</span>
-                <span className="font-headline-sm text-[12px] font-bold text-primary tabular-nums">
-                  {formatCountdown(countdownSeconds)}
+                <span className="text-[11px] text-on-surface-variant truncate">
+                  {store?.flash_subtitle || "Ouaga & Abidjan • Envoi sous 2h chrono"}
                 </span>
               </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0 bg-surface-container-highest/80 px-2.5 py-1 rounded-xl">
+              <span className="material-symbols-outlined text-primary text-[14px]">timer</span>
+              <span className="font-mono text-xs font-bold text-primary tabular-nums">
+                {formatCountdown(countdownSeconds)}
+              </span>
             </div>
           </div>
         </div>
@@ -567,15 +565,17 @@ export default function VitrinePage({
       )}
 
       {/* Conversational Guarantee & Delivery Banner */}
-      <section className="rounded-xl bg-gradient-to-br from-surface-container-high to-surface-container p-space-md shadow-md mt-space-sm flex flex-col gap-space-sm">
-        <div className="flex items-center gap-space-sm">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-secondary/15 text-secondary">
-            <span className="material-symbols-outlined text-[24px]">support_agent</span>
+      <section className="rounded-2xl bg-surface-container border border-white/5 p-4 shadow-sm mt-4 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-secondary/15 text-secondary">
+            <span className="material-symbols-outlined text-[22px]">support_agent</span>
           </div>
-          <div className="flex flex-col">
-            <h4 className="font-headline-sm text-headline-sm text-on-surface">{store?.voice_note_title}</h4>
-            <p className="font-body-sm text-body-sm text-on-surface-variant">
-              {store?.voice_note_subtitle}
+          <div className="flex flex-col min-w-0">
+            <h4 className="font-headline-sm text-sm font-bold text-on-surface truncate">
+              {store?.voice_note_title || "Besoin d'un conseil ?"}
+            </h4>
+            <p className="font-body-sm text-xs text-on-surface-variant">
+              {store?.voice_note_subtitle || "Discutez en direct ou envoyez une note vocale."}
             </p>
           </div>
         </div>
@@ -584,10 +584,10 @@ export default function VitrinePage({
             showToast("Ouverture de l'audio WhatsApp avec Awa...");
             window.open("https://wa.me/2250700000000?text=" + encodeURIComponent("Bonjour Awa ! J'aimerais des conseils personnalisés pour une commande sur mesure."), "_blank");
           }}
-          className="flex items-center justify-center gap-2 h-11 rounded-lg bg-surface-container-highest text-secondary hover:bg-surface-bright font-label-md text-label-md font-bold active:scale-98 transition-transform"
+          className="flex items-center justify-center gap-2 h-11 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-secondary font-label-md text-xs font-bold tap-scale transition-colors cursor-pointer"
         >
           <span className="material-symbols-outlined text-[18px]">mic</span>
-          Envoyer une note vocale à Awa
+          <span>Envoyer une note vocale à Awa</span>
         </button>
       </section>
 
@@ -611,7 +611,7 @@ export default function VitrinePage({
             </div>
             <button
               onClick={onCheckoutCart}
-              className="flex-shrink-0 h-11 px-4 rounded-xl bg-primary-container text-on-primary-container font-label-md text-label-md font-bold flex items-center gap-1.5 shadow-lg active:scale-95 transition-transform hover:brightness-110"
+              className="flex-shrink-0 h-11 px-4 rounded-xl bg-primary text-on-primary font-label-md text-xs font-bold flex items-center gap-1.5 shadow-md tap-scale transition-transform hover:brightness-105 cursor-pointer"
             >
               <span>Finaliser</span>
               <span className="material-symbols-outlined text-[18px]">qr_code_2</span>

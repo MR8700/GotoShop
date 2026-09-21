@@ -199,28 +199,28 @@ export default function ClientCommandesPage({
 
       {/* Guest Smart Nudge Banner */}
       {isGuest && (
-        <div className="rounded-2xl bg-gradient-to-r from-primary-container/30 via-primary-container/15 to-surface-container-high p-4 border border-primary/30 shadow-md flex flex-col gap-3">
+        <div className="rounded-2xl bg-surface-container p-4 border border-primary/25 shadow-sm flex flex-col gap-3">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary text-surface flex items-center justify-center shrink-0 shadow">
-              <span className="material-symbols-outlined text-[20px]">stars</span>
+            <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[22px]">stars</span>
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-headline-sm text-sm font-bold text-on-surface">
                 {orders.length > 0
-                  ? `⭐ Vous suivez ${orders.length} commande(s) en invité`
+                  ? `⭐ ${orders.length} commande(s) en mode invité`
                   : "Débloquez vos privilèges Awa Club"}
               </h3>
               <p className="text-xs text-on-surface-variant mt-0.5 leading-relaxed">
-                Inscrivez-vous en 3 secondes (Nom + WhatsApp) pour sécuriser vos commandes à vie, cumuler vos points fidélité et mémoriser votre GPS !
+                Inscrivez-vous (Nom + WhatsApp) pour retrouver vos commandes sur tous vos appareils et cumuler vos points fidélité.
               </p>
             </div>
           </div>
           <button
             onClick={onOpenAuth}
-            className="w-full h-11 rounded-xl bg-primary text-surface font-label-md font-bold flex items-center justify-center gap-2 shadow hover:brightness-110 active:scale-98 transition-all"
+            className="w-full h-11 rounded-xl bg-primary text-on-primary font-label-md text-xs font-bold flex items-center justify-center gap-2 shadow hover:brightness-105 tap-scale transition-all cursor-pointer"
           >
             <span className="material-symbols-outlined text-[18px]">bolt</span>
-            <span>Créer mon compte en 3 secondes</span>
+            <span>Activer mon compte fidélité</span>
           </button>
         </div>
       )}

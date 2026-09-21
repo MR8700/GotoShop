@@ -49,16 +49,16 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
 
         {/* Modal Header */}
         <div className="text-center space-y-1">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary-container text-on-primary-container shadow-md mb-1">
-            <span className="material-symbols-outlined text-[26px]">flash_on</span>
+          <div className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-primary/15 text-primary mb-1">
+            <span className="material-symbols-outlined text-[24px]">stars</span>
           </div>
-          <h2 className="font-headline-sm text-headline-sm text-on-surface">
-            {mode === "register" ? "Inscription Éclair ⚡" : "Connexion Rapide"}
+          <h2 className="font-headline-sm text-lg font-bold text-on-surface">
+            {mode === "register" ? "Espace Fidélité ✨" : "Retrouver mes Commandes"}
           </h2>
-          <p className="font-body-sm text-body-sm text-on-surface-variant">
+          <p className="font-body-sm text-xs text-on-surface-variant">
             {mode === "register"
-              ? "Accédez à vos commandes et avantages en 3 secondes chrono."
-              : "Retrouvez votre historique de commandes en 1 clic."}
+              ? "Profitez de vos points fidélité et suivez vos colis en direct."
+              : "Consultez l'état de vos commandes en 1 clic."}
           </p>
         </div>
 
@@ -70,8 +70,8 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
               setMode("register");
               setError("");
             }}
-            className={`flex-1 py-2 rounded-lg transition-all ${
-              mode === "register" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"
+            className={`flex-1 py-2 rounded-lg tap-scale transition-all cursor-pointer ${
+              mode === "register" ? "bg-primary text-on-primary shadow-sm font-bold" : "text-on-surface-variant hover:text-on-surface"
             }`}
           >
             Nouveau Client
@@ -82,8 +82,8 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
               setMode("login");
               setError("");
             }}
-            className={`flex-1 py-2 rounded-lg transition-all ${
-              mode === "login" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"
+            className={`flex-1 py-2 rounded-lg tap-scale transition-all cursor-pointer ${
+              mode === "login" ? "bg-primary text-on-primary shadow-sm font-bold" : "text-on-surface-variant hover:text-on-surface"
             }`}
           >
             Déjà Client
@@ -91,7 +91,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
         </div>
 
         {error && (
-          <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs text-center">
+          <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs text-center">
             {error}
           </div>
         )}
@@ -101,7 +101,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
           {mode === "register" && (
             <div>
               <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
-                Votre Nom & Prénom
+                Nom &amp; Prénom
               </label>
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-3 text-[18px] text-on-surface-variant">
@@ -112,7 +112,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
                   placeholder="Ex: Kouamé Desiré"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full h-11 pl-9 pr-3 rounded-xl bg-surface-container border border-outline-variant/30 text-on-surface placeholder:text-outline text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full h-11 pl-9 pr-3 rounded-xl bg-surface-container border border-white/10 text-on-surface placeholder:text-on-surface-variant/40 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   required
                 />
               </div>
@@ -121,7 +121,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
 
           <div>
             <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
-              Numéro WhatsApp / Téléphone
+              Numéro WhatsApp
             </label>
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-3 text-[18px] text-secondary">
@@ -132,7 +132,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
                 placeholder="Ex: +225 07 12 34 56"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full h-11 pl-9 pr-3 rounded-xl bg-surface-container border border-outline-variant/30 text-on-surface placeholder:text-outline text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full h-11 pl-9 pr-3 rounded-xl bg-surface-container border border-white/10 text-on-surface placeholder:text-on-surface-variant/40 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 required
               />
             </div>
@@ -146,7 +146,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
               <select
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full h-11 px-3 rounded-xl bg-surface-container border border-outline-variant/30 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full h-11 px-3 rounded-xl bg-surface-container border border-white/10 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="Abidjan">Abidjan (Côte d'Ivoire)</option>
                 <option value="Ouagadougou">Ouagadougou (Burkina Faso)</option>
@@ -161,13 +161,13 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-12 rounded-xl bg-primary-container text-on-primary-container font-label-lg font-bold shadow-lg hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-xl bg-primary text-on-primary font-label-lg text-sm font-bold shadow-md hover:brightness-105 tap-scale transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
                 <span>Validation instantanée...</span>
               ) : mode === "register" ? (
                 <>
-                  <span>Activer mon Espace Client</span>
+                  <span>Activer mon Espace</span>
                   <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                 </>
               ) : (
@@ -180,8 +180,8 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
           </div>
         </form>
 
-        <p className="text-[11px] text-center text-outline leading-relaxed">
-          ⚡ Zéro mot de passe à mémoriser. Vos coordonnées sont utilisées exclusivement pour vos livraisons et discussions de commande.
+        <p className="text-[11px] text-center text-on-surface-variant/70 leading-relaxed">
+          🔒 Vos coordonnées sont protégées et servent uniquement à vos livraisons.
         </p>
       </div>
     </div>

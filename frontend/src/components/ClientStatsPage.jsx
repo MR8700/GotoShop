@@ -50,12 +50,12 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
     );
   }
 
-  const tierColor =
+  const tierBadge =
     stats?.loyalty_tier === "Gold VIP"
-      ? "from-amber-500/20 via-yellow-600/10 to-amber-900/20 border-amber-400/40 text-amber-300"
+      ? "bg-amber-500/15 text-amber-300 border-amber-400/30"
       : stats?.loyalty_tier === "Silver"
-      ? "from-slate-400/20 via-slate-500/10 to-slate-800/20 border-slate-300/40 text-slate-200"
-      : "from-amber-800/20 via-orange-950/10 to-stone-900/20 border-amber-700/40 text-amber-500";
+      ? "bg-slate-400/15 text-slate-200 border-slate-300/30"
+      : "bg-primary/15 text-primary border-primary/30";
 
   return (
     <div className="flex flex-col w-full gap-space-md max-w-lg mx-auto pb-32">
@@ -65,19 +65,17 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
           <h2 className="font-headline-sm text-headline-sm text-on-surface">Mes Avantages & Fidélité</h2>
           <p className="text-xs text-on-surface-variant">Espace Privilège Membre</p>
         </div>
-        <span className="px-3 py-1 rounded-full bg-secondary/15 text-secondary text-xs font-bold flex items-center gap-1">
+        <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 border ${tierBadge}`}>
           <span className="material-symbols-outlined text-[15px]">verified</span>
           {stats?.loyalty_tier || "Bronze"}
         </span>
       </div>
 
       {/* Digital Loyalty Card */}
-      <div
-        className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${tierColor} p-6 shadow-2xl border backdrop-blur-md space-y-4`}
-      >
+      <div className="relative overflow-hidden rounded-3xl bg-surface-container border border-primary/25 p-6 shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[24px]">workspace_premium</span>
+            <span className="material-symbols-outlined text-[24px] text-primary">workspace_premium</span>
             <span className="font-headline-sm text-xs font-bold uppercase tracking-widest text-on-surface">
               Awa Club Privilège
             </span>
@@ -101,7 +99,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
           </div>
           <div className="text-right">
             <span className="text-[11px] text-on-surface-variant uppercase font-semibold block">Statut</span>
-            <span className="text-sm font-bold text-secondary">{stats?.loyalty_tier || "Bronze"}</span>
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border inline-block ${tierBadge}`}>{stats?.loyalty_tier || "Bronze"}</span>
           </div>
         </div>
 
@@ -114,7 +112,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
             </div>
             <div className="w-full h-2 rounded-full bg-surface-container-highest overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-secondary to-primary rounded-full transition-all duration-500"
+                className="h-full bg-primary rounded-full transition-all duration-500"
                 style={{ width: `${stats.next_tier_progress}%` }}
               />
             </div>
@@ -265,7 +263,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
 
       <button
         onClick={onNavigateToShop}
-        className="w-full h-12 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md font-bold flex items-center justify-center gap-2 transition-colors active:scale-98"
+        className="w-full h-12 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md font-bold flex items-center justify-center gap-2 transition-colors tap-scale cursor-pointer"
       >
         <span className="material-symbols-outlined text-[18px]">storefront</span>
         <span>Continuer mes achats pour cumuler des points</span>

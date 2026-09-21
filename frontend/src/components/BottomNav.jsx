@@ -18,29 +18,31 @@ export default function BottomNav({ activeTab, onSelectTab, pendingCount = 0, mo
       ];
 
   return (
-    <nav className="fixed bottom-0 w-full z-50 pb-safe bg-surface/85 backdrop-blur-xl shadow-[0_-8px_24px_rgba(0,0,0,0.4)]">
-      <div className="flex justify-around items-center h-20 px-space-xs max-w-lg mx-auto">
+    <nav className="fixed bottom-0 w-full z-50 pb-safe bg-surface/90 backdrop-blur-xl border-t border-white/5 shadow-[0_-8px_24px_rgba(0,0,0,0.4)]">
+      <div className="flex justify-around items-center h-16 px-2 max-w-lg mx-auto">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => onSelectTab(tab.id)}
-              className={`flex flex-col items-center justify-center gap-1 w-16 h-14 rounded-xl transition-all duration-150 active:scale-95 ${
+              className={`flex flex-col items-center justify-center gap-0.5 w-16 h-12 rounded-xl transition-all duration-150 tap-scale cursor-pointer ${
                 isActive
-                  ? "text-primary-container bg-surface-container-high/60"
+                  ? "text-primary bg-primary/10 border border-primary/20 font-bold shadow-sm"
                   : "text-on-surface-variant hover:text-on-surface"
               }`}
             >
               <div className="relative flex items-center justify-center">
-                <span className="material-symbols-outlined text-[22px]">{tab.icon}</span>
+                <span className="material-symbols-outlined text-[21px]" style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}>
+                  {tab.icon}
+                </span>
                 {tab.badge && tab.badge > 0 ? (
-                  <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-primary-container text-on-primary-container font-label-sm text-[10px] font-bold leading-none">
+                  <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-primary text-surface font-label-sm text-[10px] font-bold leading-none">
                     {tab.badge}
                   </span>
                 ) : null}
               </div>
-              <span className="font-label-md text-label-md font-semibold tracking-tight">
+              <span className="text-[11px] font-medium tracking-tight">
                 {tab.label}
               </span>
             </button>
