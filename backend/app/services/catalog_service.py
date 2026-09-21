@@ -40,12 +40,39 @@ def save_base64_media(data_uri: str, prefix: str = "prod") -> Optional[str]:
         subfolder = "documents"
     else:
         subfolder = "products"
+
+    file_bytes = base64.b64decode(encoded)
+    mime_type = header.split(";")[0].replace("data:", "") if ";" in header else "application/octet-stream"
+
+    # 1. If Supabase is configured, upload directly to Supabase Storage (Vercel serverless compatible)
+    if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+        try:
+            import urllib.request
+            storage_path = f"{subfolder}/{filename}"
+            upload_url = f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/object/{settings.SUPABASE_BUCKET}/{storage_path}"
+            req = urllib.request.Request(
+                upload_url,
+                data=file_bytes,
+                headers={
+                    "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+                    "Content-Type": mime_type,
+                    "x-upsert": "true"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req) as resp:
+                if resp.status in (200, 201):
+                    return f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/object/public/{settings.SUPABASE_BUCKET}/{storage_path}"
+        except Exception as e:
+            print(f"[Supabase Storage] Upload notice: {e}. Falling back to local storage.")
+
+    # 2. Local fallback storage
     target_dir = settings.MEDIA_DIR / subfolder
     os.makedirs(target_dir, exist_ok=True)
     target_path = target_dir / filename
 
     with open(target_path, "wb") as f:
-        f.write(base64.b64decode(encoded))
+        f.write(file_bytes)
 
     return f"/media/{subfolder}/{filename}"
 

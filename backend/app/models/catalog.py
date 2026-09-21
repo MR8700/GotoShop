@@ -8,9 +8,9 @@ class Category(Base):
     __tablename__ = "categories"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False)
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
-    slug = Column(String(100), nullable=False)
+    slug = Column(String(100), nullable=False, index=True)
     display_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -22,10 +22,10 @@ class Product(Base):
     __tablename__ = "products"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False)
-    category_id = Column(String(36), ForeignKey("categories.id"), nullable=True)
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
+    category_id = Column(String(36), ForeignKey("categories.id"), nullable=True, index=True)
     name = Column(String(150), nullable=False)
-    slug = Column(String(150), nullable=False)
+    slug = Column(String(150), nullable=False, index=True)
     description = Column(Text, nullable=True)
     short_description = Column(String(255), nullable=True)
     price = Column(Integer, nullable=False)
@@ -33,7 +33,7 @@ class Product(Base):
     currency = Column(String(10), default="FCFA")
     stock = Column(Integer, default=5)
     stock_label = Column(String(100), nullable=True)
-    is_hero_deal = Column(Boolean, default=False)
+    is_hero_deal = Column(Boolean, default=False, index=True)
     badge_tag = Column(String(100), nullable=True)
     active_discussions_count = Column(Integer, default=0)
     views_count = Column(Integer, default=0)
@@ -43,9 +43,9 @@ class Product(Base):
     primary_image_url = Column(String(255), nullable=True)
     video_url = Column(String(255), nullable=True)
     pdf_catalog_url = Column(String(255), nullable=True)
-    is_published = Column(Boolean, default=True)
+    is_published = Column(Boolean, default=True, index=True)
     display_order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     store = relationship("Store", back_populates="products")

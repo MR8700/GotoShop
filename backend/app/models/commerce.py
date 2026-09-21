@@ -8,9 +8,9 @@ class OrderIntent(Base):
     __tablename__ = "order_intents"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    reference_code = Column(String(50), unique=True, nullable=False) # CMD-8F29A1
-    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False)
-    product_id = Column(String(36), ForeignKey("products.id"), nullable=False)
+    reference_code = Column(String(50), unique=True, nullable=False, index=True) # CMD-8F29A1
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
+    product_id = Column(String(36), ForeignKey("products.id"), nullable=False, index=True)
     channel_id = Column(String(36), ForeignKey("store_channels.id"), nullable=True)
     channel_type = Column(String(50), default="WHATSAPP") # WHATSAPP, MESSENGER, TIKTOK, CALL
     
@@ -21,8 +21,8 @@ class OrderIntent(Base):
     customer_location_url = Column(String(500), nullable=True) # https://maps.google.com/?q=5.3599,3.9920
     customer_coordinates = Column(String(100), nullable=True) # "5.3599, -3.9920"
     
-    # Customer Reference (linked if customer is registered/identified)
-    customer_id = Column(String(36), ForeignKey("customers.id"), nullable=True)
+    # Customer Reference (linked if customer is identified)
+    customer_id = Column(String(36), ForeignKey("customers.id"), nullable=True, index=True)
 
     # Order Specifics
     quantity = Column(Integer, default=1)
@@ -33,23 +33,21 @@ class OrderIntent(Base):
     currency = Column(String(10), default="FCFA")
     
     # Status: CREATED, REDIRECTED, PENDING_24H, SOLD, NOT_SOLD, CANCELLED
-    status = Column(String(50), default="CREATED")
+    status = Column(String(50), default="CREATED", index=True)
     is_urgent_followup = Column(Boolean, default=False)
     is_archived = Column(Boolean, default=False)
     
     # Client Feedback & Satisfaction: PENDING, SATISFIED, CANCELLED
-    client_status = Column(String(50), default="PENDING")
+    client_status = Column(String(50), default="PENDING", index=True)
     client_feedback = Column(String(255), nullable=True)
     client_satisfaction_rating = Column(Integer, nullable=True) # 1-5 stars
     client_action_at = Column(DateTime, nullable=True)
 
     # Arbitration & Coherence Engine
-    # HARMONIZED_PENDING, CLIENT_CONFIRMED_PENDING_MERCHANT, CONSOLIDATED_SALE, MERCHANT_CONFIRMED_CLIENT_PENDING,
-    # CLIENT_CANCELLED_EARLY, MUTUAL_ABANDON, DISCREPANCY_CONFLICT, DISCREPANCY_SURPRISE, MANUALLY_RESOLVED_SALE
-    coherence_status = Column(String(50), default="HARMONIZED_PENDING")
+    coherence_status = Column(String(50), default="HARMONIZED_PENDING", index=True)
     coherence_notes = Column(String(255), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
     redirected_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
