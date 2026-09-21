@@ -247,7 +247,7 @@ export default function VitrinePage({
       </section>
 
       {/* Horizontal Scrollable Category Pills */}
-      <nav className="relative -mx-margin px-margin flex items-center gap-space-xs overflow-x-auto pb-1 no-scrollbar">
+      <nav className="relative -mx-margin px-margin flex items-center gap-2 overflow-x-auto pb-2 scroll-smooth no-scrollbar touch-pan-x">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat.id || (!selectedCategory && cat.slug === "all");
           return (
@@ -255,11 +255,11 @@ export default function VitrinePage({
               key={cat.id}
               onClick={() => {
                 onSelectCategory(cat.slug === "all" ? null : cat.id);
-                showToast(`Catégorie filtrée : ${cat.name}`);
+                showToast(`Catégorie : ${cat.name}`);
               }}
-              className={`flex-shrink-0 px-4 py-2 rounded-full font-label-md text-label-md transition-all duration-150 ${
+              className={`flex-shrink-0 px-4 py-2 rounded-full font-label-md text-xs sm:text-sm font-semibold transition-all duration-150 active:scale-95 cursor-pointer whitespace-nowrap ${
                 isActive
-                  ? "bg-primary-container text-on-primary-container shadow-md"
+                  ? "bg-primary-container text-on-primary-container shadow-md font-bold ring-1 ring-primary/40"
                   : "bg-surface-container hover:bg-surface-container-high text-on-surface"
               }`}
             >
@@ -397,45 +397,71 @@ export default function VitrinePage({
       {/* Feed Title Strip */}
       <div className="flex items-center justify-between pt-space-xs">
         <div className="flex items-center gap-2">
-          <h3 className="font-headline-sm text-headline-sm text-on-surface">
+          <h3 className="font-headline-sm text-sm sm:text-base font-bold text-on-surface">
             {selectedCategory ? "Articles Sélectionnés" : "Coups de Cœur d'Awa"}
           </h3>
           <span className="flex h-2 w-2 rounded-full bg-secondary"></span>
         </div>
-        {products.length > 0 ? (
-          <span
+        {selectedCategory ? (
+          <button
             onClick={() => onSelectCategory(null)}
-            className="font-label-sm text-label-sm text-primary font-semibold cursor-pointer hover:underline"
+            className="font-label-sm text-xs text-primary font-bold hover:underline flex items-center gap-1"
           >
-            {selectedCategory ? "Voir tout le catalogue" : `Voir les ${products.length} articles`}
+            <span className="material-symbols-outlined text-[14px]">refresh</span>
+            <span>Toutes les catégories</span>
+          </button>
+        ) : products.length > 0 ? (
+          <span className="font-label-sm text-xs text-on-surface-variant font-medium">
+            {products.length} article(s)
           </span>
-        ) : (
-          <span
-            onClick={() => onSelectCategory(null)}
-            className="font-label-sm text-xs text-secondary font-semibold cursor-pointer hover:underline"
-          >
-            Réinitialiser le filtre
-          </span>
-        )}
+        ) : null}
       </div>
 
       {/* Product Grid / Feed Cards or Friendly Empty State */}
       {products.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-surface-container border border-white/5 text-center my-2 shadow-sm">
-          <div className="w-14 h-14 rounded-full bg-primary/15 text-primary flex items-center justify-center mb-3">
-            <span className="material-symbols-outlined text-[28px]">inventory_2</span>
+        <div className="flex flex-col items-center justify-center p-6 sm:p-8 rounded-2xl bg-surface-container border border-white/5 text-center my-2 shadow-sm space-y-3">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-primary/15 text-primary flex items-center justify-center">
+            <span className="material-symbols-outlined text-[26px]">
+              {selectedCategory ? "inventory_2" : "sentiment_satisfied"}
+            </span>
           </div>
-          <h4 className="font-headline-sm text-base text-on-surface font-bold">Aucun article dans cette sélection</h4>
-          <p className="font-body-sm text-xs text-on-surface-variant max-w-xs mt-1 mb-4">
-            Tous les articles vérifiés d'Awa sont visibles dans les autres catégories ou en cours de réapprovisionnement express.
-          </p>
-          <button
-            onClick={() => onSelectCategory(null)}
-            className="px-4 py-2.5 rounded-xl bg-primary text-surface font-label-md text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[16px]">apps</span>
-            Voir tous les articles d'Awa
-          </button>
+
+          <div className="space-y-1">
+            <h4 className="font-headline-sm text-sm sm:text-base text-on-surface font-bold">
+              {selectedCategory ? "Collection bientôt disponible" : "Merci pour votre fidélité ! ✨"}
+            </h4>
+            <p className="font-body-sm text-xs text-on-surface-variant max-w-xs mx-auto leading-relaxed">
+              {selectedCategory
+                ? "Les articles de cette sélection sont actuellement en cours de réapprovisionnement express par Awa."
+                : "Notre catalogue en ligne est en cours de mise à jour avec de nouveaux arrivages vérifiés."}
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 w-full max-w-xs">
+            {selectedCategory ? (
+              <button
+                onClick={() => onSelectCategory(null)}
+                className="w-full h-11 px-4 rounded-xl bg-primary text-surface font-label-md text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">apps</span>
+                <span>Voir les autres collections</span>
+              </button>
+            ) : null}
+
+            <button
+              onClick={() => {
+                showToast("Ouverture de la discussion avec Awa...");
+                const msg = selectedCategory
+                  ? "Bonjour Awa ! Avez-vous des articles disponibles dans cette catégorie ?"
+                  : "Bonjour Awa ! J'aimerais savoir quels sont vos prochains arrivages en boutique.";
+                window.open("https://wa.me/2250700000000?text=" + encodeURIComponent(msg), "_blank");
+              }}
+              className="w-full h-11 px-4 rounded-xl bg-secondary/15 hover:bg-secondary/25 text-secondary border border-secondary/30 font-label-md text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">chat</span>
+              <span>Demander à Awa sur WhatsApp</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-space-md">

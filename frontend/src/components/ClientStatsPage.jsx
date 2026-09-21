@@ -35,8 +35,8 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
           <h2 className="font-headline-sm text-headline-sm text-on-surface">
             Rejoignez le Club Privilège Awa
           </h2>
-          <p className="font-body-md text-on-surface-variant text-sm">
-            Cumulez des points de fidélité à chaque commande confirmée, profitez de remises flash exclusives et d'un traitement prioritaire.
+          <p className="font-body-md text-on-surface-variant text-sm leading-relaxed">
+            Merci pour votre fidélité ! ✨ Cumulez des points à chaque commande confirmée, profitez de remises flash exclusives et d'un traitement prioritaire.
           </p>
         </div>
         <button

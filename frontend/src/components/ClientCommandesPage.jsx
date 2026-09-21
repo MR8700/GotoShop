@@ -262,8 +262,8 @@ export default function ClientCommandesPage({
           </div>
           <div className="space-y-1">
             <h3 className="font-headline-sm text-headline-sm text-on-surface">Aucune commande pour l'instant</h3>
-            <p className="text-xs text-on-surface-variant">
-              Découvrez les créations et produits vérifiés d'Awa dans notre vitrine.
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              Merci pour votre fidélité ! ✨ Découvrez les créations et produits vérifiés d'Awa dans notre vitrine pour passer votre première commande.
             </p>
           </div>
           <button
