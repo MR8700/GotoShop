@@ -1,0 +1,597 @@
+import React, { useState, useEffect } from "react";
+import {
+  fetchCustomerOrders,
+  getMediaUrl,
+  getLocalGuestOrders,
+  updateLocalGuestOrder,
+  fetchBatchOrders,
+  recordClientOrderAction,
+} from "../api/client";
+
+export default function ClientCommandesPage({
+  customer,
+  onOpenAuth,
+  onNavigateToShop,
+  showToast,
+}) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Modals for satisfaction and cancellation
+  const [actionOrder, setActionOrder] = useState(null);
+  const [actionType, setActionType] = useState(null); // "SATISFY" | "CANCEL"
+  const [cancelReason, setCancelReason] = useState("Changement d'avis");
+  const [customReason, setCustomReason] = useState("");
+  const [rating, setRating] = useState(5);
+  const [feedbackNote, setFeedbackNote] = useState("");
+  const [submittingAction, setSubmittingAction] = useState(false);
+
+  useEffect(() => {
+    loadOrders();
+  }, [customer]);
+
+  const loadOrders = async () => {
+    setLoading(true);
+    try {
+      if (customer) {
+        // Authenticated customer: fetch orders from DB
+        const data = await fetchCustomerOrders();
+        setOrders(data);
+      } else {
+        // Guest mode: fetch orders from local storage
+        const local = getLocalGuestOrders();
+        if (local.length > 0) {
+          // Enrich with live backend database status
+          const ids = local.map((o) => o.id).filter(Boolean);
+          try {
+            const liveOrders = await fetchBatchOrders(ids);
+            if (liveOrders && liveOrders.length > 0) {
+              const liveMap = new Map(liveOrders.map((o) => [o.id, o]));
+              const merged = local.map((l) => {
+                const live = liveMap.get(l.id);
+                return live
+                  ? {
+                      ...l,
+                      status: live.status,
+                      client_status: live.client_status,
+                      client_feedback: live.client_feedback,
+                      client_satisfaction_rating: live.client_satisfaction_rating,
+                      coherence_status: live.coherence_status,
+                      coherence_notes: live.coherence_notes,
+                      is_sold: live.status === "SOLD",
+                      total_amount: live.total_amount,
+                    }
+                  : l;
+              });
+              setOrders(merged);
+              return;
+            }
+          } catch {}
+        }
+        setOrders(local);
+      }
+    } catch (err) {
+      showToast("Erreur lors du chargement des commandes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (isoStr) => {
+    try {
+      const d = new Date(isoStr);
+      return d.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return isoStr;
+    }
+  };
+
+  const handleOpenSatisfyModal = (order) => {
+    setActionOrder(order);
+    setActionType("SATISFY");
+    setRating(5);
+    setFeedbackNote("Produit reçu en parfait état, très satisfait(e) !");
+  };
+
+  const handleOpenCancelModal = (order) => {
+    setActionOrder(order);
+    setActionType("CANCEL");
+    setCancelReason("Changement d'avis");
+    setCustomReason("");
+  };
+
+  const handleSubmitAction = async () => {
+    if (!actionOrder) return;
+    setSubmittingAction(true);
+
+    try {
+      let reasonToSend = "";
+      if (actionType === "SATISFY") {
+        reasonToSend = feedbackNote.trim() || "Client très satisfait(e)";
+      } else {
+        reasonToSend = cancelReason === "Autre" ? (customReason.trim() || "Annulation client") : cancelReason;
+      }
+
+      const updatedIntent = await recordClientOrderAction(
+        actionOrder.id,
+        actionType,
+        reasonToSend,
+        rating
+      );
+
+      // Update local storage if guest
+      if (!customer) {
+        updateLocalGuestOrder(actionOrder.id, {
+          client_status: updatedIntent.client_status,
+          client_feedback: updatedIntent.client_feedback,
+          client_satisfaction_rating: updatedIntent.client_satisfaction_rating,
+          coherence_status: updatedIntent.coherence_status,
+          coherence_notes: updatedIntent.coherence_notes,
+          status: updatedIntent.status,
+        });
+      }
+
+      // Update UI state
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === actionOrder.id
+            ? {
+                ...o,
+                client_status: updatedIntent.client_status,
+                client_feedback: updatedIntent.client_feedback,
+                client_satisfaction_rating: updatedIntent.client_satisfaction_rating,
+                coherence_status: updatedIntent.coherence_status,
+                coherence_notes: updatedIntent.coherence_notes,
+                status: updatedIntent.status,
+              }
+            : o
+        )
+      );
+
+      if (actionType === "SATISFY") {
+        showToast("⭐ Merci ! Votre satisfaction a été transmise à la commerçante.");
+      } else {
+        showToast("❌ Commande annulée. La commerçante a été notifiée.");
+      }
+
+      setActionOrder(null);
+      setActionType(null);
+    } catch (err) {
+      showToast(err.message || "Erreur lors de l'action");
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const confirmedCount = orders.filter((o) => o.is_sold === true || o.status === "SOLD").length;
+  const satisfiedCount = orders.filter((o) => o.client_status === "SATISFIED").length;
+  const isGuest = !customer;
+
+  return (
+    <div className="flex flex-col w-full gap-space-md max-w-lg mx-auto pb-32">
+      {/* Header Profile Bar */}
+      <div className="flex items-center justify-between px-space-xs pt-1">
+        <div>
+          <h2 className="font-headline-sm text-headline-sm text-on-surface">
+            {isGuest ? "Mes Commandes (Mode Invité)" : "Mes Commandes"}
+          </h2>
+          <p className="text-xs text-on-surface-variant">
+            {isGuest ? (
+              <span>Commandes mémorisées sur cet appareil</span>
+            ) : (
+              <span>Commandes associées au <span className="text-secondary font-mono">{customer.phone}</span></span>
+            )}
+          </p>
+        </div>
+        <button
+          onClick={loadOrders}
+          className="w-9 h-9 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center transition-transform active:scale-95"
+          title="Actualiser"
+        >
+          <span className="material-symbols-outlined text-[18px]">refresh</span>
+        </button>
+      </div>
+
+      {/* Guest Smart Nudge Banner */}
+      {isGuest && (
+        <div className="rounded-2xl bg-gradient-to-r from-primary-container/30 via-primary-container/15 to-surface-container-high p-4 border border-primary/30 shadow-md flex flex-col gap-3">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary text-surface flex items-center justify-center shrink-0 shadow">
+              <span className="material-symbols-outlined text-[20px]">stars</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-headline-sm text-sm font-bold text-on-surface">
+                {orders.length > 0
+                  ? `⭐ Vous suivez ${orders.length} commande(s) en invité`
+                  : "Débloquez vos privilèges Awa Club"}
+              </h3>
+              <p className="text-xs text-on-surface-variant mt-0.5 leading-relaxed">
+                Inscrivez-vous en 3 secondes (Nom + WhatsApp) pour sécuriser vos commandes à vie, cumuler vos points fidélité et mémoriser votre GPS !
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenAuth}
+            className="w-full h-11 rounded-xl bg-primary text-surface font-label-md font-bold flex items-center justify-center gap-2 shadow hover:brightness-110 active:scale-98 transition-all"
+          >
+            <span className="material-symbols-outlined text-[18px]">bolt</span>
+            <span>Créer mon compte en 3 secondes</span>
+          </button>
+        </div>
+      )}
+
+      {/* Summary KPI Badges */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="p-3.5 rounded-xl bg-surface-container shadow-sm border border-white/5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[22px]">shopping_bag</span>
+          </div>
+          <div>
+            <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider">Total Passées</p>
+            <p className="text-lg font-bold text-on-surface tabular-nums">{orders.length}</p>
+          </div>
+        </div>
+        <div className="p-3.5 rounded-xl bg-surface-container shadow-sm border border-white/5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[22px]">verified</span>
+          </div>
+          <div>
+            <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider">Livrées / Satisfaites</p>
+            <p className="text-lg font-bold text-emerald-400 tabular-nums">
+              {Math.max(confirmedCount, satisfiedCount)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Orders List */}
+      {loading ? (
+        <div className="p-8 text-center text-on-surface-variant text-sm">
+          <span className="material-symbols-outlined animate-spin text-primary text-[28px] mb-2">sync</span>
+          <p>Chargement de vos commandes...</p>
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="rounded-2xl bg-surface-container p-8 text-center space-y-4 shadow-sm border border-white/5">
+          <div className="w-14 h-14 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center mx-auto">
+            <span className="material-symbols-outlined text-[28px]">production_quantity_limits</span>
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-headline-sm text-headline-sm text-on-surface">Aucune commande pour l'instant</h3>
+            <p className="text-xs text-on-surface-variant">
+              Découvrez les créations et produits vérifiés d'Awa dans notre vitrine.
+            </p>
+          </div>
+          <button
+            onClick={onNavigateToShop}
+            className="px-5 py-2.5 rounded-xl bg-primary-container text-on-primary-container font-label-md font-bold hover:brightness-110 active:scale-98 transition-all"
+          >
+            Explorer le Catalogue
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {orders.map((order) => {
+            const isConfirmedByMerchant = order.is_sold === true || order.status === "SOLD";
+            const isClientSatisfied = order.client_status === "SATISFIED";
+            const isClientCancelled = order.client_status === "CANCELLED" || order.status === "CANCELLED";
+            const hasConflict = order.coherence_status === "DISCREPANCY_CONFLICT";
+            const isMutualSale = order.coherence_status === "CONSOLIDATED_SALE" || (isConfirmedByMerchant && isClientSatisfied);
+
+            return (
+              <div
+                key={order.id}
+                className={`rounded-2xl bg-surface-container p-4 shadow-md border space-y-3 transition-all ${
+                  hasConflict
+                    ? "border-amber-500/50 bg-amber-500/5"
+                    : isMutualSale
+                    ? "border-emerald-500/40"
+                    : "border-white/5 hover:border-primary/30"
+                }`}
+              >
+                {/* Order Top Bar */}
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs font-bold text-secondary bg-secondary/15 px-2.5 py-0.5 rounded-full">
+                    #{order.reference_code}
+                  </span>
+                  <span className="text-[11px] text-on-surface-variant">
+                    {formatDate(order.created_at)}
+                  </span>
+                </div>
+
+                {/* Conflict Alert Banner if discrepancy exists */}
+                {hasConflict && (
+                  <div className="rounded-xl bg-amber-500/15 p-2.5 border border-amber-500/30 flex items-start gap-2 text-xs text-amber-300">
+                    <span className="material-symbols-outlined text-[18px] text-amber-400 shrink-0">warning</span>
+                    <div>
+                      <strong className="block font-semibold">Litige en cours de conciliation</strong>
+                      <span>
+                        Vous avez déclaré cette commande annulée, mais elle figurait comme conclue côté boutique. L'équipe Awa Chic régularise le dossier.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Product details */}
+                <div className="flex items-center gap-3">
+                  <img
+                    src={order.product_image_url ? getMediaUrl(order.product_image_url) : "/media/products/samsung_galaxy_a15.jpg"}
+                    alt={order.product_name}
+                    className="w-16 h-16 rounded-xl object-cover bg-surface-container-highest shrink-0 border border-white/10"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "/media/products/samsung_galaxy_a15.jpg";
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-headline-sm text-sm text-on-surface truncate font-bold">
+                      {order.product_name}
+                    </h4>
+                    <p className="text-xs text-on-surface-variant">
+                      Quantité : <span className="text-on-surface font-semibold">{order.quantity}</span>
+                      {order.selected_color && ` • ${order.selected_color}`}
+                    </p>
+                    <p className="text-sm font-bold text-primary tabular-nums mt-0.5">
+                      {order.total_amount?.toLocaleString("fr-FR")} {order.currency || "FCFA"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Status Badges & Explanations */}
+                <div className="flex flex-col gap-2 pt-1 border-t border-white/5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-on-surface-variant">État client :</span>
+                    {isClientSatisfied ? (
+                      <span className="flex items-center gap-1 text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                        <span className="material-symbols-outlined text-[14px]">thumb_up</span>
+                        Satisfait(e) ({order.client_satisfaction_rating || 5}★)
+                      </span>
+                    ) : isClientCancelled ? (
+                      <span className="flex items-center gap-1 text-rose-400 font-bold bg-rose-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                        <span className="material-symbols-outlined text-[14px]">cancel</span>
+                        Annulée par vous
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-amber-400 font-semibold bg-amber-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                        <span className="material-symbols-outlined text-[14px]">schedule</span>
+                        En attente de votre retour
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-on-surface-variant">Suivi boutique :</span>
+                    {isMutualSale ? (
+                      <span className="flex items-center gap-1 text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                        <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                        Vente 100% Consolidée
+                      </span>
+                    ) : isConfirmedByMerchant ? (
+                      <span className="flex items-center gap-1 text-emerald-400 font-semibold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                        <span className="material-symbols-outlined text-[14px]">local_shipping</span>
+                        Validé &amp; Expédié par Awa
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-on-surface-variant font-medium bg-surface-container-high px-2 py-0.5 rounded-full text-[11px]">
+                        <span className="material-symbols-outlined text-[14px]">chat</span>
+                        Discussion en cours
+                      </span>
+                    )}
+                  </div>
+
+                  {order.delivery_city && (
+                    <div className="flex items-center justify-between text-xs text-on-surface-variant">
+                      <span>Destination :</span>
+                      <span className="text-on-surface font-medium">{order.delivery_city}</span>
+                    </div>
+                  )}
+
+                  {order.customer_location_url && (
+                    <div className="flex items-center justify-between text-xs text-on-surface-variant">
+                      <span>Localisation transmise :</span>
+                      <a
+                        href={order.customer_location_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-secondary hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">pin_drop</span>
+                        Google Maps
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                {/* Client Action Buttons (Annuler ou Marquer Satisfait) */}
+                {!isClientSatisfied && !isClientCancelled && (
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenSatisfyModal(order)}
+                      className="h-10 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-label-sm font-bold flex items-center justify-center gap-1.5 transition-all active:scale-98 border border-emerald-500/30"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">thumb_up</span>
+                      <span>Marquer Satisfait(e)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCancelModal(order)}
+                      className="h-10 rounded-xl bg-surface-container-highest hover:bg-rose-500/20 text-on-surface-variant hover:text-rose-400 font-label-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-98 border border-white/5 hover:border-rose-500/30"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">close</span>
+                      <span>Annuler Commande</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Contact button */}
+                <a
+                  href={order.redirect_url || `https://wa.me/2250700000000?text=Bonjour%20Awa,%20suivi%20de%20ma%20commande%20${order.reference_code}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full h-10 rounded-xl bg-secondary/15 hover:bg-secondary/25 text-secondary font-label-md font-bold flex items-center justify-center gap-2 transition-colors active:scale-98"
+                >
+                  <span className="material-symbols-outlined text-[18px]">chat</span>
+                  <span>Relancer Awa sur WhatsApp</span>
+                </a>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Satisfaction Modal */}
+      {actionType === "SATISFY" && actionOrder && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="rounded-2xl bg-surface-container-high border border-white/10 p-6 max-w-sm w-full space-y-4 shadow-2xl animate-fadeIn">
+            <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+              <span className="material-symbols-outlined text-[32px]">thumb_up</span>
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="font-headline-sm text-lg font-bold text-on-surface">
+                Confirmer votre satisfaction
+              </h3>
+              <p className="text-xs text-on-surface-variant">
+                Commande #{actionOrder.reference_code} • {actionOrder.product_name}
+              </p>
+            </div>
+
+            {/* Star selector */}
+            <div className="flex items-center justify-center gap-2 py-2">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setRating(s)}
+                  className={`text-[28px] transition-transform active:scale-125 ${
+                    s <= rating ? "text-amber-400" : "text-on-surface-variant opacity-40"
+                  }`}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+
+            {/* Note */}
+            <div>
+              <label className="block text-xs font-semibold text-on-surface-variant mb-1">
+                Votre commentaire (optionnel) :
+              </label>
+              <textarea
+                rows={2}
+                value={feedbackNote}
+                onChange={(e) => setFeedbackNote(e.target.value)}
+                placeholder="Qualité du produit, rapidité de livraison..."
+                className="w-full rounded-xl bg-surface-container border border-white/10 p-2.5 text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActionType(null);
+                  setActionOrder(null);
+                }}
+                className="h-11 rounded-xl bg-surface-container hover:bg-surface-container-highest text-on-surface-variant font-label-md font-semibold transition-colors"
+              >
+                Fermer
+              </button>
+              <button
+                type="button"
+                disabled={submittingAction}
+                onClick={handleSubmitAction}
+                className="h-11 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-surface font-label-md font-bold transition-all shadow-md active:scale-98"
+              >
+                {submittingAction ? "Envoi..." : "Valider (5★)"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Modal */}
+      {actionType === "CANCEL" && actionOrder && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="rounded-2xl bg-surface-container-high border border-white/10 p-6 max-w-sm w-full space-y-4 shadow-2xl animate-fadeIn">
+            <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+              <span className="material-symbols-outlined text-[32px]">cancel</span>
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="font-headline-sm text-lg font-bold text-on-surface">
+                Annuler la commande ?
+              </h3>
+              <p className="text-xs text-on-surface-variant">
+                Réf: #{actionOrder.reference_code} • {actionOrder.product_name}
+              </p>
+            </div>
+
+            {/* Reason selector */}
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-on-surface-variant">
+                Motif d'annulation :
+              </label>
+              {[
+                "Changement d'avis",
+                "Délai de livraison trop long",
+                "Prix ou frais non convenus",
+                "Acheté ailleurs",
+                "Autre",
+              ].map((r) => (
+                <label
+                  key={r}
+                  onClick={() => setCancelReason(r)}
+                  className={`flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer border transition-colors ${
+                    cancelReason === r
+                      ? "bg-rose-500/15 border-rose-500/40 text-on-surface font-semibold"
+                      : "bg-surface-container border-white/5 text-on-surface-variant hover:bg-surface-container-highest"
+                  }`}
+                >
+                  <span>{r}</span>
+                  {cancelReason === r && (
+                    <span className="material-symbols-outlined text-rose-400 text-[16px]">check</span>
+                  )}
+                </label>
+              ))}
+
+              {cancelReason === "Autre" && (
+                <input
+                  type="text"
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  placeholder="Précisez votre motif..."
+                  className="w-full rounded-xl bg-surface-container border border-white/10 p-2.5 text-xs text-on-surface mt-1 focus:outline-none focus:border-rose-400"
+                />
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActionType(null);
+                  setActionOrder(null);
+                }}
+                className="h-11 rounded-xl bg-surface-container hover:bg-surface-container-highest text-on-surface-variant font-label-md font-semibold transition-colors"
+              >
+                Garder la commande
+              </button>
+              <button
+                type="button"
+                disabled={submittingAction}
+                onClick={handleSubmitAction}
+                className="h-11 rounded-xl bg-rose-500 hover:bg-rose-600 text-surface font-label-md font-bold transition-all shadow-md active:scale-98"
+              >
+                {submittingAction ? "Annulation..." : "Confirmer l'annulation"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "on-error": "#690005", "on-secondary-fixed-variant": "#005236", "outline": "#ab8982", "surface-container-lowest": "#0a0e18", "on-secondary": "#003824", "primary-container": "#ff5733", "inverse-surface": "#dfe2f1", "surface-container-highest": "#313540", "on-tertiary-fixed": "#07006c", "on-secondary-fixed": "#002113", "secondary": "#4edea3", "secondary-fixed": "#6ffbbe", "inverse-primary": "#b72301", "on-primary-container": "#580c00", "surface-variant": "#313540", "on-secondary-container": "#00311f", "on-surface": "#dfe2f1", "error-container": "#93000a", "surface": "#0f131d", "on-tertiary-container": "#0d0097", "primary-fixed-dim": "#ffb4a4", "tertiary-fixed": "#e1e0ff", "on-background": "#dfe2f1", "on-primary": "#630e00", "inverse-on-surface": "#2c303b", "primary-fixed": "#ffdad3", "on-primary-fixed-variant": "#8c1800", "outline-variant": "#5b403a", "tertiary-fixed-dim": "#c0c1ff", "surface-container-high": "#262a35", "error": "#ffb4ab", "surface-container": "#1c1f2a", "on-primary-fixed": "#3d0600", "on-surface-variant": "#e4beb6", "on-error-container": "#ffdad6", "surface-tint": "#ffb4a4", "tertiary-container": "#8084ff", "background": "#0f131d", "secondary-fixed-dim": "#4edea3", "tertiary": "#c0c1ff", "on-tertiary": "#1000a9", "primary": "#ffb4a4", "surface-container-low": "#171b26", "on-tertiary-fixed-variant": "#2f2ebe", "surface-bright": "#353944", "surface-dim": "#0f131d", "secondary-container": "#00a572" }, borderRadius: { DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px" }, spacing: { "space-sm": "0.5rem", "margin": "1rem", "space-xl": "2.5rem", "margin-desktop": "3rem", "space-md": "1rem", "space-xs": "0.25rem", "space-lg": "1.5rem", "gutter-desktop": "1.5rem", "gutter": "1rem" }, fontFamily: { "headline-xl": ["Space Grotesk"], "headline-sm": ["Space Grotesk"], "headline-lg": ["Space Grotesk"], "headline-lg-mobile": ["Space Grotesk"], "body-sm": ["Plus Jakarta Sans"], "currency-display": ["Space Grotesk"], "label-sm": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "headline-xl-mobile": ["Space Grotesk"], "body-lg": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "headline-md": ["Space Grotesk"] }, fontSize: { "headline-xl": ["44px", { lineHeight: "52px", fontWeight: "700" }], "headline-sm": ["18px", { lineHeight: "24px", fontWeight: "600" }], "headline-lg": ["32px", { lineHeight: "38px", fontWeight: "700" }], "headline-lg-mobile": ["26px", { lineHeight: "32px", fontWeight: "700" }], "body-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }], "currency-display": ["28px", { lineHeight: "32px", fontWeight: "700" }], "label-sm": ["10px", { lineHeight: "12px", fontWeight: "700" }], "label-lg": ["15px", { lineHeight: "20px", fontWeight: "700" }], "label-md": ["12px", { lineHeight: "16px", fontWeight: "600" }], "headline-xl-mobile": ["34px", { lineHeight: "40px", fontWeight: "700" }], "body-lg": ["16px", { lineHeight: "24px", fontWeight: "500" }], "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }], "headline-md": ["22px", { lineHeight: "28px", fontWeight: "600" }] } } } };</script><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#0f131d;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style></head><body class="bg-surface font-body-md text-on-surface flex flex-col min-h-screen antialiased selection:bg-primary-container selection:text-on-primary-container"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm min-w-0"><img alt="Boutique Logo" class="h-8 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVjlmf8qBb0yOyO2yC6bLe8Z72nKBy7zjX4VFTPlAFraT0qCvIz1PcFm1UuzDz7FmYGb5MKvpy1wsS3NdFeids8wZVMM0EjSFqQ07eB9AQY7K0rdww3gIBwwLf-siZ6LPoculYhd8CoPSCOpZukjiSnahPZeQiMsqiuapXFay2PZ6Vt_9kPFMPGGKkFc48oHcteDhH2w9XvAOACemQbH8AfWEinCJromO5qmYsTRvhf4XqBXetm58_hA"/><div class="flex flex-col min-w-0"><div class="flex items-center gap-space-xs"><span class="font-headline-sm text-headline-sm text-on-surface truncate">Boutique</span><span class="px-2 py-0.5 rounded-full bg-secondary/15 text-secondary font-label-sm text-label-sm tracking-wide uppercase flex items-center gap-1 flex-shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>WA/FB</span></div><div class="flex items-center gap-space-xs text-on-surface-variant font-body-sm text-body-sm"><span class="material-symbols-outlined text-[13px] text-secondary">bolt</span><span class="truncate">Tunnel Social Actif</span></div></div></div><div class="flex items-center gap-space-xs flex-shrink-0"><button aria-label="Partager le catalogue" class="w-11 h-11 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-primary flex items-center justify-center transition-transform active:scale-95"><span class="material-symbols-outlined text-[20px]">share</span></button><div class="relative flex items-center justify-center"><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-surface-variant" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCT0UuGRtZh8iRAOLj1ADtNeF9lS7wIRB1JZDQWjHc8okOQcAwVV8I4b-bpm8GOvIwB1OgfRebdSBbjq39kC4oE7nWEudnbcbrmEAeAHcOLAztGEEcRHDr17bHjguSwTxFHabF7Jt7O_EYbvaqJ-DFr919J3014sCQf77z-xcqbkkCRzZnZtOVQ9kb-IqRQ5Ms_gakfSJbg6m0FShlqbCsgX_uIz8paFMO0g26YkBxwK59YspwYGWg5xQ"/><span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-secondary ring-2 ring-surface"></span></div></div></div></header><main class="flex flex-col relative w-full pt-16 pb-28 px-margin bg-surface flex-grow"><div class="flex flex-col w-full gap-space-md">
+<!-- Sticky/Floating Top Flash Promo Pill -->
+<div class="sticky top-2 z-30 w-full">
+<div class="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary-container via-surface-container-high to-surface-container-low p-[1px] shadow-xl">
+<div class="relative flex items-center justify-between gap-space-xs rounded-xl bg-surface-container-high/90 px-space-sm py-2 backdrop-blur-md">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-container text-on-primary-container font-bold animate-bounce text-sm">
+            ⚡
+          </span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-primary truncate font-bold">Vente Flash Express</span>
+<span class="font-body-sm text-body-sm text-on-surface truncate">Ouaga &amp; Abidjan • Envoi sous 2h chrono</span>
+</div>
+</div>
+<div class="flex items-center gap-1 flex-shrink-0 bg-surface-container-highest px-2 py-1 rounded-full">
+<span class="material-symbols-outlined text-primary text-[14px]">timer</span>
+<span class="font-headline-sm text-[12px] font-bold text-primary tabular-nums" id="countdown">04:18:22</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Merchant Identity & Trust Badge Card -->
+<section class="rounded-xl bg-surface-container p-space-md shadow-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex gap-space-sm items-center">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover shadow-md" data-alt="High quality portrait of Awa, a stylish and confident West African female entrepreneur wearing contemporary chic attire and warm smile in modern Abidjan boutique environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCP4In_s_p32Px3BosUNcC1S2xBv59MWW4xjRCghpKltHpy50IMfFj-SHdjyT8LTKdyMjClRwFz6hTHOGUpF_3VE4XP1zVaBkE-Aof855JVKfYlZhw6DjLgUl1MTuJMotUGzQ2WW0F9m1uKiCJNqHGcNyWMUiisjAVFg_YzDWsz5NpzzVH0NnGG25i6rh-FrBlzBlF44UUhx3PcV63UI_difXL8OfEicp2cEQrfyDQXL_5R5AlUJ5SRsw"/>
+<span class="absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-surface text-[10px] font-bold">
+<span class="material-symbols-outlined text-[11px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1">
+<h1 class="font-headline-sm text-headline-sm text-on-surface">Awa Chic &amp; Tech</h1>
+<span class="material-symbols-outlined text-secondary text-[18px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Prêt-à-porter haut de gamme &amp; High-Tech vérifié</span>
+<div class="mt-1 flex items-center gap-1.5">
+<span class="flex items-center text-amber-400 font-label-md text-label-md font-bold">
+              ★ 4.9
+            </span>
+<span class="text-on-surface-variant font-label-sm text-label-sm">• 342 commandes conclues</span>
+</div>
+</div>
+</div>
+<button aria-label="WhatsApp Contact" class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container-highest text-secondary hover:scale-105 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]">chat</span>
+</button>
+</div>
+<!-- Trust Badges Strip -->
+<div class="mt-space-sm grid grid-cols-3 gap-space-xs pt-space-xs">
+<div class="flex flex-col items-center rounded-lg bg-surface-container-low py-2 px-1 text-center">
+<span class="material-symbols-outlined text-secondary text-[16px]">local_shipping</span>
+<span class="font-label-sm text-[10px] text-on-surface font-semibold mt-0.5">Paiement Réception</span>
+</div>
+<div class="flex flex-col items-center rounded-lg bg-surface-container-low py-2 px-1 text-center">
+<span class="material-symbols-outlined text-primary text-[16px]">verified_user</span>
+<span class="font-label-sm text-[10px] text-on-surface font-semibold mt-0.5">100% Authentique</span>
+</div>
+<div class="flex flex-col items-center rounded-lg bg-surface-container-low py-2 px-1 text-center">
+<span class="material-symbols-outlined text-secondary-fixed text-[16px]">swap_horizontal_circle</span>
+<span class="font-label-sm text-[10px] text-on-surface font-semibold mt-0.5">Échange 48h</span>
+</div>
+</div>
+</section>
+<!-- Horizontal Scrollable Category Pills -->
+<nav class="relative -mx-margin px-margin flex items-center gap-space-xs overflow-x-auto pb-1 no-scrollbar">
+<button class="category-pill active flex-shrink-0 px-4 py-2 rounded-full font-label-md text-label-md transition-all duration-150 bg-primary-container text-on-primary-container shadow-md">
+      Tout
+    </button>
+<button class="category-pill flex-shrink-0 px-4 py-2 rounded-full font-label-md text-label-md transition-all duration-150 bg-surface-container hover:bg-surface-container-high text-on-surface">
+      Robes Ankara
+    </button>
+<button class="category-pill flex-shrink-0 px-4 py-2 rounded-full font-label-md text-label-md transition-all duration-150 bg-surface-container hover:bg-surface-container-high text-on-surface">
+      Smartphones &amp; Accessoires
+    </button>
+<button class="category-pill flex-shrink-0 px-4 py-2 rounded-full font-label-md text-label-md transition-all duration-150 bg-surface-container hover:bg-surface-container-high text-on-surface">
+      Bijoux &amp; Parfums
+    </button>
+<button class="category-pill flex-shrink-0 px-4 py-2 rounded-full font-label-md text-label-md transition-all duration-150 bg-surface-container hover:bg-surface-container-high text-on-surface">
+      Packs Promo
+    </button>
+</nav>
+<!-- Featured Hero Deal Card: Samsung Galaxy A15 -->
+<section class="relative overflow-hidden rounded-xl bg-surface-container p-space-md shadow-xl">
+<div class="absolute -top-12 -right-12 h-44 w-44 rounded-full bg-primary-container/20 blur-3xl pointer-events-none"></div>
+<div class="relative flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="px-2.5 py-0.5 rounded-full bg-primary-container text-on-primary-container font-label-sm text-label-sm uppercase tracking-wider font-bold">
+          Top Vente High-Tech
+        </span>
+<div class="flex items-center gap-1 text-secondary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">forum</span>
+<span>24 en discussion active</span>
+</div>
+</div>
+<!-- Hero Visual Aspect Container -->
+<div class="relative w-full h-56 rounded-lg overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover" data-alt="Brand new modern Samsung Galaxy A15 smartphone in sleek deep blue and glossy finishes displayed in aesthetic studio lighting with packaging and accessories West African tech vibe" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAdZJXayvnx8CQRANM6roZv5GB3Z17xdgxGN9y_5edy6sfIhWZ_2bzlTZZCEXXTL9dfmyJ8CoUzXo_hhsC1ziyOj4yLiFCz5joRE7Ye0G3zJhTa5zrwV1Hl5dKDPI2BQT2-hhavmAhMec-wJ6KrOC25y5VZuTLsNk6RtChpmbosMvzd1rghTpx6M1xC_9nyPnMJRJa16juQC2I-AbZgSt-68nPKa5H1PA_fNLfCHEJUPUNVaiKQgIRQrg"/>
+<div class="absolute top-2 left-2 rounded-full bg-surface-container-lowest/80 backdrop-blur-md px-2.5 py-1 text-on-surface font-label-sm text-label-sm flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+          Stock Abidjan &amp; Ouaga
+        </div>
+<div class="absolute bottom-2 right-2 rounded-lg bg-surface/90 backdrop-blur-md px-2 py-1 text-on-surface font-label-sm text-[11px] font-semibold">
+          Garantie 12 Mois
+        </div>
+</div>
+<!-- Details -->
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">Samsung Galaxy A15 128Go</h2>
+<span class="rounded-full bg-error-container/25 text-error font-label-sm text-[10px] px-2 py-0.5 uppercase font-bold">Plus que 3 en stock !</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Écran Super AMOLED 90Hz, Caméra 50MP, Batterie 5000mAh, Double SIM 4G.</p>
+<!-- Variants Chips -->
+<div class="flex items-center gap-2 mt-1">
+<span class="font-label-sm text-on-surface-variant text-[11px]">Coloris :</span>
+<button class="px-2 py-0.5 rounded-md bg-surface-container-highest text-on-surface font-label-sm text-[11px] font-medium active:scale-95">Bleu Nuit</button>
+<button class="px-2 py-0.5 rounded-md bg-surface-container-low text-on-surface-variant font-label-sm text-[11px] font-medium active:scale-95">Noir Chic</button>
+<button class="px-2 py-0.5 rounded-md bg-surface-container-low text-on-surface-variant font-label-sm text-[11px] font-medium active:scale-95">Bleu Ciel</button>
+</div>
+<!-- Pricing with Discount -->
+<div class="flex items-baseline gap-2 mt-2">
+<span class="font-headline-lg-mobile text-headline-lg-mobile text-primary font-bold">85 000 FCFA</span>
+<span class="font-body-sm text-body-sm text-outline line-through">98 000 FCFA</span>
+<span class="rounded-full bg-secondary/15 text-secondary font-label-sm text-[10px] px-1.5 py-0.2 font-bold">-13%</span>
+</div>
+</div>
+<!-- Instant CTA Button -->
+<button class="whatsapp-order-btn mt-space-xs flex items-center justify-between w-full h-14 px-space-md rounded-xl bg-primary-container text-on-primary-container font-label-lg text-label-lg shadow-lg hover:brightness-110 active:scale-98 transition-all" data-price="85000" data-product="Samsung Galaxy A15 128Go">
+<span class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[22px]">shopping_bag</span>
+<span>Commander sur WhatsApp</span>
+</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</div>
+</section>
+<!-- Feed Title Strip -->
+<div class="flex items-center justify-between pt-space-xs">
+<div class="flex items-center gap-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Coups de Cœur d'Awa</h3>
+<span class="flex h-2 w-2 rounded-full bg-secondary"></span>
+</div>
+<span class="font-label-sm text-label-sm text-primary font-semibold cursor-pointer">Voir les 48 articles</span>
+</div>
+<!-- Product Grid / Feed Cards -->
+<div class="grid grid-cols-1 gap-space-md">
+<!-- Product Card 1: Robe Ankara Prestige -->
+<article class="relative overflow-hidden rounded-xl bg-surface-container shadow-md flex flex-col">
+<div class="relative w-full h-64 bg-surface-container-low">
+<img class="w-full h-full object-cover" data-alt="Gorgeous elegant African wax Ankara wrap dress in vivid royal blue and warm marigold floral patterns modelled by stunning West African woman in daylight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5jQ5euuPHZ6zoXojzwlJSjmIvRgy07pRRQ_CD9krwOClIOTIMZkiyShaFL0_ePe1S91POZGXOQjuQvftSANJZz6EIJKPIAeC1wjWY_6WKmcxx4iOngZeJhVWqRnf4RYMunNbTLkPx2oU6XvN_pn1pEGvbk5OhO5NJofVHPU9pQ0HCCZIIcJHXzMgqWS7HUlUfuS8SQTseC26owp80U1ojW0v7_KTcqoXafQ8j79gKLJUaEqpVCC3vfQ"/>
+<div class="absolute top-3 left-3 flex flex-col gap-1">
+<span class="px-2 py-0.5 rounded-full bg-surface-container-lowest/80 backdrop-blur-md text-secondary font-label-sm text-label-sm font-bold uppercase">
+            Création Originale
+          </span>
+</div>
+<button aria-label="Ajouter aux favoris" class="absolute top-3 right-3 h-8 w-8 rounded-full bg-surface-container-lowest/70 backdrop-blur-md text-on-surface flex items-center justify-center hover:text-error active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<!-- Social Proof Floating Pill -->
+<div class="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-lg bg-surface/85 backdrop-blur-md px-3 py-1.5 text-on-surface">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-secondary text-[16px]">chat_bubble</span>
+<span class="font-label-sm text-label-sm">18 personnes discutent de cet article</span>
+</div>
+<span class="font-label-sm text-error font-bold">Reste 2</span>
+</div>
+</div>
+<div class="p-space-md flex flex-col gap-space-xs">
+<div class="flex items-start justify-between gap-2">
+<div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Robe Ankara "Reine Sika" Évasée</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Tissu 100% Coton Wax hollandais véritable, coupe princesse ajustable (Tailles M à XXL).</p>
+</div>
+</div>
+<!-- Price & Action -->
+<div class="flex items-center justify-between pt-1">
+<div class="flex flex-col">
+<span class="font-headline-md text-headline-md text-on-surface font-bold">25 000 FCFA</span>
+<span class="font-body-sm text-[11px] text-outline line-through">30 000 FCFA</span>
+</div>
+<button class="add-to-cart-btn px-4 py-2 rounded-lg bg-surface-container-highest text-secondary hover:bg-secondary hover:text-on-secondary font-label-md text-label-md font-bold transition-all active:scale-95 flex items-center gap-1" data-id="robe-sika" data-name="Robe Ankara Reine Sika" data-price="25000">
+<span class="material-symbols-outlined text-[18px]">add</span>
+            Ajouter
+          </button>
+</div>
+<button class="whatsapp-order-btn mt-2 flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-secondary-container text-on-secondary font-label-lg text-label-lg font-bold shadow-md hover:brightness-105 active:scale-98 transition-all" data-price="25000" data-product="Robe Ankara Reine Sika">
+<span class="material-symbols-outlined text-[20px]">send</span>
+<span>Discuter / Commander direct</span>
+</button>
+</div>
+</article>
+<!-- Product Card 2: Ensemble Parure Royale & Écouteurs Pro -->
+<article class="relative overflow-hidden rounded-xl bg-surface-container shadow-md flex flex-col">
+<div class="relative w-full h-64 bg-surface-container-low">
+<img class="w-full h-full object-cover" data-alt="Sophisticated artisanal handcrafted gold-plated necklace set paired with modern white wireless bluetooth earbuds in sleek magnetic case minimalist luxury product arrangement" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDeas_zITMRRc44hsWPWOgI76gi_ViYqQ8M2x-aqCIYQ9Qf5saGSpmKKGRCKql_pk1CorI-RMGnf5nnAFKpgWHnCWyP6TcQB6KlziRARFfsVYE8U5p9JJ1zAjHZBOwOT1Mp1D0JyDjPAwu8lHipf-qTLGilVKNOJOjWrjbAL7RmsrY89rKhngk4SNcdiOZY-rqYMQ7QoLENWCtZSKxNnJrAFgTtE9wZH8xd7_0dEYA2p32Hemc9MepZBw"/>
+<div class="absolute top-3 left-3 flex flex-col gap-1">
+<span class="px-2 py-0.5 rounded-full bg-primary-container text-on-primary-container font-label-sm text-label-sm font-bold uppercase">
+            Pack Duo Cadeau
+          </span>
+</div>
+<button aria-label="Ajouter aux favoris" class="absolute top-3 right-3 h-8 w-8 rounded-full bg-surface-container-lowest/70 backdrop-blur-md text-on-surface flex items-center justify-center hover:text-error active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<div class="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-lg bg-surface/85 backdrop-blur-md px-3 py-1.5 text-on-surface">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-secondary text-[16px]">visibility</span>
+<span class="font-label-sm text-label-sm">41 vues depuis ce matin</span>
+</div>
+<span class="font-label-sm text-secondary font-bold">En Stock</span>
+</div>
+</div>
+<div class="p-space-md flex flex-col gap-space-xs">
+<div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Coffret Chic : Parure Or 18k + Écouteurs ANC</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">L'alliance parfaite de l'élégance et du son haute fidélité. Idéal pour offrir.</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex flex-col">
+<span class="font-headline-md text-headline-md text-on-surface font-bold">35 000 FCFA</span>
+<span class="font-body-sm text-[11px] text-outline line-through">45 000 FCFA</span>
+</div>
+<button class="add-to-cart-btn px-4 py-2 rounded-lg bg-surface-container-highest text-secondary hover:bg-secondary hover:text-on-secondary font-label-md text-label-md font-bold transition-all active:scale-95 flex items-center gap-1" data-id="pack-duo" data-name="Coffret Chic Parure &amp; Écouteurs" data-price="35000">
+<span class="material-symbols-outlined text-[18px]">add</span>
+            Ajouter
+          </button>
+</div>
+<button class="whatsapp-order-btn mt-2 flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-secondary-container text-on-secondary font-label-lg text-label-lg font-bold shadow-md hover:brightness-105 active:scale-98 transition-all" data-price="35000" data-product="Coffret Chic Parure &amp; Écouteurs">
+<span class="material-symbols-outlined text-[20px]">send</span>
+<span>Discuter / Commander direct</span>
+</button>
+</div>
+</article>
+<!-- Product Card 3: Ensemble Ankara Tailleur Moderne -->
+<article class="relative overflow-hidden rounded-xl bg-surface-container shadow-md flex flex-col">
+<div class="relative w-full h-64 bg-surface-container-low">
+<img class="w-full h-full object-cover" data-alt="Modern tailored African print Ankara blazer suit in earthy terracotta and teal green colors worn by stylish model in urban modern studio background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC96a7vM7Ps2vF-i3Niy_nlHzMPV5Ec6mZJPeNc-lrPA-jdZvzV7xZgK4tk_WiuBvcQoNqpbAeECIJoir3w5Bm0aORnzd6l3sQb53vglVKBevDyLAULrYG8CGWD-BzQiZFnbvlJM2yDDfvl9HVoBXJ9z-qoaNyvJFL2U77jFilLzjRwXd79-_b7qWM4ZS8LHeCbftMa8GNpwEbQA5A0A17qp0_I-sUm14621s5wsNQdfyTcMFqlvBAjig"/>
+<div class="absolute top-3 left-3 flex flex-col gap-1">
+<span class="px-2 py-0.5 rounded-full bg-surface-container-lowest/80 backdrop-blur-md text-primary font-label-sm text-label-sm font-bold uppercase">
+            Édition Limitée
+          </span>
+</div>
+<button aria-label="Ajouter aux favoris" class="absolute top-3 right-3 h-8 w-8 rounded-full bg-surface-container-lowest/70 backdrop-blur-md text-on-surface flex items-center justify-center hover:text-error active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<div class="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-lg bg-surface/85 backdrop-blur-md px-3 py-1.5 text-on-surface">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-secondary text-[16px]">chat_bubble</span>
+<span class="font-label-sm text-label-sm">11 personnes en direct</span>
+</div>
+<span class="font-label-sm text-error font-bold">Plus que 1 !</span>
+</div>
+</div>
+<div class="p-space-md flex flex-col gap-space-xs">
+<div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Tailleur Veste Ankara "Babi Boss"</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Coupe contemporaine cintrée, finitions doublées en satin, col velours élégant.</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex flex-col">
+<span class="font-headline-md text-headline-md text-on-surface font-bold">32 000 FCFA</span>
+<span class="font-body-sm text-[11px] text-outline line-through">40 000 FCFA</span>
+</div>
+<button class="add-to-cart-btn px-4 py-2 rounded-lg bg-surface-container-highest text-secondary hover:bg-secondary hover:text-on-secondary font-label-md text-label-md font-bold transition-all active:scale-95 flex items-center gap-1" data-id="tailleur-babi" data-name="Tailleur Veste Ankara Babi Boss" data-price="32000">
+<span class="material-symbols-outlined text-[18px]">add</span>
+            Ajouter
+          </button>
+</div>
+<button class="whatsapp-order-btn mt-2 flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-secondary-container text-on-secondary font-label-lg text-label-lg font-bold shadow-md hover:brightness-105 active:scale-98 transition-all" data-price="32000" data-product="Tailleur Veste Ankara Babi Boss">
+<span class="material-symbols-outlined text-[20px]">send</span>
+<span>Discuter / Commander direct</span>
+</button>
+</div>
+</article>
+</div>
+<!-- Conversational Guarantee & Delivery Banner -->
+<section class="rounded-xl bg-gradient-to-br from-surface-container-high to-surface-container p-space-md shadow-md mt-space-sm flex flex-col gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-secondary/15 text-secondary">
+<span class="material-symbols-outlined text-[24px]">support_agent</span>
+</div>
+<div class="flex flex-col">
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Besoin d'une taille sur mesure ?</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Awa vous conseille personnellement en audio ou vidéo sur WhatsApp.</p>
+</div>
+</div>
+<button class="flex items-center justify-center gap-2 h-11 rounded-lg bg-surface-container-highest text-secondary hover:bg-surface-bright font-label-md text-label-md font-bold active:scale-98 transition-transform" onclick="alert('Ouverture de la discussion avec Awa...')">
+<span class="material-symbols-outlined text-[18px]">mic</span>
+      Envoyer une note vocale à Awa
+    </button>
+</section>
+<!-- Floating Sticky Thumb Bar (Quick Checkout / Selection Drawer) -->
+<aside class="fixed bottom-20 left-0 right-0 z-40 px-margin pointer-events-none transition-transform duration-300 transform translate-y-0" id="thumb-bar">
+<div class="pointer-events-auto mx-auto max-w-md rounded-2xl bg-surface-container-highest/95 p-3 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-container text-on-primary-container font-bold shadow-md">
+<span class="material-symbols-outlined text-[22px]">shopping_bag</span>
+<span class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-on-secondary text-[10px] font-bold" id="cart-counter">1</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-[11px] text-on-surface-variant">Panier Actuel</span>
+<span class="font-headline-sm text-[16px] text-on-surface font-bold truncate" id="cart-total">85 000 FCFA</span>
+</div>
+</div>
+<button class="flex-shrink-0 h-11 px-4 rounded-xl bg-primary-container text-on-primary-container font-label-md text-label-md font-bold flex items-center gap-1.5 shadow-lg active:scale-95 transition-transform hover:brightness-110" id="final-checkout-btn">
+<span>Finaliser</span>
+<span class="material-symbols-outlined text-[18px]">qr_code_2</span>
+</button>
+</div>
+</aside>
+<!-- Interactive Feedback Toast -->
+<div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 rounded-full bg-secondary-container px-4 py-2 text-on-secondary font-label-md text-label-md shadow-2xl flex items-center gap-2 opacity-0 pointer-events-none transition-opacity duration-300" id="toast">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+<span id="toast-message">Article ajouté !</span>
+</div>
+</div>
+<script>
+  // Simple interactive client state for instant delight & shopping simulation
+  (function() {
+    let cart = [
+      { name: "Samsung Galaxy A15 128Go", price: 85000, quantity: 1 }
+    ];
+
+    const cartCounter = document.getElementById('cart-counter');
+    const cartTotal = document.getElementById('cart-total');
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+
+    function updateCartDisplay() {
+      const count = cart.reduce((acc, item) => acc + item.quantity, 0);
+      const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+      if (cartCounter) cartCounter.textContent = count;
+      if (cartTotal) cartTotal.textContent = total.toLocaleString('fr-FR') + ' FCFA';
+    }
+
+    function showToast(text) {
+      if (!toast) return;
+      toastMessage.textContent = text;
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 2200);
+    }
+
+    // Category pills selection
+    document.querySelectorAll('.category-pill').forEach(pill => {
+      pill.addEventListener('click', function() {
+        document.querySelectorAll('.category-pill').forEach(p => {
+          p.classList.remove('bg-primary-container', 'text-on-primary-container', 'shadow-md');
+          p.classList.add('bg-surface-container', 'text-on-surface');
+        });
+        this.classList.remove('bg-surface-container', 'text-on-surface');
+        this.classList.add('bg-primary-container', 'text-on-primary-container', 'shadow-md');
+        showToast('Catégorie filtrée : ' + this.textContent.trim());
+      });
+    });
+
+    // Add to cart buttons
+    document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const name = this.dataset.name;
+        const price = parseInt(this.dataset.price, 10);
+        const existing = cart.find(i => i.name === name);
+        if (existing) {
+          existing.quantity += 1;
+        } else {
+          cart.push({ name, price, quantity: 1 });
+        }
+        updateCartDisplay();
+        showToast('Ajouté : ' + name);
+      });
+    });
+
+    // WhatsApp direct command buttons
+    document.querySelectorAll('.whatsapp-order-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const product = this.dataset.product;
+        const price = parseInt(this.dataset.price || '0', 10);
+        showToast('Connexion à WhatsApp pour : ' + product);
+        const phone = "2250700000000";
+        const msg = encodeURIComponent("Bonjour Awa ! Je souhaite commander : " + product + " (" + price.toLocaleString('fr-FR') + " FCFA). Est-ce disponible ?");
+        setTimeout(() => {
+          window.open("https://wa.me/" + phone + "?text=" + msg, "_blank");
+        }, 400);
+      });
+    });
+
+    // Checkout button
+    const checkoutBtn = document.getElementById('final-checkout-btn');
+    if (checkoutBtn) {
+      checkoutBtn.addEventListener('click', function() {
+        if (cart.length === 0) {
+          showToast('Votre panier est vide');
+          return;
+        }
+        const summary = cart.map(i => `${i.quantity}x ${i.name}`).join(', ');
+        const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        const msg = encodeURIComponent(`Bonjour Awa Chic & Tech ! Je valide mon panier : ${summary}. Total : ${total.toLocaleString('fr-FR')} FCFA. Merci !`);
+        window.open("https://wa.me/2250700000000?text=" + msg, "_blank");
+      });
+    }
+
+    // Flash timer countdown simulation
+    let secondsLeft = 15502;
+    const timerElement = document.getElementById('countdown');
+    setInterval(() => {
+      if (secondsLeft <= 0) return;
+      secondsLeft--;
+      const h = String(Math.floor(secondsLeft / 3600)).padStart(2, '0');
+      const m = String(Math.floor((secondsLeft % 3600) / 60)).padStart(2, '0');
+      const s = String(secondsLeft % 60).padStart(2, '0');
+      if (timerElement) timerElement.textContent = `${h}:${m}:${s}`;
+    }, 1000);
+
+    updateCartDisplay();
+  })();
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface/85 backdrop-blur-xl shadow-[0_-8px_24px_rgba(0,0,0,0.4)]" data-active-classes="text-primary-container bg-surface-container-high/60"><div class="flex justify-around items-center h-20 px-space-xs"><a aria-current="page" class="flex flex-col items-center justify-center gap-1 w-16 h-14 rounded-xl transition-all duration-150 active:scale-95 text-primary-container bg-surface-container-high/60" data-path="boutique" href="#"><span class="material-symbols-outlined text-[22px]">storefront</span><span class="font-label-md text-label-md font-semibold tracking-tight">Boutique</span></a><a class="flex flex-col items-center justify-center gap-1 w-16 h-14 rounded-xl text-on-surface-variant hover:text-on-surface transition-all duration-150 active:scale-95" data-path="commandes" href="#"><div class="relative"><span class="material-symbols-outlined text-[22px]">receipt_long</span><span class="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-primary-container text-on-primary-container font-label-sm text-label-sm font-bold leading-none">3</span></div><span class="font-label-md text-label-md font-semibold tracking-tight">Commandes</span></a><a class="flex flex-col items-center justify-center gap-1 w-16 h-14 rounded-xl text-on-surface-variant hover:text-on-surface transition-all duration-150 active:scale-95" data-path="stats" href="#"><span class="material-symbols-outlined text-[22px]">monitoring</span><span class="font-label-md text-label-md font-semibold tracking-tight">Stats</span></a><a class="flex flex-col items-center justify-center gap-1 w-16 h-14 rounded-xl text-on-surface-variant hover:text-on-surface transition-all duration-150 active:scale-95" data-path="reglages" href="#"><span class="material-symbols-outlined text-[22px]">tune</span><span class="font-label-md text-label-md font-semibold tracking-tight">Réglages</span></a></div></nav></body></html>

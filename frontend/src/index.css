@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    width: 100vw;
+    margin: 0;
+    padding: 0;
+    background-color: #0f131d;
+    color: #dfe2f1;
+    overflow-x: hidden;
+  }
+  body {
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Règle typographique globale : Justification corps de texte, Interligne ~2pt (1.45), Espacement 8pt */
+  p, .text-body-justified {
+    text-align: justify;
+    text-justify: inter-word;
+    line-height: 1.45;
+    margin-bottom: 8pt;
+  }
+  
+  /* Pour éviter les marges indésirables sur le dernier paragraphe d'un conteneur compact */
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+@layer utilities {
+  .text-justify-custom {
+    text-align: justify;
+    text-justify: inter-word;
+  }
+  .leading-2pt {
+    line-height: 1.45;
+  }
+  .mb-8pt {
+    margin-bottom: 8pt;
+  }
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
