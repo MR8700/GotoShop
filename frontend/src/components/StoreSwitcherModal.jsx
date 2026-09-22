@@ -51,10 +51,10 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
         <div className="p-3 rounded-2xl bg-surface-container-highest/60 border border-white/5 text-xs">
           <span className="text-on-surface-variant text-[11px]">Boutique active actuelle :</span>
           <p className="font-bold text-on-surface text-sm mt-0.5">
-            {stores.find((s) => s.slug === activeSlug)?.name || (activeSlug ? activeSlug : "Boutique par défaut")}
+            {stores.find((s) => s.slug === activeSlug)?.name || (activeSlug ? activeSlug : "Faso Danfani & Élégance")}
           </p>
           <p className="text-[10px] text-primary font-mono mt-0.5">
-            Sous-domaine : {activeSlug || "defaut"}.localhost:8000
+            Lien d'accès : ?store={activeSlug || "faso-danfani"}
           </p>
         </div>
 
@@ -66,7 +66,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
             <div className="text-center py-6 text-xs text-on-surface-variant">Aucune boutique disponible</div>
           ) : (
             stores.map((st) => {
-              const isSelected = activeSlug === st.slug || (!activeSlug && (st.slug === "awa-chic-tech" || st.slug === "awa-chic"));
+              const isSelected = activeSlug === st.slug || (!activeSlug && st.slug === "faso-danfani");
 
               return (
                 <button
@@ -99,7 +99,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
                         )}
                       </div>
                       <p className="text-[10px] text-on-surface-variant truncate font-mono">
-                        {st.slug}.localhost:8000
+                        ?store={st.slug} • {st.delivery_city || "Burkina Faso"}
                       </p>
                     </div>
                   </div>

@@ -44,24 +44,41 @@ export const detectSubdomainSlug = () => {
 };
 
 export const getActiveStoreSlug = () => {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined") return "faso-danfani";
   const params = new URLSearchParams(window.location.search);
-  const storeParam = params.get("store");
+  const storeParam = params.get("store") || params.get("slug") || params.get("s");
   if (storeParam) {
     localStorage.setItem("conversastore_active_slug", storeParam);
     return storeParam;
+  }
+  const pathname = window.location.pathname;
+  const storePathMatch = pathname.match(/^\/(?:store|boutique|s)\/([a-zA-Z0-9_-]+)/);
+  if (storePathMatch && storePathMatch[1]) {
+    localStorage.setItem("conversastore_active_slug", storePathMatch[1]);
+    return storePathMatch[1];
   }
   const sub = detectSubdomainSlug();
   if (sub) {
     localStorage.setItem("conversastore_active_slug", sub);
     return sub;
   }
-  return localStorage.getItem("conversastore_active_slug") || null;
+  const saved = localStorage.getItem("conversastore_active_slug");
+  if (saved && !["defaut", "default", "awa-chic-tech", "awa-chic"].includes(saved)) {
+    return saved;
+  }
+  return "faso-danfani";
 };
 
 export const setActiveStoreSlug = (slug) => {
   if (slug) {
     localStorage.setItem("conversastore_active_slug", slug);
+    if (typeof window !== "undefined" && window.history && window.history.pushState) {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("store", slug);
+        window.history.pushState({}, "", url.toString());
+      } catch (e) {}
+    }
   } else {
     localStorage.removeItem("conversastore_active_slug");
   }

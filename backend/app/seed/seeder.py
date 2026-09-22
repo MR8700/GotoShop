@@ -1,449 +1,766 @@
 from datetime import datetime, timedelta
+import uuid
 from app.database import SessionLocal, Base, engine
+from app.core.security import hash_password
 from app.models import (
     Owner, Store, TrustBadge, DeliveryCity,
     Category, Product, ProductVariant, ProductImage,
     StoreChannel, OrderIntent, FollowUpTask, SaleConfirmation,
     TrafficSource, ShareLink
 )
+from app.models.customer import Customer
+from app.models.super_admin import SuperAdmin
+from app.models.store import LoyaltyTier
 
 def seed_database():
-    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     try:
-        # 1. Owner
-        owner = Owner(
-            full_name="Awa Traoré",
-            email="awa@chictech.bf",
-            phone_number="+2250700000000",
-            bio="Styliste et entrepreneure passionnée, fondatrice de Awa Chic & Tech.",
-        )
-        db.add(owner)
+        # =====================================================================
+        # 0. SUPER ADMINISTRATEUR PLATFORM
+        # =====================================================================
+        for email in ["admin@gotoshop.com", "admin@conversastore.com"]:
+            existing_sa = db.query(SuperAdmin).filter(SuperAdmin.email == email).first()
+            pwd_hash, salt = hash_password("SuperAdmin2026!")
+            if not existing_sa:
+                sa = SuperAdmin(
+                    id=str(uuid.uuid4()),
+                    email=email,
+                    full_name="Super Administrateur GotoShop",
+                    password_hash=pwd_hash,
+                    password_salt=salt,
+                    created_at=datetime.utcnow()
+                )
+                db.add(sa)
+            else:
+                existing_sa.password_hash = pwd_hash
+                existing_sa.password_salt = salt
         db.flush()
 
-        # 2. Store
-        store = Store(
-            owner_id=owner.id,
-            name="Awa Chic & Tech",
-            slug="awa-chic-tech",
-            tagline="Prêt-à-porter haut de gamme & High-Tech vérifié",
-            description="Le carrefour de l'élégance africaine et de la tech de pointe à Abidjan et Ouaga.",
-            owner_bio="Créatrice passionnée & experte Tech à Abidjan. Tous mes articles sont minutieusement inspectés avant expédition express.",
-            currency="FCFA",
-            logo_url="/media/store/logo.jpg",
-            avatar_url="/media/store/awa_portrait.jpg",
-            rating=4.9,
-            sales_count=342,
-            revenue=8945000,
-            is_verified=True,
-            social_tunnel_badge="WA/FB",
-            social_tunnel_label="Tunnel Social Actif",
-            is_flash_active=True,
-            flash_title="Vente Flash Express",
-            flash_subtitle="Ouaga & Abidjan • Envoi sous 2h chrono",
-            flash_remaining_seconds=15502,
-            voice_note_title="Besoin d'une taille sur mesure ?",
-            voice_note_subtitle="Awa vous conseille personnellement en audio ou vidéo sur WhatsApp.",
-        )
-        db.add(store)
-        db.flush()
+        # =====================================================================
+        # 1. BOUTIQUE 1 : FASO DANFANI & ÉLÉGANCE (Ouagadougou, Burkina Faso)
+        # =====================================================================
+        owner_1 = db.query(Owner).filter(Owner.email == "mariam.kabore@fasodanfani.bf").first()
+        pwd_hash_1, salt_1 = hash_password("FasoDanfani2026!")
+        if not owner_1:
+            owner_1 = Owner(
+                full_name="Mariam Kaboré",
+                email="mariam.kabore@fasodanfani.bf",
+                phone_number="+22670123456",
+                bio="Styliste burkinabè et artisane passionnée. Valorisation du Faso Danfani et du Kôkô Dunda à Ouagadougou.",
+                password_hash=pwd_hash_1,
+                password_salt=salt_1,
+                must_change_password=False
+            )
+            db.add(owner_1)
+            db.flush()
+        else:
+            owner_1.password_hash = pwd_hash_1
+            owner_1.password_salt = salt_1
+            owner_1.must_change_password = False
 
-        # 3. Trust Badges
-        trust_badges = [
-            TrustBadge(store_id=store.id, icon_name="local_shipping", label="Paiement Réception", badge_type="secondary", display_order=1),
-            TrustBadge(store_id=store.id, icon_name="verified_user", label="100% Authentique", badge_type="primary", display_order=2),
-            TrustBadge(store_id=store.id, icon_name="swap_horizontal_circle", label="Échange 48h", badge_type="secondary-fixed", display_order=3),
-        ]
-        db.add_all(trust_badges)
+        store_1 = db.query(Store).filter(Store.slug == "faso-danfani").first()
+        if not store_1:
+            store_1 = Store(
+                owner_id=owner_1.id,
+                name="Faso Danfani & Élégance",
+                slug="faso-danfani",
+                tagline="L'excellence du textile noble et du pagne tissé burkinabè",
+                description="Maison de haute couture et de confection artisanale en pagne Faso Danfani authentique tissé à la main au Burkina Faso. Livraison express à Ouagadougou, Bobo-Dioulasso et international.",
+                owner_bio="Créatrice burkinabè à Ouagadougou (Ouaga 2000). Nos étoffes de coton 100% bio sont tissées à la main par nos maîtres tisserands.",
+                currency="FCFA",
+                logo_url="/media/store/logo.jpg",
+                avatar_url="/media/store/awa_portrait.jpg",
+                rating=4.95,
+                sales_count=485,
+                revenue=14250000,
+                is_verified=True,
+                social_tunnel_badge="WA/FB",
+                social_tunnel_label="Tunnel Social Actif",
+                is_flash_active=True,
+                flash_title="Vente Spéciale Faso Danfani",
+                flash_subtitle="Ouagadougou & Bobo • Livraison en 2h chrono",
+                flash_remaining_seconds=14200,
+                voice_note_title="Besoin d'un conseil taille ou tissu ?",
+                voice_note_subtitle="Mariam Kaboré vous conseille personnellement en audio ou vidéo WhatsApp.",
+                primary_color="#ec761e",
+                secondary_color="#10b981",
+                theme_preset="kinetic_amber",
+                is_custom_theme_active=True,
+                is_loyalty_active=True,
+                loyalty_spend_per_point=1000,
+                subscription_status="ACTIVE",
+                subscription_plan="VIP",
+                custom_domain="fasodanfani.bf",
+                contact_whatsapp="+22670123456",
+                contact_email="mariam.kabore@fasodanfani.bf",
+            )
+            db.add(store_1)
+            db.flush()
 
-        # 4. Delivery Cities
-        cities = [
-            DeliveryCity(store_id=store.id, name="Cocody (Abidjan)", display_label="📍 Cocody", is_default=True, display_order=1),
-            DeliveryCity(store_id=store.id, name="Ouagadougou", display_label="Ouaga", is_default=False, display_order=2),
-            DeliveryCity(store_id=store.id, name="Dakar", display_label="Dakar", is_default=False, display_order=3),
-        ]
-        db.add_all(cities)
+            # Trust Badges
+            db.add_all([
+                TrustBadge(store_id=store_1.id, icon_name="verified", label="100% Tissé Main BF", badge_type="primary", display_order=1),
+                TrustBadge(store_id=store_1.id, icon_name="local_shipping", label="Paiement Livraison", badge_type="secondary", display_order=2),
+                TrustBadge(store_id=store_1.id, icon_name="handshake", label="Vente Directe Atelier", badge_type="secondary-fixed", display_order=3),
+            ])
 
-        # 5. Categories
-        cat_all = Category(store_id=store.id, name="Tout", slug="all", display_order=0)
-        cat_wax = Category(store_id=store.id, name="Robes Ankara", slug="robes-ankara", display_order=1)
-        cat_tech = Category(store_id=store.id, name="Smartphones & Accessoires", slug="smartphones-accessoires", display_order=2)
-        cat_bijoux = Category(store_id=store.id, name="Bijoux & Parfums", slug="bijoux-parfums", display_order=3)
-        cat_promo = Category(store_id=store.id, name="Packs Promo", slug="packs-promo", display_order=4)
-        db.add_all([cat_all, cat_wax, cat_tech, cat_bijoux, cat_promo])
-        db.flush()
+            # Delivery Cities
+            db.add_all([
+                DeliveryCity(store_id=store_1.id, name="Ouagadougou (Ouaga 2000, Koulouba, Dassasgho)", display_label="📍 Ouaga", is_default=True, display_order=1),
+                DeliveryCity(store_id=store_1.id, name="Bobo-Dioulasso (Belleville, Farakan)", display_label="Bobo", is_default=False, display_order=2),
+                DeliveryCity(store_id=store_1.id, name="Koudougou", display_label="Koudougou", is_default=False, display_order=3),
+                DeliveryCity(store_id=store_1.id, name="Abidjan (Côte d'Ivoire)", display_label="Abidjan", is_default=False, display_order=4),
+                DeliveryCity(store_id=store_1.id, name="Bamako (Mali)", display_label="Bamako", is_default=False, display_order=5),
+            ])
 
-        # 6. Products
-        # 6.1 Hero Product: Samsung Galaxy A15 128Go
-        p_galaxy = Product(
-            store_id=store.id,
-            category_id=cat_tech.id,
-            name="Samsung Galaxy A15 128Go",
-            slug="samsung-galaxy-a15-128go",
-            description="Écran Super AMOLED 90Hz 6.5 pouces, Triple caméra 50MP haute résolution, Batterie longue autonomie 5000mAh avec charge rapide 25W, Double SIM 4G LTE.",
-            short_description="Écran Super AMOLED 90Hz, Caméra 50MP, Batterie 5000mAh, Double SIM 4G.",
-            price=85000,
-            old_price=98000,
-            currency="FCFA",
-            stock=3,
-            stock_label="Plus que 3 en stock !",
-            is_hero_deal=True,
-            badge_tag="Top Vente High-Tech",
-            active_discussions_count=24,
-            views_count=763,
-            sales_count=37,
-            revenue=3145000,
-            guarantee_text="Garantie 12 Mois",
-            primary_image_url="/media/products/samsung_galaxy_a15.jpg",
-            display_order=0,
-        )
-        db.add(p_galaxy)
-        db.flush()
+            # Categories
+            cat_all_1 = Category(store_id=store_1.id, name="Tout", slug="all", display_order=0)
+            cat_danfani_1 = Category(store_id=store_1.id, name="Pagnes Faso Danfani", slug="pagnes-faso-danfani", display_order=1)
+            cat_koko_1 = Category(store_id=store_1.id, name="Ensembles Kôkô Dunda", slug="ensembles-koko-dunda", display_order=2)
+            cat_robes_1 = Category(store_id=store_1.id, name="Robes de Cérémonie", slug="robes-ceremonie", display_order=3)
+            cat_accessoires_1 = Category(store_id=store_1.id, name="Écharpes & Accessoires", slug="echarpes-accessoires", display_order=4)
+            db.add_all([cat_all_1, cat_danfani_1, cat_koko_1, cat_robes_1, cat_accessoires_1])
+            db.flush()
 
-        # Variants for Galaxy
-        galaxy_variants = [
-            ProductVariant(product_id=p_galaxy.id, group_name="Coloris", name="Bleu Nuit", is_default=True, display_order=1),
-            ProductVariant(product_id=p_galaxy.id, group_name="Coloris", name="Noir Chic", is_default=False, display_order=2),
-            ProductVariant(product_id=p_galaxy.id, group_name="Coloris", name="Bleu Ciel", is_default=False, display_order=3),
-            ProductVariant(product_id=p_galaxy.id, group_name="Coloris", name="Or Jaune", is_default=False, display_order=4),
-        ]
-        db.add_all(galaxy_variants)
+            # Products
+            p1_1 = Product(
+                store_id=store_1.id,
+                category_id=cat_danfani_1.id,
+                name="Pagne Faso Danfani Traditionnel Tissé Main (3 pièces)",
+                slug="pagne-faso-danfani-traditionnel-3-pieces",
+                description="Véritable Faso Danfani en pur coton burkinabè, tissé selon la tradition séculaire. Étoffe lourde, texture noble, teintes naturelles d'indigo et terre sahélienne. Parfait pour les grandes cérémonies et tenues d'apparat.",
+                short_description="100% pur coton burkinabè, 3 pièces complètes tissées main à Koudougou.",
+                price=45000,
+                old_price=55000,
+                currency="FCFA",
+                stock=8,
+                stock_label="Reste 8 pièces tissées",
+                is_hero_deal=True,
+                badge_tag="Patrimoine National",
+                active_discussions_count=32,
+                views_count=1240,
+                sales_count=64,
+                revenue=2880000,
+                guarantee_text="100% Coton Pur Tissé",
+                primary_image_url="/media/products/pagne_wax_authentique.jpg",
+                display_order=0,
+            )
+            p1_2 = Product(
+                store_id=store_1.id,
+                category_id=cat_koko_1.id,
+                name="Ensemble Veste & Pantalon Kôkô Dunda Royal",
+                slug="ensemble-veste-koko-dunda-royal",
+                description="Ensemble moderne haut de gamme confectionné avec le célèbre Kôkô Dunda teinté à Bobo-Dioulasso. Coupe contemporaine pour homme et femme d'affaires, doublure en satin de soie.",
+                short_description="Kôkô Dunda authentique de Bobo, coupe élégante contemporaine.",
+                price=35000,
+                old_price=42000,
+                currency="FCFA",
+                stock=5,
+                stock_label="Plus que 5",
+                is_hero_deal=False,
+                badge_tag="Tendance Bobo",
+                active_discussions_count=21,
+                views_count=820,
+                sales_count=43,
+                revenue=1505000,
+                guarantee_text="Teinture Grand Teint",
+                primary_image_url="/media/products/tailleur_veste_babi_boss.jpg",
+                display_order=1,
+            )
+            p1_3 = Product(
+                store_id=store_1.id,
+                category_id=cat_robes_1.id,
+                name="Robe Sirène Faso Danfani \"Princesse Yennenga\"",
+                slug="robe-sirene-faso-danfani-yennenga",
+                description="Sublime création couture épousant la silhouette, alliance du Faso Danfani fin et de dentelle noire précieuse. Finitions haute couture pour galas, mariages et réceptions.",
+                short_description="Coupe sirène impériale, Faso Danfani fin et dentelle noble.",
+                price=38000,
+                old_price=48000,
+                currency="FCFA",
+                stock=4,
+                stock_label="Création Limitée",
+                is_hero_deal=False,
+                badge_tag="Haute Couture",
+                active_discussions_count=18,
+                views_count=650,
+                sales_count=29,
+                revenue=1102000,
+                guarantee_text="Couture Garantie",
+                primary_image_url="/media/products/robe_ankara_reine_sika.jpg",
+                display_order=2,
+            )
+            p1_4 = Product(
+                store_id=store_1.id,
+                category_id=cat_accessoires_1.id,
+                name="Écharpe d'Honneur Tissée Faso Danfani",
+                slug="echarpe-honneur-tissee-faso-danfani",
+                description="Écharpe officielle de prestige aux couleurs du Burkina Faso ou motifs royaux géométriques. Idéale pour les réceptions, cadeaux officiels ou parure élégante au quotidien.",
+                short_description="Écharpe de prestige tissée main, finitions à franges traditionnelles.",
+                price=12000,
+                old_price=15000,
+                currency="FCFA",
+                stock=15,
+                stock_label="En stock",
+                is_hero_deal=False,
+                badge_tag="Cadeau de Prestige",
+                active_discussions_count=12,
+                views_count=430,
+                sales_count=52,
+                revenue=624000,
+                guarantee_text="Authentique Artisanal",
+                primary_image_url="/media/products/coffret_parure_ecouteurs.jpg",
+                display_order=3,
+            )
+            db.add_all([p1_1, p1_2, p1_3, p1_4])
+            db.flush()
 
-        # 6.2 Robe Ankara Reine Sika
-        p_robe = Product(
-            store_id=store.id,
-            category_id=cat_wax.id,
-            name="Robe Ankara \"Reine Sika\" Évasée",
-            slug="robe-ankara-reine-sika",
-            description="Tissu 100% Coton Wax hollandais véritable, coupe princesse ajustable avec ceinture intégrée, finitions coutures royales (Tailles disponibles : M, L, XL, XXL).",
-            short_description="Tissu 100% Coton Wax hollandais véritable, coupe princesse ajustable (Tailles M à XXL).",
-            price=25000,
-            old_price=30000,
-            currency="FCFA",
-            stock=2,
-            stock_label="Reste 2",
-            is_hero_deal=False,
-            badge_tag="Création Originale",
-            active_discussions_count=18,
-            views_count=427,
-            sales_count=29,
-            revenue=1015000,
-            guarantee_text="Coton Garanti",
-            primary_image_url="/media/products/robe_ankara_reine_sika.jpg",
-            display_order=1,
-        )
-        db.add(p_robe)
+            # Variants
+            db.add_all([
+                ProductVariant(product_id=p1_1.id, group_name="Teinte", name="Bleu Indigo Royal", is_default=True, display_order=1),
+                ProductVariant(product_id=p1_1.id, group_name="Teinte", name="Blanc Cassé & Ocre", is_default=False, display_order=2),
+                ProductVariant(product_id=p1_1.id, group_name="Teinte", name="Rouge Terre Sahélienne", is_default=False, display_order=3),
+                ProductVariant(product_id=p1_2.id, group_name="Taille", name="M (40-42)", is_default=False, display_order=1),
+                ProductVariant(product_id=p1_2.id, group_name="Taille", name="L (44-46)", is_default=True, display_order=2),
+                ProductVariant(product_id=p1_2.id, group_name="Taille", name="XL (48-50)", is_default=False, display_order=3),
+            ])
 
-        # 6.3 Coffret Chic Parure & Écouteurs
-        p_coffret = Product(
-            store_id=store.id,
-            category_id=cat_promo.id,
-            name="Coffret Chic : Parure Or 18k + Écouteurs ANC",
-            slug="coffret-chic-parure-ecouteurs",
-            description="L'alliance sublime de l'orfèvrerie artisanale et de la technologie audio sans fil avec réduction de bruit active. Le cadeau d'excellence.",
-            short_description="L'alliance parfaite de l'élégance et du son haute fidélité. Idéal pour offrir.",
-            price=35000,
-            old_price=45000,
-            currency="FCFA",
-            stock=8,
-            stock_label="En Stock",
-            is_hero_deal=False,
-            badge_tag="Pack Duo Cadeau",
-            active_discussions_count=41,
-            views_count=512,
-            sales_count=14,
-            revenue=490000,
-            guarantee_text="Garantie 6 Mois",
-            primary_image_url="/media/products/coffret_parure_ecouteurs.jpg",
-            display_order=2,
-        )
-        db.add(p_coffret)
+            # Channels
+            db.add_all([
+                StoreChannel(
+                    store_id=store_1.id,
+                    channel_type="WHATSAPP",
+                    display_title="WhatsApp Direct",
+                    badge_text="RECOMMANDÉ",
+                    badge_style="primary",
+                    account_handle="22670123456",
+                    subtitle="Réponse moyenne en moins de 3 minutes",
+                    icon_name="chat",
+                    theme_color="#25D366",
+                    is_active=True,
+                    is_recommended=True,
+                    display_order=1
+                ),
+                StoreChannel(
+                    store_id=store_1.id,
+                    channel_type="MESSENGER",
+                    display_title="Messenger Facebook",
+                    badge_text="Page Officielle",
+                    badge_style="info",
+                    account_handle="fasodanfanielegance",
+                    subtitle="Messagerie Facebook certifiée",
+                    icon_name="forum",
+                    theme_color="#0084FF",
+                    is_active=True,
+                    is_recommended=False,
+                    display_order=2
+                ),
+                StoreChannel(
+                    store_id=store_1.id,
+                    channel_type="TIKTOK",
+                    display_title="TikTok Direct",
+                    badge_text="@fasodanfani",
+                    badge_style="danger",
+                    account_handle="@fasodanfani",
+                    subtitle="Vidéos des coulisses de tissage",
+                    icon_name="smart_display",
+                    theme_color="#FE2C55",
+                    is_active=True,
+                    is_recommended=False,
+                    display_order=3
+                ),
+                StoreChannel(
+                    store_id=store_1.id,
+                    channel_type="CALL",
+                    display_title="Appel Direct Ouaga",
+                    badge_text="Atelier",
+                    badge_style="secondary",
+                    account_handle="+226 70 12 34 56",
+                    subtitle="Ligne directe Mariam Kaboré",
+                    icon_name="phone_in_talk",
+                    theme_color="#ff5733",
+                    is_active=True,
+                    is_recommended=False,
+                    display_order=4
+                ),
+            ])
 
-        # 6.4 Tailleur Veste Ankara Babi Boss
-        p_tailleur = Product(
-            store_id=store.id,
-            category_id=cat_wax.id,
-            name="Tailleur Veste Ankara \"Babi Boss\"",
-            slug="tailleur-veste-ankara-babi-boss",
-            description="Coupe contemporaine cintrée pour femme active, finitions doublées en satin de soie, col velours élégant résistant.",
-            short_description="Coupe contemporaine cintrée, finitions doublées en satin, col velours élégant.",
-            price=32000,
-            old_price=40000,
-            currency="FCFA",
-            stock=1,
-            stock_label="Plus que 1 !",
-            is_hero_deal=False,
-            badge_tag="Édition Limitée",
-            active_discussions_count=11,
-            views_count=310,
-            sales_count=12,
-            revenue=384000,
-            guarantee_text="Sur Mesure",
-            primary_image_url="/media/products/tailleur_veste_babi_boss.jpg",
-            display_order=3,
-        )
-        db.add(p_tailleur)
+            # Loyalty Tiers
+            db.add_all([
+                LoyaltyTier(
+                    store_id=store_1.id,
+                    name="Bronze Faso",
+                    min_points=0,
+                    badge_label="Découverte",
+                    perk_title="Conseils personnalisés de Mariam",
+                    perk_description="Accès direct par audio ou vidéo WhatsApp pour vos commandes sur mesure.",
+                    discount_percent=0,
+                    is_active=True,
+                    display_order=1
+                ),
+                LoyaltyTier(
+                    store_id=store_1.id,
+                    name="Silver Danfani",
+                    min_points=50,
+                    badge_label="Privilège",
+                    perk_title="Livraison Express Gratuite à Ouaga & Bobo",
+                    perk_description="Expédition prioritaire sous 2h et remise de 5% sur tout le catalogue.",
+                    discount_percent=5,
+                    is_active=True,
+                    display_order=2
+                ),
+                LoyaltyTier(
+                    store_id=store_1.id,
+                    name="Gold Élite Yennenga",
+                    min_points=150,
+                    badge_label="Grand Élite",
+                    perk_title="10% de remise permanente & Arrivages Privés",
+                    perk_description="Accès exclusif aux pièces uniques tissées avant leur publication en vitrine.",
+                    discount_percent=10,
+                    is_active=True,
+                    display_order=3
+                ),
+            ])
 
-        # Additional products for inventory & stats
-        p_casque = Product(
-            store_id=store.id,
-            category_id=cat_tech.id,
-            name="Casque Bluetooth Pro",
-            slug="casque-bluetooth-pro",
-            description="Son spatialisé ultra immersif et réduction active du bruit ambiant.",
-            price=35000,
-            stock=5,
-            primary_image_url="/media/products/casque_bluetooth_pro.jpg",
-            display_order=4,
-        )
-        p_pagne = Product(
-            store_id=store.id,
-            category_id=cat_wax.id,
-            name="Pagne Wax Authentique",
-            slug="pagne-wax-authentique",
-            description="Pagne traditionnel 6 yards en coton ciré haut de gamme.",
-            price=22000,
-            stock=10,
-            primary_image_url="/media/products/pagne_wax_authentique.jpg",
-            display_order=5,
-        )
-        p_montre = Product(
-            store_id=store.id,
-            category_id=cat_tech.id,
-            name="Montre Connectée S3",
-            slug="montre-connectee-s3",
-            description="Écran AMOLED tactile, suivi cardiaque et notifications instantanées.",
-            price=45000,
-            stock=4,
-            primary_image_url="/media/products/montre_connectee_s3.jpg",
-            display_order=6,
-        )
-        p_ecouteurs = Product(
-            store_id=store.id,
-            category_id=cat_tech.id,
-            name="Écouteurs Pro TWS",
-            slug="ecouteurs-pro-tws",
-            description="Stéréo sans fil, boitier de charge rapide magnétique.",
-            price=15000,
-            stock=7,
-            sales_count=21,
-            revenue=315000,
-            primary_image_url="/media/products/ecouteurs_pro_tws.jpg",
-            display_order=7,
-        )
-        p_bague = Product(
-            store_id=store.id,
-            category_id=cat_bijoux.id,
-            name="Bague Saphir Royale & Or Blanc",
-            slug="bague-saphir-royale-or-blanc",
-            description="Bague de haute joaillerie sertie d'un saphir bleu royal 2.5 carats et or blanc 18k avec certificat d'authenticité.",
-            short_description="Saphir bleu royal 2.5 carats et or blanc 18k certifié.",
-            price=65000,
-            old_price=78000,
-            currency="FCFA",
-            stock=4,
-            stock_label="Plus que 4",
-            badge_tag="Bijou Précieux",
-            active_discussions_count=19,
-            views_count=340,
-            sales_count=9,
-            revenue=585000,
-            guarantee_text="Certificat Or 18k",
-            primary_image_url="/media/products/coffret_parure_ecouteurs.jpg",
-            display_order=8,
-        )
-        p_parfum = Product(
-            store_id=store.id,
-            category_id=cat_bijoux.id,
-            name="Parfum Nuit d'Orient & Ambre",
-            slug="parfum-ambre-royal",
-            description="Fragrance orientale d'exception aux notes d'ambre précieux, fleur d'oranger et bois de santal. Tenue garantie 48h.",
-            short_description="Fragrance orientale ambrée d'exception, tenue 48h.",
-            price=38000,
-            old_price=45000,
-            currency="FCFA",
-            stock=6,
-            stock_label="En stock",
-            badge_tag="Fragrance d'Élite",
-            active_discussions_count=15,
-            views_count=290,
-            sales_count=8,
-            revenue=304000,
-            guarantee_text="Authentique",
-            primary_image_url="/media/products/coffret_parure_ecouteurs.jpg",
-            display_order=9,
-        )
-        db.add_all([p_casque, p_pagne, p_montre, p_ecouteurs, p_bague, p_parfum])
-        db.flush()
+        # =====================================================================
+        # 2. BOUTIQUE 2 : OUAGA TECH & GADGETS (Ouagadougou, Burkina Faso)
+        # =====================================================================
+        owner_2 = db.query(Owner).filter(Owner.email == "ousmane.ouedraogo@ouagatech.bf").first()
+        pwd_hash_2, salt_2 = hash_password("OuagaTech2026!")
+        if not owner_2:
+            owner_2 = Owner(
+                full_name="Ousmane Ouédraogo",
+                email="ousmane.ouedraogo@ouagatech.bf",
+                phone_number="+22676987654",
+                bio="Expert en téléphonie mobile et solutions high-tech à Ouagadougou. Produits certifiés neufs avec garantie locale.",
+                password_hash=pwd_hash_2,
+                password_salt=salt_2,
+                must_change_password=False
+            )
+            db.add(owner_2)
+            db.flush()
+        else:
+            owner_2.password_hash = pwd_hash_2
+            owner_2.password_salt = salt_2
+            owner_2.must_change_password = False
 
-        # 7. Store Channels
-        channels = [
-            StoreChannel(
-                store_id=store.id,
+        store_2 = db.query(Store).filter(Store.slug == "ouaga-tech").first()
+        if not store_2:
+            store_2 = Store(
+                owner_id=owner_2.id,
+                name="Ouaga Tech & Gadgets",
+                slug="ouaga-tech",
+                tagline="Smartphones certifiés & High-Tech garanti à Ouagadougou",
+                description="Boutique d'équipements technologiques neufs et certifiés : smartphones avec garantie 12 mois, écouteurs sans fil haute fidélité, montres connectées et chargeurs solaires.",
+                owner_bio="Gérant d'Ouaga Tech à Zogona. Tous nos téléphones et accessoires sont authentiques et testés avec soin.",
+                currency="FCFA",
+                logo_url="/media/products/samsung_galaxy_a15.jpg",
+                avatar_url="/media/products/samsung_galaxy_a15_thumb.jpg",
+                rating=4.88,
+                sales_count=612,
+                revenue=21540000,
+                is_verified=True,
+                social_tunnel_badge="WA/FB",
+                social_tunnel_label="Tunnel Social Actif",
+                is_flash_active=True,
+                flash_title="Promo Smartphones 4G/5G",
+                flash_subtitle="Garantie 12 mois • Livraison moto gratuite à Ouaga",
+                flash_remaining_seconds=9800,
+                voice_note_title="Besoin d'aide pour choisir votre smartphone ?",
+                voice_note_subtitle="Ousmane vous répond instantanément sur WhatsApp avec conseils techniques.",
+                primary_color="#2563eb",
+                secondary_color="#10b981",
+                theme_preset="kinetic_blue",
+                is_custom_theme_active=True,
+                is_loyalty_active=True,
+                loyalty_spend_per_point=1000,
+                subscription_status="ACTIVE",
+                subscription_plan="PRO",
+                custom_domain="ouagatech.bf",
+                contact_whatsapp="+22676987654",
+                contact_email="ousmane.ouedraogo@ouagatech.bf",
+            )
+            db.add(store_2)
+            db.flush()
+
+            # Trust Badges
+            db.add_all([
+                TrustBadge(store_id=store_2.id, icon_name="verified_user", label="Garantie 12 Mois", badge_type="primary", display_order=1),
+                TrustBadge(store_id=store_2.id, icon_name="local_shipping", label="Livraison Express Ouaga", badge_type="secondary", display_order=2),
+                TrustBadge(store_id=store_2.id, icon_name="price_check", label="Paiement Après Test", badge_type="secondary-fixed", display_order=3),
+            ])
+
+            # Delivery Cities
+            db.add_all([
+                DeliveryCity(store_id=store_2.id, name="Ouagadougou (Zogona, 1200 Logements, Koulouba)", display_label="📍 Ouaga", is_default=True, display_order=1),
+                DeliveryCity(store_id=store_2.id, name="Bobo-Dioulasso", display_label="Bobo", is_default=False, display_order=2),
+                DeliveryCity(store_id=store_2.id, name="Ouahigouya", display_label="Ouahigouya", is_default=False, display_order=3),
+                DeliveryCity(store_id=store_2.id, name="Koudougou", display_label="Koudougou", is_default=False, display_order=4),
+            ])
+
+            # Categories
+            cat_all_2 = Category(store_id=store_2.id, name="Tout", slug="all", display_order=0)
+            cat_smartphones_2 = Category(store_id=store_2.id, name="Smartphones Neufs", slug="smartphones-neufs", display_order=1)
+            cat_audio_2 = Category(store_id=store_2.id, name="Audio & Écouteurs TWS", slug="audio-ecouteurs", display_order=2)
+            cat_montres_2 = Category(store_id=store_2.id, name="Montres Connectées", slug="montres-connectees", display_order=3)
+            cat_energie_2 = Category(store_id=store_2.id, name="Énergie & Solaire", slug="energie-solaire", display_order=4)
+            db.add_all([cat_all_2, cat_smartphones_2, cat_audio_2, cat_montres_2, cat_energie_2])
+            db.flush()
+
+            # Products
+            p2_1 = Product(
+                store_id=store_2.id,
+                category_id=cat_smartphones_2.id,
+                name="Samsung Galaxy A15 128Go (Garanti 12 Mois)",
+                slug="samsung-galaxy-a15-ouagatech",
+                description="Écran Super AMOLED 90Hz 6.5 pouces, Triple caméra 50MP haute résolution, Batterie longue autonomie 5000mAh avec charge rapide 25W, Double SIM 4G LTE. Produit original scellé.",
+                short_description="Super AMOLED 90Hz, Caméra 50MP, Batterie 5000mAh, Garantie 12 mois.",
+                price=85000,
+                old_price=98000,
+                currency="FCFA",
+                stock=6,
+                stock_label="En stock à Ouaga",
+                is_hero_deal=True,
+                badge_tag="Meilleure Vente",
+                active_discussions_count=45,
+                views_count=1890,
+                sales_count=82,
+                revenue=6970000,
+                guarantee_text="Garantie 12 Mois",
+                primary_image_url="/media/products/samsung_galaxy_a15.jpg",
+                display_order=0,
+            )
+            p2_2 = Product(
+                store_id=store_2.id,
+                category_id=cat_audio_2.id,
+                name="Écouteurs Pro TWS Sans Fil Réduction Active de Bruit",
+                slug="ecouteurs-pro-tws-ouagatech",
+                description="Son spatialisé immersif avec basses profondes, réduction active du bruit ambiant (ANC), autonomie 32h avec boîtier de charge sans fil. Compatible Android et iPhone.",
+                short_description="Réduction active du bruit, 32h d'autonomie, son haute fidélité.",
+                price=18000,
+                old_price=24000,
+                currency="FCFA",
+                stock=12,
+                stock_label="En stock",
+                is_hero_deal=False,
+                badge_tag="Son Spatialisé",
+                active_discussions_count=19,
+                views_count=610,
+                sales_count=54,
+                revenue=972000,
+                guarantee_text="Garantie 6 Mois",
+                primary_image_url="/media/products/ecouteurs_pro_tws.jpg",
+                display_order=1,
+            )
+            p2_3 = Product(
+                store_id=store_2.id,
+                category_id=cat_montres_2.id,
+                name="Montre Connectée S3 AMOLED Fitness & WhatsApp",
+                slug="montre-connectee-s3-ouagatech",
+                description="Écran AMOLED lumineux tactile avec appels Bluetooth directs, lecture des notifications WhatsApp en direct, cardiofréquencemètre et étanchéité IP68.",
+                short_description="Écran AMOLED, appels Bluetooth, notifications WhatsApp, étanche IP68.",
+                price=38000,
+                old_price=45000,
+                currency="FCFA",
+                stock=5,
+                stock_label="Plus que 5",
+                is_hero_deal=False,
+                badge_tag="Top Tendance",
+                active_discussions_count=14,
+                views_count=480,
+                sales_count=31,
+                revenue=1178000,
+                guarantee_text="Garantie 6 Mois",
+                primary_image_url="/media/products/montre_connectee_s3.jpg",
+                display_order=2,
+            )
+            p2_4 = Product(
+                store_id=store_2.id,
+                category_id=cat_energie_2.id,
+                name="PowerBank Solaire Ultra-Rapide 30 000 mAh",
+                slug="powerbank-solaire-30000mah-ouagatech",
+                description="Batterie externe géante 30 000mAh avec capteur solaire d'urgence, 4 ports de sortie rapide USB-C Power Delivery 22.5W et lampe torche LED puissante pour le délestage.",
+                short_description="30 000mAh, recharge solaire intégrée, USB-C 22.5W, torche de secours.",
+                price=22000,
+                old_price=28000,
+                currency="FCFA",
+                stock=14,
+                stock_label="Indispensable Ouaga",
+                is_hero_deal=False,
+                badge_tag="Autonomie Sahélienne",
+                active_discussions_count=28,
+                views_count=920,
+                sales_count=71,
+                revenue=1562000,
+                guarantee_text="Garantie 6 Mois",
+                primary_image_url="/media/products/samsung_galaxy_a15_thumb.jpg",
+                display_order=3,
+            )
+            db.add_all([p2_1, p2_2, p2_3, p2_4])
+            db.flush()
+
+            # Channels
+            db.add(StoreChannel(
+                store_id=store_2.id,
                 channel_type="WHATSAPP",
-                display_title="WhatsApp Direct",
-                badge_text="RECOMMANDÉ",
+                display_title="WhatsApp Ouaga Tech",
+                badge_text="CONSEILS EN DIRECT",
                 badge_style="primary",
-                account_handle="2250700000000",
-                subtitle="Réponse moyenne en < 3 minutes",
+                account_handle="22676987654",
+                subtitle="Réponse instantanée par Ousmane",
                 icon_name="chat",
                 theme_color="#25D366",
                 is_active=True,
                 is_recommended=True,
                 display_order=1
-            ),
-            StoreChannel(
-                store_id=store.id,
-                channel_type="MESSENGER",
-                display_title="Messenger",
-                badge_text="Page Officielle",
-                badge_style="info",
-                account_handle="awachic",
-                subtitle="Messagerie Facebook certifiée",
-                icon_name="forum",
-                theme_color="#0084FF",
+            ))
+
+        # =====================================================================
+        # 3. BOUTIQUE 3 : SYA BEAUTÉ & SOINS BIO (Bobo-Dioulasso, Burkina Faso)
+        # =====================================================================
+        owner_3 = db.query(Owner).filter(Owner.email == "fatoumata.traore@syabeaute.bf").first()
+        pwd_hash_3, salt_3 = hash_password("SyaBeaute2026!")
+        if not owner_3:
+            owner_3 = Owner(
+                full_name="Fatoumata Traoré",
+                email="fatoumata.traore@syabeaute.bf",
+                phone_number="+22678456789",
+                bio="Ingénieure agronome et cosmétologue naturelle à Bobo-Dioulasso. Valorisation du karité sauvage et des plantes médicinales du Burkina Faso.",
+                password_hash=pwd_hash_3,
+                password_salt=salt_3,
+                must_change_password=False
+            )
+            db.add(owner_3)
+            db.flush()
+        else:
+            owner_3.password_hash = pwd_hash_3
+            owner_3.password_salt = salt_3
+            owner_3.must_change_password = False
+
+        store_3 = db.query(Store).filter(Store.slug == "sya-beaute").first()
+        if not store_3:
+            store_3 = Store(
+                owner_id=owner_3.id,
+                name="Sya Beauté & Soins Bio",
+                slug="sya-beaute",
+                tagline="Cosmétiques purs au beurre de karité bio de Bobo-Dioulasso",
+                description="Gamme de cosmétiques et soins du corps 100% naturels, confectionnés à base de beurre de karité sauvage bio de la région des Hauts-Bassins (Bobo-Dioulasso). Bienfaits nourrissants et réparateurs garantis.",
+                owner_bio="Fondatrice de Sya Beauté à Bobo-Dioulasso (Belleville). Tous nos produits sont certifiés 100% bio et formulés sans produits chimiques.",
+                currency="FCFA",
+                logo_url="/media/products/coffret_parure_ecouteurs.jpg",
+                avatar_url="/media/store/awa_portrait.jpg",
+                rating=4.98,
+                sales_count=528,
+                revenue=8460000,
+                is_verified=True,
+                social_tunnel_badge="WA/FB",
+                social_tunnel_label="Tunnel Social Actif",
+                is_flash_active=True,
+                flash_title="Promo Karité Bio Pur",
+                flash_subtitle="Direct coopératives de Bobo • Livraison Ouaga & Bobo",
+                flash_remaining_seconds=18400,
+                voice_note_title="Besoin d'un diagnostic peau ou cheveux ?",
+                voice_note_subtitle="Fatoumata vous conseille selon votre type de peau en audio WhatsApp.",
+                primary_color="#059669",
+                secondary_color="#f59e0b",
+                theme_preset="kinetic_emerald",
+                is_custom_theme_active=True,
+                is_loyalty_active=True,
+                loyalty_spend_per_point=1000,
+                subscription_status="ACTIVE",
+                subscription_plan="VIP",
+                custom_domain="syabeaute.bf",
+                contact_whatsapp="+22678456789",
+                contact_email="fatoumata.traore@syabeaute.bf",
+            )
+            db.add(store_3)
+            db.flush()
+
+            # Trust Badges
+            db.add_all([
+                TrustBadge(store_id=store_3.id, icon_name="eco", label="100% Bio & Naturel", badge_type="primary", display_order=1),
+                TrustBadge(store_id=store_3.id, icon_name="verified", label="Coopératives Bobo", badge_type="secondary", display_order=2),
+                TrustBadge(store_id=store_3.id, icon_name="local_shipping", label="Paiement Livraison", badge_type="secondary-fixed", display_order=3),
+            ])
+
+            # Delivery Cities
+            db.add_all([
+                DeliveryCity(store_id=store_3.id, name="Bobo-Dioulasso (Belleville, Farakan, Bindougousso)", display_label="📍 Bobo", is_default=True, display_order=1),
+                DeliveryCity(store_id=store_3.id, name="Ouagadougou (Point Relais & Livraison à domicile)", display_label="Ouaga", is_default=False, display_order=2),
+                DeliveryCity(store_id=store_3.id, name="Banfora", display_label="Banfora", is_default=False, display_order=3),
+                DeliveryCity(store_id=store_3.id, name="Bamako (Mali)", display_label="Bamako", is_default=False, display_order=4),
+            ])
+
+            # Categories
+            cat_all_3 = Category(store_id=store_3.id, name="Tout", slug="all", display_order=0)
+            cat_karite_3 = Category(store_id=store_3.id, name="Beurres de Karité Bio", slug="beurres-karite-bio", display_order=1)
+            cat_savons_3 = Category(store_id=store_3.id, name="Savons Noirs Sahéliens", slug="savons-noirs", display_order=2)
+            cat_huiles_3 = Category(store_id=store_3.id, name="Huiles Végétales Pures", slug="huiles-vegetales", display_order=3)
+            cat_coffrets_3 = Category(store_id=store_3.id, name="Coffrets Soin Éclat", slug="coffrets-soin", display_order=4)
+            db.add_all([cat_all_3, cat_karite_3, cat_savons_3, cat_huiles_3, cat_coffrets_3])
+            db.flush()
+
+            # Products
+            p3_1 = Product(
+                store_id=store_3.id,
+                category_id=cat_karite_3.id,
+                name="Beurre de Karité Brut Non Raffiné de Bobo (Pot 500g)",
+                slug="beurre-de-karite-brut-bobo-500g",
+                description="Beurre de karité sauvage d'excellence récolté et extrait artisanalement à froid par les femmes de Bobo-Dioulasso. Couleur ivoire naturelle, riche en vitamines A, E et F. Hydrate en profondeur la peau et nourrit les cheveux crépus et bouclés.",
+                short_description="100% pur brut, extrait à froid à Bobo, pot familial 500g.",
+                price=6500,
+                old_price=8000,
+                currency="FCFA",
+                stock=25,
+                stock_label="En stock frais",
+                is_hero_deal=True,
+                badge_tag="100% Bio Certifié",
+                active_discussions_count=36,
+                views_count=1450,
+                sales_count=120,
+                revenue=780000,
+                guarantee_text="Origine Bobo Certifiée",
+                primary_image_url="/media/products/coffret_parure_ecouteurs.jpg",
+                display_order=0,
+            )
+            p3_2 = Product(
+                store_id=store_3.id,
+                category_id=cat_savons_3.id,
+                name="Savon Noir Traditionnel au Karité & Miel Sauvage (Lot de 3)",
+                slug="savon-noir-traditionnel-karite-miel",
+                description="Savon noir surgras saponifié à froid aux cendres de cabosses de cacao et enrichi au miel sauvage du Burkina. Nettoie en douceur, purifie le teint et estompe les taches d'acné sans assécher.",
+                short_description="Savon surgras au karité et miel sauvage, lot de 3 pains.",
+                price=4500,
+                old_price=6000,
+                currency="FCFA",
+                stock=30,
+                stock_label="En stock",
+                is_hero_deal=False,
+                badge_tag="Anti-Taches Naturel",
+                active_discussions_count=24,
+                views_count=890,
+                sales_count=95,
+                revenue=427500,
+                guarantee_text="Zéro Produit Chimique",
+                primary_image_url="/media/products/pagne_wax_authentique.jpg",
+                display_order=1,
+            )
+            p3_3 = Product(
+                store_id=store_3.id,
+                category_id=cat_huiles_3.id,
+                name="Huile Végétale Pure de Sésame & Balanites (100ml)",
+                slug="huile-sesame-balanites-100ml",
+                description="Synergie d'huiles végétales précieuses pressées à froid au Burkina Faso : le sésame réparateur et le dattier du désert (Balanites) régénérant. Fini sec, ne colle pas.",
+                short_description="Pressée à froid au Burkina, soin visage et pointes de cheveux.",
+                price=5500,
+                old_price=7000,
+                currency="FCFA",
+                stock=18,
+                stock_label="En stock",
+                is_hero_deal=False,
+                badge_tag="Fini Soyeux",
+                active_discussions_count=15,
+                views_count=520,
+                sales_count=48,
+                revenue=264000,
+                guarantee_text="100% Huiles Pures",
+                primary_image_url="/media/products/tailleur_veste_babi_boss.jpg",
+                display_order=2,
+            )
+            p3_4 = Product(
+                store_id=store_3.id,
+                category_id=cat_coffrets_3.id,
+                name="Coffret Rituel Soin Éclat & Douceur Sahélienne",
+                slug="coffret-rituel-soin-eclat-sahelienne",
+                description="Le coffret complet pour une peau éclatante : 1 pot de karité pur 250g, 2 savons noirs au miel, 1 flacon d'huile de dattier du désert 50ml et 1 baume à lèvres protecteur offert.",
+                short_description="Le rituel complet beauté naturelle de Bobo-Dioulasso.",
+                price=18500,
+                old_price=23000,
+                currency="FCFA",
+                stock=8,
+                stock_label="Idéal Cadeau",
+                is_hero_deal=False,
+                badge_tag="Coffret Cadeau",
+                active_discussions_count=29,
+                views_count=780,
+                sales_count=36,
+                revenue=666000,
+                guarantee_text="Gamme Complète Bio",
+                primary_image_url="/media/products/coffret_parure_ecouteurs.jpg",
+                display_order=3,
+            )
+            db.add_all([p3_1, p3_2, p3_3, p3_4])
+            db.flush()
+
+            # Channels
+            db.add(StoreChannel(
+                store_id=store_3.id,
+                channel_type="WHATSAPP",
+                display_title="WhatsApp Sya Beauté",
+                badge_text="CONSEILS PEAU BIO",
+                badge_style="primary",
+                account_handle="22678456789",
+                subtitle="Diagnostic beauté personnalisé par Fatoumata",
+                icon_name="chat",
+                theme_color="#25D366",
                 is_active=True,
-                is_recommended=False,
-                display_order=2
-            ),
-            StoreChannel(
-                store_id=store.id,
-                channel_type="TIKTOK",
-                display_title="TikTok Message",
-                badge_text="@awachic",
-                badge_style="danger",
-                account_handle="@awachic",
-                subtitle="Discussion avec la créatrice",
-                icon_name="smart_display",
-                theme_color="#FE2C55",
-                is_active=True,
-                is_recommended=False,
-                display_order=3
-            ),
-            StoreChannel(
-                store_id=store.id,
-                channel_type="CALL",
-                display_title="Appel Direct",
-                badge_text=None,
-                badge_style=None,
-                account_handle="+225 07 00 11 22 33",
-                subtitle="Ligne Standard Appels Directs",
-                icon_name="phone_in_talk",
-                theme_color="#ff5733",
-                is_active=True,
-                is_recommended=False,
-                display_order=4
-            ),
-            StoreChannel(
-                store_id=store.id,
-                channel_type="SMS",
-                display_title="SMS Direct",
-                badge_text="Messagerie",
-                badge_style="secondary",
-                account_handle="+225 07 00 44 55 66",
-                subtitle="Messagerie SMS instantanée",
-                icon_name="sms",
-                theme_color="#8084ff",
-                is_active=True,
-                is_recommended=False,
-                display_order=5
-            ),
+                is_recommended=True,
+                display_order=1
+            ))
+
+        # =====================================================================
+        # 4. REAL CLIENTS & ORDERS FOR ALL 3 STORES
+        # =====================================================================
+        real_customers = [
+            {
+                "name": "Kouamé Desiré",
+                "phone": "+22507123456",
+                "city": "Ouagadougou (Ouaga 2000)",
+                "delivery_address": "Ouaga 2000, Zone des Ambassades, Rue 15.42",
+                "gps_coordinates": "12.3168, -1.4921",
+                "gps_location_url": "https://maps.google.com/?q=12.3168,-1.4921",
+                "store_id": store_1.id
+            },
+            {
+                "name": "Wendkouni Sawadogo",
+                "phone": "+22670998877",
+                "city": "Ouagadougou (Dassasgho)",
+                "delivery_address": "Dassasgho, face Pharmacie de la Paix",
+                "gps_coordinates": "12.3789, -1.4856",
+                "gps_location_url": "https://maps.google.com/?q=12.3789,-1.4856",
+                "store_id": store_1.id
+            },
+            {
+                "name": "Aminata Sanogo",
+                "phone": "+22676112233",
+                "city": "Bobo-Dioulasso (Belleville)",
+                "delivery_address": "Belleville, Secteur 21, à 200m du grand marché",
+                "gps_coordinates": "11.1764, -4.2978",
+                "gps_location_url": "https://maps.google.com/?q=11.1764,-4.2978",
+                "store_id": store_3.id
+            }
         ]
-        db.add_all(channels)
-        db.flush()
 
-        ch_wa = channels[0]
-
-        # 8. Seed Active 24h Order Intent for Verification Card (Screen 3)
-        # CMD-8F29A1 created 23h40 ago!
-        intent_urgent = OrderIntent(
-            reference_code="CMD-8F29A1",
-            store_id=store.id,
-            product_id=p_galaxy.id,
-            channel_id=ch_wa.id,
-            channel_type="WHATSAPP",
-            customer_name="Amadou K.",
-            customer_phone="+225 07 48 ••",
-            customer_source="TIKTOK",
-            quantity=1,
-            selected_color="Bleu Nuit",
-            delivery_city="Cocody (Abidjan)",
-            unit_price=85000,
-            total_amount=85000,
-            currency="FCFA",
-            status="PENDING_24H",
-            is_urgent_followup=True,
-            created_at=datetime.utcnow() - timedelta(hours=23, minutes=40),
-            redirected_at=datetime.utcnow() - timedelta(hours=23, minutes=40),
-        )
-        db.add(intent_urgent)
-        db.flush()
-
-        followup_urgent = FollowUpTask(
-            order_intent_id=intent_urgent.id,
-            secure_token="token_8f29a1_demo",
-            scheduled_for=datetime.utcnow() + timedelta(minutes=20),
-            status="READY",
-        )
-        db.add(followup_urgent)
-
-        # Recent feed intents (Screen 3 flux)
-        it_casque = OrderIntent(
-            reference_code="CMD-7A12C3",
-            store_id=store.id,
-            product_id=p_casque.id,
-            channel_type="MESSENGER",
-            customer_name="Salif T.",
-            customer_source="INSTAGRAM",
-            quantity=1,
-            unit_price=35000,
-            total_amount=35000,
-            currency="FCFA",
-            status="REDIRECTED",
-            created_at=datetime.utcnow() - timedelta(minutes=15),
-        )
-        it_pagne = OrderIntent(
-            reference_code="CMD-5B88D9",
-            store_id=store.id,
-            product_id=p_pagne.id,
-            channel_type="WHATSAPP",
-            customer_name="Aïssata B.",
-            customer_source="WHATSAPP",
-            quantity=1,
-            unit_price=22000,
-            total_amount=22000,
-            currency="FCFA",
-            status="CREATED",
-            created_at=datetime.utcnow() - timedelta(hours=5),
-        )
-        it_montre = OrderIntent(
-            reference_code="CMD-9C44E1",
-            store_id=store.id,
-            product_id=p_montre.id,
-            channel_type="TIKTOK",
-            customer_name="Marc K.",
-            customer_source="TIKTOK",
-            quantity=1,
-            unit_price=45000,
-            total_amount=45000,
-            currency="FCFA",
-            status="SOLD",
-            created_at=datetime.utcnow() - timedelta(hours=14),
-        )
-        db.add_all([it_casque, it_pagne, it_montre])
-
-        # 9. Traffic Sources (Screen 4)
-        sources = [
-            TrafficSource(store_id=store.id, source_name="TikTok Bio", source_code="tiktok_bio", percentage=45.0, visits_count=5779, color_hex="#ff5733", display_order=1),
-            TrafficSource(store_id=store.id, source_name="FB Post", source_code="fb_post", percentage=35.0, visits_count=4495, color_hex="#6366f1", display_order=2),
-            TrafficSource(store_id=store.id, source_name="Statut WA", source_code="wa_status", percentage=20.0, visits_count=2569, color_hex="#10b981", display_order=3),
-        ]
-        db.add_all(sources)
+        for c_data in real_customers:
+            existing_c = db.query(Customer).filter(Customer.phone == c_data["phone"]).first()
+            if not existing_c:
+                c_obj = Customer(
+                    id=str(uuid.uuid4()),
+                    store_id=c_data["store_id"],
+                    name=c_data["name"],
+                    phone=c_data["phone"],
+                    city=c_data["city"],
+                    delivery_address=c_data["delivery_address"],
+                    gps_coordinates=c_data["gps_coordinates"],
+                    gps_location_url=c_data["gps_location_url"],
+                    preferred_channel="WHATSAPP",
+                    session_token="token_" + secrets.token_hex(16)
+                )
+                db.add(c_obj)
 
         db.commit()
-        print("Database initialized and fully seeded with zero mock data!")
+        print("Database fully seeded with real Burkinabè boutiques, authentic products, customers and SuperAdmin!")
 
     except Exception as e:
         db.rollback()
@@ -453,4 +770,5 @@ def seed_database():
         db.close()
 
 if __name__ == "__main__":
+    import secrets
     seed_database()

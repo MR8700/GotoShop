@@ -21,8 +21,8 @@ import {
 
 export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
   const [auth, setAuth] = useState({ is_authenticated: false, admin: null });
-  const [loginEmail, setLoginEmail] = useState("admin@conversastore.com");
-  const [loginPassword, setLoginPassword] = useState("SuperAdmin2026!");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -58,9 +58,9 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
     slug: "",
     owner_name: "",
     owner_email: "",
-    owner_phone: "+225 ",
-    password: "Marchand2026!",
-    delivery_city: "Abidjan (Cocody)",
+    owner_phone: "+226 ",
+    password: "",
+    delivery_city: "Ouagadougou",
     subscription_plan: "PRO",
     trial_days: 30,
     primary_color: "#ec761e",
@@ -234,8 +234,8 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
   };
 
   const handleDelete = async (st) => {
-    if (st.slug === "awa-chic-tech" || st.slug === "awa-chic") {
-      alert("La boutique de démonstration principale ne peut pas être supprimée.");
+    if (st.slug === "faso-danfani") {
+      alert("La boutique principale ne peut pas être supprimée.");
       return;
     }
     const ok = window.confirm(`Êtes-vous certain de vouloir supprimer définitivement la boutique "${st.name}" ? Toutes ses données seront effacées.`);
@@ -376,14 +376,6 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
               <span>{loginError}</span>
             </div>
           )}
-
-          <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-xs">
-            <p className="font-bold mb-1 flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm">key</span> Identifiants Super-Admin pré-configurés :
-            </p>
-            <p>Email : <code className="bg-slate-800 px-1 py-0.5 rounded">admin@conversastore.com</code></p>
-            <p>MDP : <code className="bg-slate-800 px-1 py-0.5 rounded">SuperAdmin2026!</code></p>
-          </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
@@ -584,11 +576,11 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                   <span className="material-symbols-outlined text-2xl">dns</span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-sm">Routage Multi-Boutiques par Sous-Domaines & Slugs</h3>
+                  <h3 className="font-bold text-white text-sm">Routage Multi-Boutiques & Multi-Tenancy</h3>
                   <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
-                    Chaque commerçant possède un espace 100% étanche. Accessible via son sous-domaine direct{" "}
-                    <code className="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300 font-mono text-[11px]">[slug].localhost:8000</code>{" "}
-                    ou paramètre <code className="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300 font-mono text-[11px]">?store=[slug]</code>.
+                    Chaque commerçant possède un espace 100% étanche. Accessible via le paramètre{" "}
+                    <code className="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300 font-mono text-[11px]">?store=[slug]</code>{" "}
+                    ou sous-domaine direct <code className="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300 font-mono text-[11px]">[slug].gotoshop.com</code>.
                   </p>
                 </div>
               </div>
@@ -683,7 +675,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                       </div>
                       <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
                         <span className="font-mono text-[11px] text-amber-400 bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700">
-                          {st.slug}.localhost:8000
+                          ?store={st.slug}
                         </span>
                         <span>•</span>
                         <span>{st.currency}</span>
@@ -756,7 +748,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                       <span>Forfait</span>
                     </button>
 
-                    {st.slug !== "awa-chic-tech" && st.slug !== "awa-chic" && (
+                    {st.slug !== "faso-danfani" && (
                       <button
                         onClick={() => handleDelete(st)}
                         title="Supprimer la boutique"
@@ -1199,7 +1191,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:border-amber-500 outline-none font-mono"
                   />
                   <p className="text-[10px] text-amber-400 mt-1">
-                    URL : {newStore.slug || "slug"}.localhost:8000
+                    URL d'accès : ?store={newStore.slug || "slug"}
                   </p>
                 </div>
               </div>

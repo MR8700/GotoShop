@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { updateCustomerProfile, getMediaUrl } from "../api/client";
+import { WEST_AFRICAN_COUNTRIES } from "../utils/locations";
 
 export default function ClientProfilePage({
   customer,
@@ -10,9 +11,11 @@ export default function ClientProfilePage({
   showToast,
 }) {
   const [name, setName] = useState(customer?.name || "");
+  const [selectedCountryCode, setSelectedCountryCode] = useState(customer?.country_code || "BF");
   const [phone, setPhone] = useState(customer?.phone || "");
   const [email, setEmail] = useState(customer?.email || "");
-  const [city, setCity] = useState(customer?.city || "Abidjan");
+  const [city, setCity] = useState(customer?.city || "Ouagadougou");
+  const [customCity, setCustomCity] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState(customer?.delivery_address || "");
   const [gpsCoordinates, setGpsCoordinates] = useState(customer?.gps_coordinates || "");
   const [gpsLocationUrl, setGpsLocationUrl] = useState(customer?.gps_location_url || "");
@@ -22,6 +25,17 @@ export default function ClientProfilePage({
   const [avatarData, setAvatarData] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+
+  const currentCountry = WEST_AFRICAN_COUNTRIES.find((c) => c.code === selectedCountryCode) || WEST_AFRICAN_COUNTRIES[0];
+
+  const handleCountryChange = (code) => {
+    setSelectedCountryCode(code);
+    const country = WEST_AFRICAN_COUNTRIES.find((c) => c.code === code);
+    if (country) {
+      setCity(country.cities[0] || "Autre");
+      setCustomCity("");
+    }
+  };
 
   if (!customer) {
     return (
@@ -96,11 +110,12 @@ export default function ClientProfilePage({
     e.preventDefault();
     setIsSaving(true);
     try {
+      const effectiveCity = city === "Autre" ? (customCity.trim() || "Autre ville") : city;
       const payload = {
         name,
         phone,
         email: email || null,
-        city,
+        city: effectiveCity,
         delivery_address: deliveryAddress || null,
         gps_coordinates: gpsCoordinates || null,
         gps_location_url: gpsLocationUrl || null,
@@ -179,6 +194,24 @@ export default function ClientProfilePage({
             />
           </div>
 
+          {/* Country Selection */}
+          <div>
+            <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
+              Pays de résidence
+            </label>
+            <select
+              value={selectedCountryCode}
+              onChange={(e) => handleCountryChange(e.target.value)}
+              className="w-full h-11 px-3 rounded-xl bg-surface-container-high border border-outline-variant/30 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {WEST_AFRICAN_COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.flag} {c.name} ({c.dial})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
@@ -201,25 +234,31 @@ export default function ClientProfilePage({
                 onChange={(e) => setCity(e.target.value)}
                 className="w-full h-11 px-3 rounded-xl bg-surface-container-high border border-outline-variant/30 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <option value="Cocody (Abidjan)">Cocody (Abidjan)</option>
-                <option value="Marcory (Abidjan)">Marcory (Abidjan)</option>
-                <option value="Yopougon (Abidjan)">Yopougon (Abidjan)</option>
-                <option value="Plateau (Abidjan)">Plateau (Abidjan)</option>
-                <option value="Ouagadougou (Centre)">Ouagadougou (Centre)</option>
-                <option value="Ouaga 2000">Ouaga 2000</option>
-                <option value="Bobo-Dioulasso">Bobo-Dioulasso</option>
-                <option value="Autre">Autre Ville</option>
+                {currentCountry.cities.map((ct) => (
+                  <option key={ct} value={ct}>
+                    {ct}
+                  </option>
+                ))}
               </select>
+              {city === "Autre" && (
+                <input
+                  type="text"
+                  placeholder="Précisez votre ville..."
+                  value={customCity}
+                  onChange={(e) => setCustomCity(e.target.value)}
+                  className="w-full h-11 mt-2 px-3 rounded-xl bg-surface-container-high border border-outline-variant/30 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              )}
             </div>
           </div>
 
           <div>
             <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
-              Adresse de Livraison / Quartier & Repère
+              Adresse de Livraison / Quartier &amp; Repère (Champ libre)
             </label>
             <input
               type="text"
-              placeholder="Ex: Angré 8ème Tranche, à côté de la pharmacie"
+              placeholder="Ex: Ouaga 2000, Dassasgho face pharmacie, Zone 4..."
               value={deliveryAddress}
               onChange={(e) => setDeliveryAddress(e.target.value)}
               className="w-full h-11 px-3 rounded-xl bg-surface-container-high border border-outline-variant/30 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary"

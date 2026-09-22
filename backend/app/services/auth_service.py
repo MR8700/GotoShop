@@ -75,15 +75,11 @@ class AuthService:
     def authenticate(cls, db: Session, req: LoginRequest) -> Tuple[Owner, str]:
         ident = req.identifier.strip().lower()
         owner = db.query(Owner).filter(
-            (Owner.email.ilike(ident)) | (Owner.full_name.ilike(ident))
+            (Owner.email.ilike(ident)) | (Owner.full_name.ilike(ident)) | (Owner.phone_number == ident)
         ).first()
 
         if not owner:
-            # Fallback: check default owner
-            owner = db.query(Owner).first()
-
-        if not owner:
-            raise ValueError("Aucun compte propriétaire trouvé dans la base.")
+            raise ValueError("Identifiants incorrects. Veuillez vérifier votre adresse email ou mot de passe.")
 
         # Ensure default temporary password if first time
         cls.ensure_default_owner_credentials(db, owner)

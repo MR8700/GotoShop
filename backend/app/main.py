@@ -151,20 +151,8 @@ def run_migrations():
                 db.add_all(default_tiers)
                 db.commit()
 
-            # Seed default super admin if none exist
-            if db.query(SuperAdmin).filter(SuperAdmin.email == "admin@conversastore.com").count() == 0:
-                import hashlib
-                salt = "sa_salt_2026_super"
-                pwd_hash = hashlib.sha256(("SuperAdmin2026!" + salt).encode("utf-8")).hexdigest()
-                sa = SuperAdmin(
-                    id=str(uuid.uuid4()),
-                    email="admin@conversastore.com",
-                    full_name="Super Administrateur ConversaStore",
-                    password_hash=pwd_hash,
-                    password_salt=salt
-                )
-                db.add(sa)
-                db.commit()
+            # Ensure SuperAdmin and the 3 real Burkinabè boutiques exist
+            seed_database()
         finally:
             db.close()
     except Exception as e:

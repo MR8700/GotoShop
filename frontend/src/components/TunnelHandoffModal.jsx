@@ -15,7 +15,8 @@ export default function TunnelHandoffModal({
 }) {
   const [selectedColor, setSelectedColor] = useState(initialColor);
   const [quantity, setQuantity] = useState(1);
-  const [selectedCity, setSelectedCity] = useState(customer?.city || "Cocody (Abidjan)");
+  const [selectedCity, setSelectedCity] = useState(customer?.city || "Ouagadougou");
+  const [customLocality, setCustomLocality] = useState(customer?.delivery_address || "");
   const [activeChannel, setActiveChannel] = useState((customer?.preferred_channel || initialChannel).toUpperCase());
   const [referenceCode, setReferenceCode] = useState("CMD-" + Math.random().toString(36).substring(2, 8).toUpperCase());
   const [copied, setCopied] = useState(false);
@@ -67,13 +68,14 @@ export default function TunnelHandoffModal({
     showToast("Position GPS retirée.");
   };
 
-  // Available cities from store or defaults
+  // Available cities from store or defaults (Burkina Faso oriented)
   const cities = store?.delivery_cities?.length
     ? store.delivery_cities
     : [
-        { id: "1", name: "Cocody (Abidjan)", display_label: "📍 Cocody" },
-        { id: "2", name: "Ouagadougou", display_label: "Ouaga" },
-        { id: "3", name: "Dakar", display_label: "Dakar" },
+        { id: "1", name: "Ouagadougou", display_label: "📍 Ouaga" },
+        { id: "2", name: "Bobo-Dioulasso", display_label: "📍 Bobo" },
+        { id: "3", name: "Koudougou", display_label: "Koudougou" },
+        { id: "4", name: "Autre", display_label: "Autre Ville" },
       ];
 
   // Available variants from product or defaults
@@ -91,10 +93,12 @@ export default function TunnelHandoffModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const destinationStr = customLocality.trim() ? `${selectedCity} (${customLocality.trim()})` : selectedCity;
+
   const getDynamicMessagePreview = () => {
     const colorStr = selectedColor ? ` (${selectedColor})` : "";
     const clientGreeting = customer ? `Je suis ${customer.name}. ` : "";
-    let msg = `"Bonjour ${store?.name || "Awa"}, ${clientGreeting}je confirme l'achat de ${quantity}x ${product?.name}${colorStr} pour ${selectedCity}. Réf: ${referenceCode}`;
+    let msg = `"Bonjour ${store?.name || "Boutique"}, ${clientGreeting}je confirme l'achat de ${quantity}x ${product?.name}${colorStr} pour ${destinationStr}. Réf: ${referenceCode}`;
     if (wantSendGps && customerLocationUrl) {
       msg += ` 📍 Ma localisation exacte : ${customerLocationUrl}`;
     }
@@ -113,7 +117,7 @@ export default function TunnelHandoffModal({
         channel_type: activeChannel,
         quantity: quantity,
         selected_color: selectedColor,
-        delivery_city: selectedCity,
+        delivery_city: destinationStr,
         customer_source: "MOBILE_WEB",
         customer_name: customer?.name || "Client Mobile",
         customer_phone: customer?.phone || null,
@@ -132,7 +136,7 @@ export default function TunnelHandoffModal({
         product_image_url: product.primary_image_url,
         quantity: quantity,
         selected_color: selectedColor,
-        delivery_city: selectedCity,
+        delivery_city: destinationStr,
         total_amount: totalPrice,
         currency: product.currency || "FCFA",
         channel_type: activeChannel,
@@ -427,7 +431,7 @@ export default function TunnelHandoffModal({
         {/* City selection */}
         <div className="space-y-1">
           <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold">Ville de livraison</label>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-4 gap-1.5">
             {cities.map((city) => (
               <button
                 key={city.id}
@@ -441,6 +445,28 @@ export default function TunnelHandoffModal({
                 {city.display_label}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Free-text Locality / Quartier / Repère */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold">
+              Quartier &amp; Repère précis (Champ libre)
+            </label>
+            <span className="text-[10px] text-primary">Facilite la livraison</span>
+          </div>
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-primary">
+              pin_drop
+            </span>
+            <input
+              type="text"
+              placeholder="Ex: Ouaga 2000, Dassasgho face pharmacie, Zone 4..."
+              value={customLocality}
+              onChange={(e) => setCustomLocality(e.target.value)}
+              className="w-full h-10 pl-9 pr-3 rounded-xl bg-surface-container-high/60 border border-white/10 text-on-surface placeholder:text-on-surface-variant/40 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            />
           </div>
         </div>
 
