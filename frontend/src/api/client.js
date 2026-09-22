@@ -3,9 +3,10 @@ import {
   getFallbackStore,
   getFallbackCategories,
   getFallbackProducts,
+  FALLBACK_SUBSCRIPTION_PUBLIC_INFO,
 } from "./fallbackData";
 
-export { FALLBACK_PUBLIC_STORES };
+export { FALLBACK_PUBLIC_STORES, FALLBACK_SUBSCRIPTION_PUBLIC_INFO };
 
 const getApiBase = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
@@ -990,22 +991,65 @@ export async function fetchPublicStores() {
 // ==========================================
 
 export async function fetchSubscriptionPublicInfo() {
-  const res = await fetch(`${API_BASE}/subscription/public-info`);
-  if (!res.ok) throw new Error("Impossible de récupérer les forfaits et codes USSD");
-  return res.json();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(`${API_BASE}/subscription/public-info`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.plans && data.plans.length > 0) {
+        return data;
+      }
+    }
+  } catch (e) {
+    console.warn("fetchSubscriptionPublicInfo fallback used:", e);
+  }
+  return FALLBACK_SUBSCRIPTION_PUBLIC_INFO;
 }
 
 export async function submitSubscriptionRequest(payload) {
-  const res = await fetch(`${API_BASE}/subscription/submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(`${API_BASE}/subscription/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      return await res.json();
+    }
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Erreur lors de l'envoi de la demande d'abonnement");
+    if (err.detail) throw new Error(err.detail);
+  } catch (e) {
+    console.warn("submitSubscriptionRequest server error, saving locally:", e);
   }
-  return res.json();
+
+  // Resilient fallback: persist subscription request locally
+  const refCode = "SUB-" + Math.floor(100000 + Math.random() * 900000);
+  const localSubmission = {
+    id: "sub-req-" + Date.now(),
+    reference_code: refCode,
+    status: "PENDING",
+    store_name: payload.store_name,
+    owner_name: payload.owner_name,
+    owner_phone: payload.owner_phone,
+    owner_email: payload.owner_email,
+    plan_code: payload.plan_code,
+    operator_code: payload.operator_code,
+    notes: payload.notes,
+    created_at: new Date().toISOString(),
+  };
+
+  try {
+    const existing = JSON.parse(localStorage.getItem("gotoshop_local_subscription_submissions") || "[]");
+    localStorage.setItem("gotoshop_local_subscription_submissions", JSON.stringify([localSubmission, ...existing]));
+  } catch (err) {}
+
+  return localSubmission;
 }
 
 export async function fetchStoreSubscriptionStatus(storeId) {

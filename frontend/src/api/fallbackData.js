@@ -566,3 +566,285 @@ export function getFallbackProducts(slug, categoryId = null) {
   }
   return products.filter((p) => p.category_id === categoryId);
 }
+
+export const FALLBACK_SUBSCRIPTION_PUBLIC_INFO = {
+  plans: [
+    {
+      id: "plan-starter-1000",
+      name: "Formule Starter (1 000 FCFA)",
+      code: "STARTER",
+      price: 1000,
+      currency: "FCFA",
+      duration_days: 30,
+      description: "Parfait pour lancer votre boutique en ligne et tester vos ventes sur WhatsApp.",
+      features: [
+        "Vitrine mobile personnalisée 24h/24",
+        "Catalogue jusqu'à 30 produits",
+        "Tunnel de commande WhatsApp direct",
+        "Lien vitrine partageable sur TikTok/Instagram",
+        "Statistiques de base des visites"
+      ],
+      badge_label: "Idéal Débutant",
+      is_popular: false,
+      is_active: true,
+      display_order: 1
+    },
+    {
+      id: "plan-pro-3000",
+      name: "Formule Pro Vendeur (3 000 FCFA)",
+      code: "PRO",
+      price: 3000,
+      currency: "FCFA",
+      duration_days: 30,
+      description: "Pour les commerçants actifs souhaitant maximiser leurs ventes et fidéliser leurs clients.",
+      features: [
+        "Produits illimités & multi-variantes",
+        "Programme de fidélité & Système VIP Points",
+        "Ventes Flash & Bannières promotionnelles",
+        "Suivi et géolocalisation livreurs",
+        "Statistiques avancées des commandes",
+        "Support prioritaire 7j/7"
+      ],
+      badge_label: "Le Plus Populaire",
+      is_popular: true,
+      is_active: true,
+      display_order: 2
+    },
+    {
+      id: "plan-vip-5000",
+      name: "Formule VIP Élite (5 000 FCFA)",
+      code: "VIP",
+      price: 5000,
+      currency: "FCFA",
+      duration_days: 30,
+      description: "Solution tout inclus pour les commerçants établis et les marques en forte croissance.",
+      features: [
+        "Toutes les fonctionnalités Pro incluses",
+        "Thème graphique sur mesure aux couleurs de votre marque",
+        "Relances automatiques des commandes par WhatsApp",
+        "Badge officiel Marchand Certifié Vérifié",
+        "Accès prioritaire aux nouvelles fonctionnalités"
+      ],
+      badge_label: "Excellence VIP",
+      is_popular: false,
+      is_active: true,
+      display_order: 3
+    }
+  ],
+  ussd_configs: [
+    {
+      id: "ussd-orange-ci",
+      operator_name: "Orange Money",
+      operator_code: "ORANGE",
+      merchant_number: "65711741",
+      ussd_template: "*144*2*1*{merchant_number}*{amount}#",
+      instructions: "Cliquez sur le bouton pour composer automatiquement le code USSD Orange Money, validez avec votre code secret, puis chargez la capture d'écran du reçu SMS de confirmation ci-dessous.",
+      brand_color: "#FF7900",
+      text_color: "#FFFFFF",
+      icon_type: "orange",
+      is_active: true,
+      display_order: 1
+    },
+    {
+      id: "ussd-moov-ci",
+      operator_name: "Moov Money",
+      operator_code: "MOOV",
+      merchant_number: "52045008",
+      ussd_template: "*555*2*1*{merchant_number}*{amount}#",
+      instructions: "Cliquez sur le bouton pour composer le code USSD Moov Money, confirmez le transfert sur votre téléphone avec votre code secret Moov, puis prenez une capture du SMS reçu et chargez-la ci-dessous.",
+      brand_color: "#005BAA",
+      text_color: "#FFFFFF",
+      icon_type: "moov",
+      is_active: true,
+      display_order: 2
+    },
+    {
+      id: "ussd-wave-ci",
+      operator_name: "Wave Money",
+      operator_code: "WAVE",
+      merchant_number: "0759000000",
+      ussd_template: "Wave direct au 0759000000",
+      instructions: "Ouvrez votre application Wave, effectuez le transfert vers notre compte Wave officiel et chargez la capture d'écran du reçu dans le champ dédié.",
+      brand_color: "#1dc4fe",
+      text_color: "#FFFFFF",
+      icon_type: "wave",
+      is_active: true,
+      display_order: 3
+    }
+  ],
+  plans_with_ussd: [
+    {
+      plan: {
+        id: "plan-starter-1000",
+        name: "Formule Starter (1 000 FCFA)",
+        code: "STARTER",
+        price: 1000,
+        currency: "FCFA",
+        duration_days: 30,
+        description: "Parfait pour lancer votre boutique en ligne et tester vos ventes sur WhatsApp.",
+        features: [
+          "Vitrine mobile personnalisée 24h/24",
+          "Catalogue jusqu'à 30 produits",
+          "Tunnel de commande WhatsApp direct",
+          "Lien vitrine partageable sur TikTok/Instagram",
+          "Statistiques de base des visites"
+        ],
+        badge_label: "Idéal Débutant",
+        is_popular: false,
+        is_active: true,
+        display_order: 1
+      },
+      payment_options: [
+        {
+          operator_code: "ORANGE",
+          operator_name: "Orange Money",
+          brand_color: "#FF7900",
+          text_color: "#FFFFFF",
+          icon_type: "orange",
+          merchant_number: "65711741",
+          ussd_code: "*144*2*1*65711741*1010#",
+          tel_link: "tel:*144*2*1*65711741*1010%23",
+          instructions: "Cliquez sur le bouton pour composer automatiquement le code USSD Orange Money, validez avec votre code secret, puis chargez la capture d'écran du reçu SMS de confirmation ci-dessous."
+        },
+        {
+          operator_code: "MOOV",
+          operator_name: "Moov Money",
+          brand_color: "#005BAA",
+          text_color: "#FFFFFF",
+          icon_type: "moov",
+          merchant_number: "52045008",
+          ussd_code: "*555*2*1*52045008*1010#",
+          tel_link: "tel:*555*2*1*52045008*1010%23",
+          instructions: "Cliquez sur le bouton pour composer le code USSD Moov Money, confirmez le transfert sur votre téléphone avec votre code secret Moov, puis prenez une capture du SMS reçu et chargez-la ci-dessous."
+        },
+        {
+          operator_code: "WAVE",
+          operator_name: "Wave Money",
+          brand_color: "#1dc4fe",
+          text_color: "#FFFFFF",
+          icon_type: "wave",
+          merchant_number: "0759000000",
+          ussd_code: "Wave direct au 0759000000",
+          tel_link: "tel:0759000000",
+          instructions: "Ouvrez votre application Wave, effectuez le transfert vers notre compte Wave officiel et chargez la capture d'écran du reçu dans le champ dédié."
+        }
+      ]
+    },
+    {
+      plan: {
+        id: "plan-pro-3000",
+        name: "Formule Pro Vendeur (3 000 FCFA)",
+        code: "PRO",
+        price: 3000,
+        currency: "FCFA",
+        duration_days: 30,
+        description: "Pour les commerçants actifs souhaitant maximiser leurs ventes et fidéliser leurs clients.",
+        features: [
+          "Produits illimités & multi-variantes",
+          "Programme de fidélité & Système VIP Points",
+          "Ventes Flash & Bannières promotionnelles",
+          "Suivi et géolocalisation livreurs",
+          "Statistiques avancées des commandes",
+          "Support prioritaire 7j/7"
+        ],
+        badge_label: "Le Plus Populaire",
+        is_popular: true,
+        is_active: true,
+        display_order: 2
+      },
+      payment_options: [
+        {
+          operator_code: "ORANGE",
+          operator_name: "Orange Money",
+          brand_color: "#FF7900",
+          text_color: "#FFFFFF",
+          icon_type: "orange",
+          merchant_number: "65711741",
+          ussd_code: "*144*2*1*65711741*3000#",
+          tel_link: "tel:*144*2*1*65711741*3000%23",
+          instructions: "Cliquez sur le bouton pour composer automatiquement le code USSD Orange Money, validez avec votre code secret, puis chargez la capture d'écran du reçu SMS de confirmation ci-dessous."
+        },
+        {
+          operator_code: "MOOV",
+          operator_name: "Moov Money",
+          brand_color: "#005BAA",
+          text_color: "#FFFFFF",
+          icon_type: "moov",
+          merchant_number: "52045008",
+          ussd_code: "*555*2*1*52045008*3000#",
+          tel_link: "tel:*555*2*1*52045008*3000%23",
+          instructions: "Cliquez sur le bouton pour composer le code USSD Moov Money, confirmez le transfert sur votre téléphone avec votre code secret Moov, puis prenez une capture du SMS reçu et chargez-la ci-dessous."
+        },
+        {
+          operator_code: "WAVE",
+          operator_name: "Wave Money",
+          brand_color: "#1dc4fe",
+          text_color: "#FFFFFF",
+          icon_type: "wave",
+          merchant_number: "0759000000",
+          ussd_code: "Wave direct au 0759000000",
+          tel_link: "tel:0759000000",
+          instructions: "Ouvrez votre application Wave, effectuez le transfert vers notre compte Wave officiel et chargez la capture d'écran du reçu dans le champ dédié."
+        }
+      ]
+    },
+    {
+      plan: {
+        id: "plan-vip-5000",
+        name: "Formule VIP Élite (5 000 FCFA)",
+        code: "VIP",
+        price: 5000,
+        currency: "FCFA",
+        duration_days: 30,
+        description: "Solution tout inclus pour les commerçants établis et les marques en forte croissance.",
+        features: [
+          "Toutes les fonctionnalités Pro incluses",
+          "Thème graphique sur mesure aux couleurs de votre marque",
+          "Relances automatiques des commandes par WhatsApp",
+          "Badge officiel Marchand Certifié Vérifié",
+          "Accès prioritaire aux nouvelles fonctionnalités"
+        ],
+        badge_label: "Excellence VIP",
+        is_popular: false,
+        is_active: true,
+        display_order: 3
+      },
+      payment_options: [
+        {
+          operator_code: "ORANGE",
+          operator_name: "Orange Money",
+          brand_color: "#FF7900",
+          text_color: "#FFFFFF",
+          icon_type: "orange",
+          merchant_number: "65711741",
+          ussd_code: "*144*2*1*65711741*5000#",
+          tel_link: "tel:*144*2*1*65711741*5000%23",
+          instructions: "Cliquez sur le bouton pour composer automatiquement le code USSD Orange Money, validez avec votre code secret, puis chargez la capture d'écran du reçu SMS de confirmation ci-dessous."
+        },
+        {
+          operator_code: "MOOV",
+          operator_name: "Moov Money",
+          brand_color: "#005BAA",
+          text_color: "#FFFFFF",
+          icon_type: "moov",
+          merchant_number: "52045008",
+          ussd_code: "*555*2*1*52045008*5000#",
+          tel_link: "tel:*555*2*1*52045008*5000%23",
+          instructions: "Cliquez sur le bouton pour composer le code USSD Moov Money, confirmez le transfert sur votre téléphone avec votre code secret Moov, puis prenez une capture du SMS reçu et chargez-la ci-dessous."
+        },
+        {
+          operator_code: "WAVE",
+          operator_name: "Wave Money",
+          brand_color: "#1dc4fe",
+          text_color: "#FFFFFF",
+          icon_type: "wave",
+          merchant_number: "0759000000",
+          ussd_code: "Wave direct au 0759000000",
+          tel_link: "tel:0759000000",
+          instructions: "Ouvrez votre application Wave, effectuez le transfert vers notre compte Wave officiel et chargez la capture d'écran du reçu dans le champ dédié."
+        }
+      ]
+    }
+  ]
+};
+

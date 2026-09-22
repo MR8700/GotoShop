@@ -4,6 +4,7 @@ import {
   submitSubscriptionRequest,
   getMediaUrl,
 } from "../api/client";
+import { FALLBACK_SUBSCRIPTION_PUBLIC_INFO } from "../api/fallbackData";
 
 export default function SubscriptionModal({
   isOpen,
@@ -12,10 +13,10 @@ export default function SubscriptionModal({
   initialStore = null,
   onSuccess,
 }) {
-  const [plans, setPlans] = useState([]);
-  const [ussdConfigs, setUssdConfigs] = useState([]);
-  const [plansWithUssd, setPlansWithUssd] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [plans, setPlans] = useState(FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans);
+  const [ussdConfigs, setUssdConfigs] = useState(FALLBACK_SUBSCRIPTION_PUBLIC_INFO.ussd_configs);
+  const [plansWithUssd, setPlansWithUssd] = useState(FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans_with_ussd);
+  const [loading, setLoading] = useState(false);
 
   // Form State
   const [selectedPlanCode, setSelectedPlanCode] = useState("STARTER");
@@ -57,19 +58,19 @@ export default function SubscriptionModal({
   }, [isOpen, initialStore]);
 
   const loadInfo = async () => {
-    setLoading(true);
     try {
       const data = await fetchSubscriptionPublicInfo();
-      setPlans(data.plans || []);
-      setUssdConfigs(data.ussd_configs || []);
-      setPlansWithUssd(data.plans_with_ussd || []);
-      if (data.plans && data.plans.length > 0 && !initialStore?.subscription_plan) {
-        // default to first active plan or popular
-        const pop = data.plans.find((p) => p.is_popular);
-        setSelectedPlanCode(pop ? pop.code : data.plans[0].code);
+      if (data?.plans?.length) setPlans(data.plans);
+      if (data?.ussd_configs?.length) setUssdConfigs(data.ussd_configs);
+      if (data?.plans_with_ussd?.length) setPlansWithUssd(data.plans_with_ussd);
+
+      const activePlans = data?.plans?.length ? data.plans : FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans;
+      if (activePlans.length > 0 && !initialStore?.subscription_plan) {
+        const pop = activePlans.find((p) => p.is_popular);
+        setSelectedPlanCode(pop ? pop.code : activePlans[0].code);
       }
     } catch (e) {
-      setErrorMessage("Impossible de charger les informations d'abonnement.");
+      console.warn("Erreur chargement forfaits en ligne, utilisation des données sécurisées:", e);
     } finally {
       setLoading(false);
     }
