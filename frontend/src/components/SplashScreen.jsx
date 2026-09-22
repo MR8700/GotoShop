@@ -60,12 +60,12 @@ export default function SplashScreen({ store, onFinished }) {
 
         {/* Store Title */}
         <h1 className="font-headline-sm text-2xl font-bold tracking-tight text-white mb-1.5">
-          {store?.name || "Awa Chic & Tech"}
+          {store?.name || "GotoShop"}
         </h1>
 
         {/* Warm emotional tagline */}
         <p className="text-xs text-on-surface-variant font-medium mb-6 max-w-[240px] leading-relaxed">
-          {store?.tagline || "L'élégance africaine & la tech au creux de votre main ✨"}
+          {store?.tagline || "Le réseau des meilleures boutiques africaines en direct ✨"}
         </p>
 
         {/* Clean, minimalist progress line */}
@@ -88,7 +88,7 @@ export default function SplashScreen({ store, onFinished }) {
       {/* Emotional reassurance footer */}
       <div className="text-center">
         <span className="text-[11px] text-on-surface-variant/50 font-medium tracking-wide">
-          Boutique officielle certifiée • Abidjan &amp; Ouaga
+          Boutiques officielles certifiées • Burkina Faso &amp; International
         </span>
       </div>
     </div>

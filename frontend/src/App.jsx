@@ -14,6 +14,7 @@ import {
   linkGuestOrdersToAccount,
   clearLocalGuestOrders,
   deleteProduct,
+  fetchPublicStores,
 } from "./api/client";
 import Header from "./components/Header";
 import BottomNav from "./components/BottomNav";
@@ -33,6 +34,7 @@ import ClientProfilePage from "./components/ClientProfilePage";
 import SuperAdminDashboard from "./components/SuperAdminDashboard";
 import StoreSwitcherModal from "./components/StoreSwitcherModal";
 import SubscriptionModal from "./components/SubscriptionModal";
+import StoreExplorerPage from "./components/StoreExplorerPage";
 import { getActiveStoreSlug, setActiveStoreSlug } from "./api/client";
 
 export default function App() {
@@ -57,6 +59,19 @@ export default function App() {
     return false;
   });
   const [isStoreSwitcherOpen, setIsStoreSwitcherOpen] = useState(false);
+
+  // Store Explorer / Discovery view mode: "explorer" | "store"
+  const [viewMode, setViewMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      if (p.has("store") || p.has("slug") || p.has("s")) return "store";
+      const pathname = window.location.pathname;
+      if (pathname.match(/^\/(?:store|boutique|s)\//)) return "store";
+    }
+    return "explorer";
+  });
+  const [publicStores, setPublicStores] = useState([]);
+  const [publicStoresLoading, setPublicStoresLoading] = useState(false);
 
   // Persona Mode: "client" | "owner"
   const [appMode, setAppMode] = useState("client");
@@ -171,8 +186,21 @@ export default function App() {
 
     checkAuth();
     loadCustomer();
+    loadPublicStores();
     loadAllData();
   }, []);
+
+  const loadPublicStores = async () => {
+    try {
+      setPublicStoresLoading(true);
+      const list = await fetchPublicStores();
+      setPublicStores(list || []);
+    } catch (e) {
+      console.error("Erreur chargement boutiques publiques:", e);
+    } finally {
+      setPublicStoresLoading(false);
+    }
+  };
 
   // Synchronize dynamic store theme colors configured by merchant
   useEffect(() => {
@@ -364,6 +392,7 @@ export default function App() {
     setActiveStoreSlug(slug);
     setIsSuperAdminOpen(false);
     setIsStoreSwitcherOpen(false);
+    setViewMode("store");
     try {
       const url = new URL(window.location);
       if (slug) url.searchParams.set("store", slug);
@@ -384,12 +413,93 @@ export default function App() {
     showToast("Boutique chargée avec succès !");
   };
 
+  const handleSelectStoreFromExplorer = async (slug) => {
+    setActiveStoreSlug(slug);
+    setViewMode("store");
+    try {
+      const url = new URL(window.location);
+      url.searchParams.set("store", slug);
+      window.history.pushState({}, "", url);
+    } catch (e) {}
+    await loadAllData();
+    setActiveTab("boutique");
+    showToast("Boutique chargée avec succès !");
+  };
+
+  const handleOpenExplorer = () => {
+    setViewMode("explorer");
+    try {
+      const url = new URL(window.location);
+      url.searchParams.delete("store");
+      window.history.pushState({}, "", url);
+    } catch (e) {}
+    loadPublicStores();
+  };
+
   if (isSuperAdminOpen) {
     return (
       <SuperAdminDashboard
         onClose={() => setIsSuperAdminOpen(false)}
         onSwitchStore={handleSwitchStore}
       />
+    );
+  }
+
+  // If viewMode is "explorer", show the Store Explorer Page after splash screen
+  if (!showSplash && viewMode === "explorer") {
+    return (
+      <div className="bg-surface font-body-md text-on-surface flex flex-col min-h-screen antialiased selection:bg-primary-container selection:text-on-primary-container">
+        <StoreExplorerPage
+          stores={publicStores}
+          loading={publicStoresLoading}
+          onSelectStore={handleSelectStoreFromExplorer}
+          customer={customer}
+          onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
+          onOpenRegisterStore={() => {
+            setSubModalMode("NEW_STORE");
+            setIsSubscriptionModalOpen(true);
+          }}
+          onOpenOwnerLogin={() => setIsLoginOpen(true)}
+          onOpenSuperAdmin={() => setIsSuperAdminOpen(true)}
+        />
+
+        {/* Customer Login / Register Modal */}
+        <CustomerAuthModal
+          isOpen={isCustomerAuthOpen}
+          onClose={() => setIsCustomerAuthOpen(false)}
+          onSuccess={handleCustomerAuthSuccess}
+          showToast={showToast}
+        />
+
+        {/* Owner Login Modal */}
+        <LoginModal
+          isOpen={isLoginOpen}
+          onClose={() => setIsLoginOpen(false)}
+          onLoginSuccess={handleLoginSuccess}
+          showToast={showToast}
+        />
+
+        {/* Global Subscription Modal */}
+        <SubscriptionModal
+          isOpen={isSubscriptionModalOpen}
+          onClose={() => setIsSubscriptionModalOpen(false)}
+          mode={subModalMode}
+          initialStore={store}
+          onSuccess={() => {
+            showToast("Demande d'abonnement transmise ! Vos identifiants vous seront délivrés dès vérification.");
+          }}
+        />
+
+        {/* Interactive Feedback Toast */}
+        <div
+          className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 rounded-full bg-secondary-container px-4 py-2 text-on-secondary font-label-md text-label-md shadow-2xl flex items-center gap-2 pointer-events-none transition-all duration-300 ${
+            toastVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[18px]">check_circle</span>
+          <span>{toastMessage}</span>
+        </div>
+      </div>
     );
   }
 
@@ -414,6 +524,7 @@ export default function App() {
         onOpenLogin={() => setIsLoginOpen(true)}
         onOpenChangePassword={() => setIsChangePasswordOpen(true)}
         onLogout={handleLogout}
+        onOpenExplorer={handleOpenExplorer}
         onOpenStoreSwitcher={() => setIsStoreSwitcherOpen(true)}
         onOpenSuperAdmin={() => setIsSuperAdminOpen(true)}
         onOpenRegisterStore={() => {
@@ -599,6 +710,10 @@ export default function App() {
         isOpen={isStoreSwitcherOpen}
         onClose={() => setIsStoreSwitcherOpen(false)}
         onSelectStore={(slug) => handleSwitchStore(slug, false)}
+        onOpenExplorer={() => {
+          setIsStoreSwitcherOpen(false);
+          handleOpenExplorer();
+        }}
         onOpenSuperAdmin={() => {
           setIsStoreSwitcherOpen(false);
           setIsSuperAdminOpen(true);

@@ -18,6 +18,7 @@ export default function Header({
   onOpenSuperAdmin,
   onOpenRegisterStore,
   onOpenSubscription,
+  onOpenExplorer,
 }) {
   const isTunnel = activeTab === "tunnel";
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -105,6 +106,18 @@ export default function Header({
 
         {/* Right Actions: Compact & Grouped Menu */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* Quick Return to All Boutiques (Explorer) Button */}
+          {onOpenExplorer && (
+            <button
+              onClick={onOpenExplorer}
+              className="h-7 sm:h-8 px-2 sm:px-2.5 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface text-[10px] sm:text-[11px] font-bold border border-white/5 flex items-center gap-1 transition-all active:scale-95"
+              title="Voir toutes les boutiques"
+            >
+              <span className="material-symbols-outlined text-[14px] text-primary">storefront</span>
+              <span className="hidden xs:inline">Boutiques</span>
+            </button>
+          )}
+
           {/* Quick Persona Mode Switcher when Owner is Authenticated */}
           {authStatus?.is_authenticated && (
             <button
@@ -282,6 +295,20 @@ export default function Header({
                     <span className="material-symbols-outlined text-[17px] text-primary">share</span>
                     <span className="font-semibold">Partager la boutique</span>
                   </button>
+
+                  {/* Explore all stores gallery */}
+                  {onOpenExplorer && (
+                    <button
+                      onClick={() => {
+                        setShowToolsMenu(false);
+                        onOpenExplorer();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-container-highest flex items-center gap-2.5 text-on-surface transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[17px] text-primary">grid_view</span>
+                      <span className="font-semibold">Galerie des boutiques</span>
+                    </button>
+                  )}
 
                   {/* Multi-store switcher */}
                   <button

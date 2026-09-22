@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { fetchPublicStores, getActiveStoreSlug, setActiveStoreSlug } from "../api/client";
 
-export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onOpenSuperAdmin }) {
+export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onOpenSuperAdmin, onOpenExplorer }) {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const activeSlug = getActiveStoreSlug();
@@ -114,16 +114,29 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
         </div>
 
         {/* Footer actions */}
-        <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+        <div className="pt-2 border-t border-white/5 space-y-2">
+          {onOpenExplorer && (
+            <button
+              onClick={() => {
+                onClose();
+                onOpenExplorer();
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-primary/15 hover:bg-primary/25 text-primary text-xs font-bold transition flex items-center justify-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-base">grid_view</span>
+              <span>Voir la Galerie Complète des Boutiques</span>
+            </button>
+          )}
+
           <button
             onClick={() => {
               onClose();
               if (onOpenSuperAdmin) onOpenSuperAdmin();
             }}
-            className="w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 text-xs font-bold transition flex items-center justify-center gap-1.5"
+            className="w-full py-2 px-3 rounded-xl bg-surface-container-highest hover:bg-surface-container-highest/80 text-on-surface-variant hover:text-on-surface text-xs font-semibold transition flex items-center justify-center gap-1.5"
           >
-            <span className="material-symbols-outlined text-base">hub</span>
-            <span>Accéder à la Console Super-Admin</span>
+            <span className="material-symbols-outlined text-sm text-amber-400">hub</span>
+            <span>Console Super-Admin Plateforme</span>
           </button>
         </div>
       </div>

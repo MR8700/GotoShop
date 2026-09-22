@@ -65,21 +65,33 @@ class StoreService:
     @staticmethod
     def get_public_stores(db: Session):
         stores = db.query(Store).filter(Store.subscription_status != "SUSPENDED").all()
-        return [
-            {
+        result = []
+        for s in stores:
+            city_name = s.delivery_cities[0].name if s.delivery_cities else "Burkina Faso"
+            prods_count = len(s.products) if s.products else 0
+            result.append({
                 "id": s.id,
                 "name": s.name,
                 "slug": s.slug,
                 "tagline": s.tagline,
+                "description": s.description,
+                "owner_name": s.owner.full_name if s.owner else None,
+                "owner_bio": s.owner_bio or (s.owner.bio if s.owner else None),
                 "logo_url": s.logo_url,
                 "avatar_url": s.avatar_url,
-                "rating": s.rating,
+                "rating": s.rating or 4.9,
+                "sales_count": s.sales_count or 0,
+                "products_count": prods_count,
+                "delivery_city": city_name,
                 "primary_color": s.primary_color,
+                "secondary_color": s.secondary_color,
                 "subscription_status": s.subscription_status,
-                "currency": s.currency,
-            }
-            for s in stores
-        ]
+                "currency": s.currency or "FCFA",
+                "is_verified": s.is_verified,
+                "social_tunnel_badge": s.social_tunnel_badge or "WA/FB",
+                "social_tunnel_label": s.social_tunnel_label or "Tunnel Social Actif",
+            })
+        return result
 
     @staticmethod
     def get_store_by_slug(db: Session, slug: str) -> Optional[Store]:
