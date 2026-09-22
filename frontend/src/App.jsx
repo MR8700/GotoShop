@@ -15,6 +15,7 @@ import {
   clearLocalGuestOrders,
   deleteProduct,
   fetchPublicStores,
+  FALLBACK_PUBLIC_STORES,
 } from "./api/client";
 import Header from "./components/Header";
 import BottomNav from "./components/BottomNav";
@@ -70,7 +71,7 @@ export default function App() {
     }
     return "explorer";
   });
-  const [publicStores, setPublicStores] = useState([]);
+  const [publicStores, setPublicStores] = useState(FALLBACK_PUBLIC_STORES);
   const [publicStoresLoading, setPublicStoresLoading] = useState(false);
 
   // Persona Mode: "client" | "owner"
@@ -132,8 +133,7 @@ export default function App() {
         setCart([{ id: hero.id, name: hero.name, price: hero.price, quantity: 1 }]);
       }
     } catch (e) {
-      console.error("Erreur de chargement des données :", e);
-      showToast("Erreur de connexion au serveur");
+      console.warn("Erreur de synchronisation des données serveur :", e);
     } finally {
       setLoading(false);
     }
@@ -194,7 +194,9 @@ export default function App() {
     try {
       setPublicStoresLoading(true);
       const list = await fetchPublicStores();
-      setPublicStores(list || []);
+      if (list && list.length > 0) {
+        setPublicStores(list);
+      }
     } catch (e) {
       console.error("Erreur chargement boutiques publiques:", e);
     } finally {

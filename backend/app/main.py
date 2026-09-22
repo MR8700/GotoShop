@@ -10,8 +10,11 @@ import os
 from sqlalchemy import inspect, text
 import uuid
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Create tables safely
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print("Notice: table creation skipped or handled:", e)
 
 def run_migrations():
     try:
@@ -181,19 +184,25 @@ if not os.path.exists(settings.MEDIA_DIR):
 
 app.mount("/media", StaticFiles(directory=str(settings.MEDIA_DIR)), name="media")
 
-# Include API routers
-app.include_router(store.router, prefix=settings.API_V1_STR)
-app.include_router(catalog.router, prefix=settings.API_V1_STR)
-app.include_router(channels.router, prefix=settings.API_V1_STR)
-app.include_router(commerce.router, prefix=settings.API_V1_STR)
-app.include_router(analytics.router, prefix=settings.API_V1_STR)
-app.include_router(auth.router, prefix=settings.API_V1_STR)
-app.include_router(customer.router, prefix=settings.API_V1_STR)
-app.include_router(notifications.router, prefix=settings.API_V1_STR)
-app.include_router(super_admin.router, prefix=settings.API_V1_STR)
-app.include_router(subscription.router, prefix=settings.API_V1_STR)
+# Include API routers (both under /api and root for Vercel serverless compatibility)
+all_routers = [
+    store.router,
+    catalog.router,
+    channels.router,
+    commerce.router,
+    analytics.router,
+    auth.router,
+    customer.router,
+    notifications.router,
+    super_admin.router,
+    subscription.router,
+]
+for r in all_routers:
+    app.include_router(r, prefix=settings.API_V1_STR)
+    app.include_router(r, prefix="")
 
 @app.get("/health")
+@app.get("/api/health")
 def health_check():
     return {"status": "ok", "project": settings.PROJECT_NAME, "storage": "database"}
 

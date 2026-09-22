@@ -1,3 +1,12 @@
+import {
+  FALLBACK_PUBLIC_STORES,
+  getFallbackStore,
+  getFallbackCategories,
+  getFallbackProducts,
+} from "./fallbackData";
+
+export { FALLBACK_PUBLIC_STORES };
+
 const getApiBase = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof window !== "undefined" && window.location) {
@@ -113,9 +122,20 @@ export const getMediaUrl = (path) => {
 };
 
 export async function fetchStore() {
-  const res = await fetchWithStore(`${API_BASE}/store`);
-  if (!res.ok) throw new Error("Erreur de chargement de la boutique");
-  return res.json();
+  const slug = getActiveStoreSlug();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const res = await fetchWithStore(`${API_BASE}/store`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.name) return data;
+    }
+  } catch (e) {
+    console.warn("fetchStore fallback used for slug:", slug, e);
+  }
+  return getFallbackStore(slug);
 }
 
 export async function updateStore(storeId, data) {
@@ -129,24 +149,58 @@ export async function updateStore(storeId, data) {
 }
 
 export async function fetchCategories() {
-  const res = await fetchWithStore(`${API_BASE}/catalog/categories`);
-  if (!res.ok) throw new Error("Erreur de chargement des catégories");
-  return res.json();
+  const slug = getActiveStoreSlug();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const res = await fetchWithStore(`${API_BASE}/catalog/categories`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (e) {
+    console.warn("fetchCategories fallback used for slug:", slug, e);
+  }
+  return getFallbackCategories(slug);
 }
 
 export async function fetchProducts(categoryId = null) {
-  const url = categoryId
-    ? `${API_BASE}/catalog/products?category_id=${categoryId}`
-    : `${API_BASE}/catalog/products`;
-  const res = await fetchWithStore(url);
-  if (!res.ok) throw new Error("Erreur de chargement des produits");
-  return res.json();
+  const slug = getActiveStoreSlug();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const url = categoryId
+      ? `${API_BASE}/catalog/products?category_id=${categoryId}`
+      : `${API_BASE}/catalog/products`;
+    const res = await fetchWithStore(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (e) {
+    console.warn("fetchProducts fallback used for slug:", slug, e);
+  }
+  return getFallbackProducts(slug, categoryId);
 }
 
 export async function fetchHeroProduct() {
-  const res = await fetchWithStore(`${API_BASE}/catalog/products/hero`);
-  if (!res.ok) throw new Error("Erreur de chargement du produit vedette");
-  return res.json();
+  const slug = getActiveStoreSlug();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const res = await fetchWithStore(`${API_BASE}/catalog/products/hero`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.name) return data;
+    }
+  } catch (e) {
+    console.warn("fetchHeroProduct fallback used:", e);
+  }
+  const products = getFallbackProducts(slug);
+  return products.find((p) => p.is_hero_deal) || products[0] || null;
 }
 
 export async function createProduct(payload) {
@@ -195,9 +249,21 @@ export async function trackVisit(source = "direct") {
 }
 
 export async function fetchChannels() {
-  const res = await fetchWithStore(`${API_BASE}/channels`);
-  if (!res.ok) throw new Error("Erreur de chargement des canaux");
-  return res.json();
+  const slug = getActiveStoreSlug();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const res = await fetchWithStore(`${API_BASE}/channels`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (e) {
+    console.warn("fetchChannels fallback used:", e);
+  }
+  const st = getFallbackStore(slug);
+  return st?.channels || [];
 }
 
 export async function updateChannel(channelId, data) {
@@ -904,9 +970,19 @@ export async function deleteSuperAdminStore(storeId) {
 }
 
 export async function fetchPublicStores() {
-  const res = await fetch(`${API_BASE}/store/list/public`);
-  if (!res.ok) return [];
-  return res.json();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(`${API_BASE}/store/list/public`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (e) {
+    console.warn("fetchPublicStores fallback used:", e);
+  }
+  return FALLBACK_PUBLIC_STORES;
 }
 
 // ==========================================

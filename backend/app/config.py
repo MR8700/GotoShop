@@ -26,9 +26,19 @@ def get_database_url() -> str:
         auth = f"{user}:{password}@" if password else f"{user}@"
         db_url = f"postgresql://{auth}{host}:{port}/{db}"
     
-    # 4. Default to SQLite for local development if no PostgreSQL/Supabase config is provided
+    # 4. Default to SQLite for local development or Vercel serverless fallback
     if not db_url:
-        db_url = f"sqlite:///{DB_PATH}"
+        target_db = DB_PATH
+        if os.getenv("VERCEL"):
+            tmp_db = Path("/tmp") / "conversastore.db"
+            if not tmp_db.exists() and DB_PATH.exists():
+                try:
+                    import shutil
+                    shutil.copy2(str(DB_PATH), str(tmp_db))
+                except Exception as e:
+                    print("Notice: could not copy bundled db to /tmp:", e)
+            target_db = tmp_db
+        db_url = f"sqlite:///{target_db}"
 
     # Normalize postgres:// to postgresql:// for SQLAlchemy 2.0+
     if db_url.startswith("postgres://"):
