@@ -18,7 +18,7 @@ export default function BottomNav({ activeTab, onSelectTab, pendingCount = 0, mo
       ];
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 pb-safe bg-surface/90 backdrop-blur-md border-t border-white/[0.07]">
+    <nav className="fixed bottom-0 inset-x-0 z-40 pb-safe bg-surface/90 backdrop-blur-md border-t border-subtle">
       <div className="flex justify-around items-center h-15 px-3 max-w-md mx-auto">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -29,7 +29,7 @@ export default function BottomNav({ activeTab, onSelectTab, pendingCount = 0, mo
               className={`relative flex flex-col items-center justify-center gap-1 w-16 h-11 rounded-xl transition-all duration-150 cursor-pointer active:scale-95 ${
                 isActive
                   ? "text-primary font-semibold"
-                  : "text-slate-400 hover:text-slate-200 font-medium"
+                  : "text-on-surface-variant hover:text-on-surface font-medium"
               }`}
             >
               <div className="relative flex items-center justify-center">

@@ -8,48 +8,56 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Obsidian & Slate 2-tier surfaces
-        "surface": "var(--color-surface, #0b0f17)",
-        "surface-container": "var(--color-surface-container, #121824)",
-        "surface-container-high": "var(--color-surface-container-high, #182030)",
-        "surface-container-highest": "var(--color-surface-container-highest, #20293d)",
-        "surface-container-low": "var(--color-surface-container-low, #0e131d)",
-        "surface-container-lowest": "var(--color-surface-container-lowest, #07090e)",
-        "surface-variant": "#1a2233",
-        "surface-bright": "#222c42",
-        "surface-dim": "#0b0f17",
+        // Dynamic 2-tier surfaces (Light & Dark)
+        "surface": "var(--color-surface, #ffffff)",
+        "surface-card": "var(--color-surface-card, #ffffff)",
+        "surface-secondary": "var(--color-surface-secondary, #f1f5f9)",
+        "surface-elevated": "var(--color-surface-elevated, #ffffff)",
+        "surface-container": "var(--color-surface-container, #ffffff)",
+        "surface-container-high": "var(--color-surface-container-high, #f8fafc)",
+        "surface-container-highest": "var(--color-surface-container-highest, #f1f5f9)",
+        "surface-container-low": "var(--color-surface-container-low, #f8fafc)",
+        "surface-container-lowest": "var(--color-surface-container-lowest, #ffffff)",
+        "surface-variant": "var(--color-surface-secondary, #f1f5f9)",
+        "surface-bright": "var(--color-surface-elevated, #ffffff)",
+        "surface-dim": "var(--color-bg-page, #f8fafc)",
 
-        // Typography contrast
-        "on-surface": "#f8fafc",
-        "on-surface-variant": "#94a3b8",
-        "on-background": "#f8fafc",
-        "background": "#0b0f17",
+        // Typography contrast tokens
+        "on-surface": "var(--color-text-primary, #0f172a)",
+        "on-surface-variant": "var(--color-text-muted, #64748b)",
+        "on-surface-secondary": "var(--color-text-secondary, #475569)",
+        "on-background": "var(--color-text-primary, #0f172a)",
+        "background": "var(--color-bg-page, #f8fafc)",
 
         // Accents
         "primary": "var(--color-primary, #e06a26)",
-        "primary-container": "var(--color-primary-container, #2a160c)",
+        "primary-container": "var(--color-primary-container, #ffede5)",
         "primary-fixed": "#ffdad3",
         "primary-fixed-dim": "#f27a38",
-        "on-primary": "#ffffff",
-        "on-primary-container": "#ffdad3",
+        "on-primary": "var(--color-on-primary, #ffffff)",
+        "on-primary-container": "var(--color-on-primary-container, #9a3412)",
 
         // Secondary / Trust / Success
         "secondary": "var(--color-secondary, #10b981)",
-        "secondary-container": "var(--color-secondary-container, #063725)",
+        "secondary-container": "var(--color-secondary-container, #dcfce7)",
         "secondary-fixed": "#6ffbbe",
         "secondary-fixed-dim": "#10b981",
-        "on-secondary": "#ffffff",
-        "on-secondary-container": "#a7f3d0",
+        "on-secondary": "var(--color-on-secondary, #ffffff)",
+        "on-secondary-container": "var(--color-on-secondary-container, #065f46)",
 
-        // Borders & dividers
-        "outline": "rgba(255, 255, 255, 0.08)",
-        "outline-variant": "rgba(255, 255, 255, 0.05)",
+        // Borders & inputs
+        "outline": "var(--color-border-subtle, rgba(15, 23, 42, 0.08))",
+        "outline-variant": "var(--color-border-strong, rgba(15, 23, 42, 0.15))",
+        "input-bg": "var(--color-input-bg, #ffffff)",
+        "input-border": "var(--color-input-border, rgba(15, 23, 42, 0.12))",
+        "input-text": "var(--color-input-text, #0f172a)",
+        "input-placeholder": "var(--color-input-placeholder, #94a3b8)",
 
         // Error & Feedback
-        "error": "#f87171",
-        "error-container": "#450a0a",
+        "error": "#ef4444",
+        "error-container": "#fef2f2",
         "on-error": "#ffffff",
-        "on-error-container": "#fecaca",
+        "on-error-container": "#991b1b",
       },
       borderRadius: {
         DEFAULT: "0.375rem",
@@ -92,9 +100,10 @@ export default {
         "currency-display": ["26px", { lineHeight: "32px", fontWeight: "700" }],
       },
       boxShadow: {
-        "card": "0 4px 20px -2px rgba(0, 0, 0, 0.25)",
-        "card-hover": "0 12px 32px -4px rgba(0, 0, 0, 0.35)",
-        "dropdown": "0 10px 30px -4px rgba(0, 0, 0, 0.45)",
+        "card": "var(--shadow-card)",
+        "card-hover": "var(--shadow-card-hover)",
+        "dropdown": "var(--shadow-dropdown)",
+        "elevated": "var(--shadow-elevated)",
       },
     },
   },

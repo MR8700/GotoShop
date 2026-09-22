@@ -246,27 +246,27 @@ export default function TunnelHandoffModal({
           <span className="font-mono text-xs font-semibold text-secondary bg-secondary/10 px-3 py-1 rounded-full border border-secondary/20">
             #{orderSuccessIntent.reference_code}
           </span>
-          <h2 className="text-xl font-bold text-white pt-2 tracking-tight">
+          <h2 className="text-xl font-bold text-on-surface pt-2 tracking-tight">
             Commande Transmise avec Succès
           </h2>
-          <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+          <p className="text-xs text-on-surface-variant max-w-xs mx-auto leading-relaxed">
             La discussion directe avec {store?.name || "le commerçant"} est initiée. Votre demande a bien été enregistrée.
           </p>
         </div>
 
         {/* Account Activation Banner */}
-        <div className="rounded-2xl bg-surface-container p-5 text-left border border-white/[0.08] shadow-card space-y-3 mx-2">
+        <div className="rounded-2xl bg-surface-card p-5 text-left border border-subtle shadow-card space-y-3 mx-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-[20px]">stars</span>
-              <span className="text-sm font-semibold text-white">Espace Client Partagé</span>
+              <span className="text-sm font-semibold text-on-surface">Espace Client Partagé</span>
             </div>
             <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
               Reconnu Partout
             </span>
           </div>
 
-          <p className="text-xs text-slate-300 leading-relaxed">
+          <p className="text-xs text-on-surface-variant leading-relaxed">
             Activez votre compte en 10 secondes (Nom &amp; WhatsApp) pour synchroniser vos adresses de livraison et suivre vos commandes en direct.
           </p>
 
@@ -291,7 +291,7 @@ export default function TunnelHandoffModal({
               if (onNavigateToOrders) onNavigateToOrders();
               onClose();
             }}
-            className="w-full h-11 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-white text-xs font-medium flex items-center justify-center gap-2 border border-white/[0.07] transition-colors cursor-pointer"
+            className="w-full h-11 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-medium flex items-center justify-center gap-2 border border-subtle transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-[17px]">receipt_long</span>
             <span>Suivre ma commande</span>
@@ -299,7 +299,7 @@ export default function TunnelHandoffModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-2 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="w-full py-2 text-xs text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
           >
             Retourner au catalogue
           </button>
@@ -314,18 +314,18 @@ export default function TunnelHandoffModal({
       <div className="flex items-center justify-between px-1">
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 text-xs text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
         >
           <span className="material-symbols-outlined text-[16px]">arrow_back</span>
           <span>Retour</span>
         </button>
-        <span className="text-xs text-slate-400 font-mono">Commande Directe</span>
+        <span className="text-xs text-on-surface-variant font-mono">Commande Directe</span>
       </div>
 
       {/* Selected Product Summary Card */}
-      <div className="rounded-2xl bg-surface-container p-4 border border-white/[0.08] shadow-card">
+      <div className="rounded-2xl bg-surface-card p-4 border border-subtle shadow-card">
         <div className="flex gap-3.5 items-center">
-          <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-surface border border-white/[0.08]">
+          <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-surface-secondary border border-subtle">
             <img
               className="w-full h-full object-cover"
               src={getMediaUrl(product?.primary_image_url)}
@@ -341,26 +341,26 @@ export default function TunnelHandoffModal({
             <span className="text-[11px] font-semibold text-primary uppercase tracking-wide block">
               Article sélectionné
             </span>
-            <h2 className="text-sm sm:text-base font-semibold text-white truncate mt-0.5">
+            <h2 className="text-sm sm:text-base font-semibold text-on-surface truncate mt-0.5">
               {product?.name}
             </h2>
 
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-lg font-bold text-white tabular-nums">
+              <span className="text-lg font-bold text-on-surface tabular-nums">
                 {totalPrice.toLocaleString("fr-FR")}
               </span>
-              <span className="text-xs text-slate-400 font-medium">
+              <span className="text-xs text-on-surface-variant font-medium">
                 {product?.currency || "FCFA"}
               </span>
             </div>
 
-            <div className="mt-2 flex items-center justify-between bg-white/[0.03] border border-white/[0.06] px-2.5 py-1 rounded-lg">
-              <span className="text-[11px] text-slate-400 font-mono">
+            <div className="mt-2 flex items-center justify-between bg-surface-secondary border border-subtle px-2.5 py-1 rounded-lg">
+              <span className="text-[11px] text-on-surface-variant font-mono">
                 RÉF #{referenceCode}
               </span>
               <button
                 onClick={copyRefCode}
-                className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-1"
+                className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <span>{copied ? "Copié !" : "Copier"}</span>
               </button>
@@ -370,28 +370,28 @@ export default function TunnelHandoffModal({
       </div>
 
       {/* Customization Options */}
-      <div className="bg-surface-container rounded-2xl p-4 border border-white/[0.08] shadow-card space-y-3.5">
+      <div className="bg-surface-card rounded-2xl p-4 border border-subtle shadow-card space-y-3.5">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-white uppercase tracking-wider flex items-center gap-1.5">
+          <h3 className="text-xs font-semibold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
             <span className="material-symbols-outlined text-primary text-[17px]">tune</span>
             <span>Options de livraison</span>
           </h3>
-          <span className="text-[11px] text-slate-400">Paiement à la remise</span>
+          <span className="text-[11px] text-on-surface-variant">Paiement à la remise</span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           {/* Color Variant */}
           <div className="space-y-1">
-            <label className="text-xs text-slate-400 font-medium">Variante / Couleur</label>
-            <div className="flex gap-1 p-1 bg-surface rounded-xl border border-white/[0.06]">
+            <label className="text-xs text-on-surface-variant font-medium">Variante / Couleur</label>
+            <div className="flex gap-1 p-1 bg-surface-secondary rounded-xl border border-subtle">
               {colorOptions.map((cName) => (
                 <button
                   key={cName}
                   onClick={() => setSelectedColor(cName)}
-                  className={`flex-1 py-1.5 rounded-lg text-center text-xs font-medium transition-all ${
+                  className={`flex-1 py-1.5 rounded-lg text-center text-xs font-medium transition-all cursor-pointer ${
                     selectedColor === cName
-                      ? "bg-white/[0.12] text-white font-semibold"
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-primary/15 text-primary border border-primary/30 font-semibold"
+                      : "text-on-surface-variant hover:text-on-surface"
                   }`}
                 >
                   {cName.split(" ")[0]}
@@ -402,18 +402,18 @@ export default function TunnelHandoffModal({
 
           {/* Quantity Stepper */}
           <div className="space-y-1">
-            <label className="text-xs text-slate-400 font-medium">Quantité</label>
-            <div className="flex items-center justify-between p-1 bg-surface rounded-xl border border-white/[0.06] h-9">
+            <label className="text-xs text-on-surface-variant font-medium">Quantité</label>
+            <div className="flex items-center justify-between p-1 bg-surface-secondary rounded-xl border border-subtle h-9">
               <button
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/[0.06] text-white hover:bg-white/[0.1] active:scale-95 transition-all"
+                className="w-7 h-7 rounded-lg flex items-center justify-center bg-surface-card text-on-surface hover:bg-surface-elevated active:scale-95 transition-all cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[15px]">remove</span>
               </button>
-              <span className="text-sm font-semibold text-white">{quantity}</span>
+              <span className="text-sm font-semibold text-on-surface">{quantity}</span>
               <button
                 onClick={() => setQuantity((q) => Math.min(10, q + 1))}
-                className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/[0.06] text-white hover:bg-white/[0.1] active:scale-95 transition-all"
+                className="w-7 h-7 rounded-lg flex items-center justify-center bg-surface-card text-on-surface hover:bg-surface-elevated active:scale-95 transition-all cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[15px]">add</span>
               </button>
@@ -423,16 +423,16 @@ export default function TunnelHandoffModal({
 
         {/* City Selection */}
         <div className="space-y-1">
-          <label className="text-xs text-slate-400 font-medium">Ville de destination</label>
+          <label className="text-xs text-on-surface-variant font-medium">Ville de destination</label>
           <div className="grid grid-cols-4 gap-1.5">
             {cities.map((city) => (
               <button
                 key={city.id}
                 onClick={() => setSelectedCity(city.name)}
-                className={`py-2 px-1 rounded-xl text-center text-xs font-medium transition-all ${
+                className={`py-2 px-1 rounded-xl text-center text-xs font-medium transition-all cursor-pointer ${
                   selectedCity === city.name
-                    ? "bg-white/[0.12] text-white font-semibold border border-white/20"
-                    : "bg-surface text-slate-400 hover:text-white border border-white/[0.06]"
+                    ? "bg-primary/15 text-primary font-semibold border border-primary/30"
+                    : "bg-surface-secondary text-on-surface-variant hover:text-on-surface border border-subtle"
                 }`}
               >
                 {city.display_label}
@@ -443,7 +443,7 @@ export default function TunnelHandoffModal({
 
         {/* Quartier / Repère text field */}
         <div className="space-y-1">
-          <label className="text-xs text-slate-400 font-medium">
+          <label className="text-xs text-on-surface-variant font-medium">
             Quartier ou repère de livraison (champ libre)
           </label>
           <input
@@ -451,20 +451,20 @@ export default function TunnelHandoffModal({
             placeholder="Ex: Ouaga 2000, face pharmacie, Zone 4..."
             value={customLocality}
             onChange={(e) => setCustomLocality(e.target.value)}
-            className="w-full h-10 px-3 rounded-xl bg-surface border border-white/[0.08] text-white placeholder:text-slate-500 text-xs focus:outline-none focus:border-white/20 transition-all"
+            className="w-full h-10 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface placeholder:text-on-surface-variant/50 text-xs focus:outline-none focus:border-strong transition-all"
           />
         </div>
 
         {/* Optional GPS Location Toggle */}
-        <div className="pt-2 border-t border-white/[0.06] space-y-2">
+        <div className="pt-2 border-t border-subtle space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-[18px]">pin_drop</span>
               <div>
-                <span className="text-xs font-medium text-white block">
+                <span className="text-xs font-medium text-on-surface block">
                   Partager ma position GPS exacte
                 </span>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-on-surface-variant">
                   {wantSendGps ? "Transmise au livreur dans le message" : "Optionnel • Non partagée par défaut"}
                 </span>
               </div>
@@ -487,7 +487,7 @@ export default function TunnelHandoffModal({
                 }}
                 className="sr-only peer"
               />
-              <div className="w-10 h-5 bg-white/[0.1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-secondary"></div>
+              <div className="w-10 h-5 bg-surface-elevated peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-secondary"></div>
             </label>
           </div>
 
@@ -498,7 +498,7 @@ export default function TunnelHandoffModal({
                   type="button"
                   onClick={handleCaptureLocation}
                   disabled={isLocating}
-                  className="w-full py-2 px-3 rounded-xl bg-surface border border-white/[0.1] text-secondary text-xs font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+                  className="w-full py-2 px-3 rounded-xl bg-surface-secondary border border-subtle text-secondary text-xs font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.99] cursor-pointer"
                 >
                   <span className={`material-symbols-outlined text-[16px] ${isLocating ? "animate-spin" : ""}`}>
                     {isLocating ? "progress_activity" : "my_location"}
@@ -514,7 +514,7 @@ export default function TunnelHandoffModal({
                   <button
                     type="button"
                     onClick={handleClearLocation}
-                    className="text-slate-400 hover:text-white"
+                    className="text-on-surface-variant hover:text-on-surface cursor-pointer"
                   >
                     ✕
                   </button>
@@ -527,7 +527,7 @@ export default function TunnelHandoffModal({
 
       {/* Channel Selector */}
       <div className="space-y-2">
-        <label className="text-xs font-semibold text-white uppercase tracking-wider px-1">
+        <label className="text-xs font-semibold text-on-surface uppercase tracking-wider px-1">
           Canal de discussion
         </label>
 
@@ -537,8 +537,8 @@ export default function TunnelHandoffModal({
             onClick={() => setActiveChannel("WHATSAPP")}
             className={`cursor-pointer p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
               activeChannel === "WHATSAPP"
-                ? "bg-surface-container border-[#25D366]/40 shadow-sm"
-                : "bg-surface-container hover:bg-white/[0.04] border-white/[0.06]"
+                ? "bg-surface-card border-[#25D366]/40 shadow-sm"
+                : "bg-surface-card hover:bg-surface-secondary border-subtle"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -547,19 +547,19 @@ export default function TunnelHandoffModal({
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-white">WhatsApp Direct</span>
+                  <span className="text-sm font-semibold text-on-surface">WhatsApp Direct</span>
                   <span className="px-2 py-0.2 rounded-full bg-[#25D366]/15 text-[#25D366] text-[10px] font-semibold">
                     Recommandé
                   </span>
                 </div>
-                <p className="text-xs text-slate-400">Réponse moyenne en moins de 3 minutes</p>
+                <p className="text-xs text-on-surface-variant">Réponse moyenne en moins de 3 minutes</p>
               </div>
             </div>
             <span
               className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
                 activeChannel === "WHATSAPP"
                   ? "bg-[#25D366] text-slate-900"
-                  : "border border-white/20 text-transparent"
+                  : "border border-subtle text-transparent"
               }`}
             >
               ✓
@@ -571,8 +571,8 @@ export default function TunnelHandoffModal({
             onClick={() => setActiveChannel("MESSENGER")}
             className={`cursor-pointer p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
               activeChannel === "MESSENGER"
-                ? "bg-surface-container border-[#0084FF]/40 shadow-sm"
-                : "bg-surface-container hover:bg-white/[0.04] border-white/[0.06]"
+                ? "bg-surface-card border-[#0084FF]/40 shadow-sm"
+                : "bg-surface-card hover:bg-surface-secondary border-subtle"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -580,15 +580,15 @@ export default function TunnelHandoffModal({
                 <span className="material-symbols-outlined text-[20px]">forum</span>
               </div>
               <div>
-                <span className="text-sm font-semibold text-white">Messenger Facebook</span>
-                <p className="text-xs text-slate-400">Messagerie officielle de la page</p>
+                <span className="text-sm font-semibold text-on-surface">Messenger Facebook</span>
+                <p className="text-xs text-on-surface-variant">Messagerie officielle de la page</p>
               </div>
             </div>
             <span
               className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
                 activeChannel === "MESSENGER"
                   ? "bg-[#0084FF] text-white"
-                  : "border border-white/20 text-transparent"
+                  : "border border-subtle text-transparent"
               }`}
             >
               ✓
@@ -598,11 +598,11 @@ export default function TunnelHandoffModal({
       </div>
 
       {/* Dedicated Editable Message Card */}
-      <div className="bg-surface-container rounded-2xl p-4 border border-white/[0.08] shadow-card space-y-2.5">
+      <div className="bg-surface-card rounded-2xl p-4 border border-subtle shadow-card space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <span className="material-symbols-outlined text-primary text-[17px]">edit_note</span>
-            <label className="text-xs font-semibold text-white uppercase tracking-wider">
+            <label className="text-xs font-semibold text-on-surface uppercase tracking-wider">
               Message prérempli pour le vendeur
             </label>
           </div>
@@ -630,10 +630,10 @@ export default function TunnelHandoffModal({
             setCustomMessage(e.target.value);
           }}
           placeholder="Personnalisez vos consignes ou votre message..."
-          className="w-full p-3 rounded-xl bg-surface border border-white/[0.08] text-white placeholder:text-slate-500 text-xs focus:outline-none focus:border-white/20 leading-relaxed resize-none transition-all"
+          className="w-full p-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface placeholder:text-on-surface-variant/50 text-xs focus:outline-none focus:border-strong leading-relaxed resize-none transition-all"
         />
 
-        <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
+        <div className="flex items-center justify-between text-[11px] text-on-surface-variant px-1">
           <span>Vous pourrez modifier ce texte directement dans {activeChannel === "WHATSAPP" ? "WhatsApp" : activeChannel}</span>
           <span className="font-mono">{customMessage.length} car.</span>
         </div>
@@ -641,19 +641,19 @@ export default function TunnelHandoffModal({
 
       {/* Trust Guarantees */}
       <div className="grid grid-cols-2 gap-2 pt-1">
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-surface-container border border-white/[0.06]">
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-surface-card border border-subtle">
           <span className="material-symbols-outlined text-secondary text-[18px]">verified_user</span>
-          <span className="text-xs text-slate-300">Paiement après vérification</span>
+          <span className="text-xs text-on-surface-variant">Paiement après vérification</span>
         </div>
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-surface-container border border-white/[0.06]">
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-surface-card border border-subtle">
           <span className="material-symbols-outlined text-primary text-[18px]">handshake</span>
-          <span className="text-xs text-slate-300">Zéro intermédiaire</span>
+          <span className="text-xs text-on-surface-variant">Zéro intermédiaire</span>
         </div>
       </div>
 
       {/* Sticky Bottom Final CTA Button */}
       <div className="sticky bottom-2 z-20 pt-2">
-        <div className="p-2 rounded-2xl bg-surface/90 backdrop-blur-xl border border-white/[0.08] shadow-card-hover">
+        <div className="p-2 rounded-2xl bg-surface/90 backdrop-blur-xl border border-subtle shadow-card-hover">
           <button
             onClick={handleLaunchHandshake}
             disabled={isSubmitting}
@@ -662,7 +662,7 @@ export default function TunnelHandoffModal({
             <span className="material-symbols-outlined text-[19px]">{cta.icon}</span>
             <span>{isSubmitting ? "Connexion..." : cta.label}</span>
           </button>
-          <p className="text-center text-[11px] text-slate-400 mt-1.5">
+          <p className="text-center text-[11px] text-on-surface-variant mt-1.5">
             Référence #{referenceCode} préremplie
           </p>
         </div>

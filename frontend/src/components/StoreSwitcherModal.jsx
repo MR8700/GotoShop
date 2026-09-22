@@ -46,25 +46,25 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
     >
-      <div className="w-full max-w-xl bg-surface-container border border-white/[0.08] rounded-2xl shadow-dropdown overflow-hidden max-h-[85vh] flex flex-col">
+      <div className="w-full max-w-xl bg-surface-card border border-subtle rounded-2xl shadow-dropdown overflow-hidden max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between shrink-0">
+        <div className="px-5 py-4 border-b border-subtle flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
               <span className="material-symbols-outlined text-[20px]">storefront</span>
             </div>
             <div>
-              <h3 className="font-semibold text-white text-base">Changer de Boutique</h3>
-              <p className="text-xs text-slate-400">
+              <h3 className="font-semibold text-on-surface text-base">Changer de Boutique</h3>
+              <p className="text-xs text-on-surface-variant">
                 100 vitrines certifiées au Burkina Faso et en Afrique
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white flex items-center justify-center transition-colors active:scale-95"
+            className="w-8 h-8 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-on-surface border border-subtle flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
             aria-label="Fermer"
           >
             <span className="material-symbols-outlined text-[18px]">close</span>
@@ -72,9 +72,9 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
         </div>
 
         {/* Search Bar */}
-        <div className="p-4 border-b border-white/[0.06] bg-white/[0.01] shrink-0 space-y-2">
+        <div className="p-4 border-b border-subtle bg-surface-secondary/30 shrink-0 space-y-2">
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3.5 top-2.5 text-slate-400 text-[18px]">
+            <span className="material-symbols-outlined absolute left-3.5 top-2.5 text-on-surface-variant text-[18px]">
               search
             </span>
             <input
@@ -82,22 +82,22 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
               placeholder="Rechercher une boutique par nom, ville ou spécialité..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-10 pr-9 rounded-xl bg-surface border border-white/[0.08] text-white placeholder:text-slate-500 text-xs sm:text-sm focus:outline-none focus:border-white/20 transition-all"
+              className="w-full h-10 pl-10 pr-9 rounded-xl bg-surface-secondary border border-subtle text-on-surface placeholder:text-on-surface-variant/50 text-xs sm:text-sm focus:outline-none focus:border-strong transition-all"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-2.5 w-5 h-5 rounded-full bg-white/[0.08] text-slate-400 flex items-center justify-center hover:text-white text-xs"
+                className="absolute right-3 top-2.5 w-5 h-5 rounded-full bg-surface-elevated text-on-surface-variant hover:text-on-surface flex items-center justify-center text-xs cursor-pointer"
               >
                 ✕
               </button>
             )}
           </div>
-          <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+          <div className="flex items-center justify-between text-xs text-on-surface-variant px-1">
             <span>
               {filteredStores.length} boutique{filteredStores.length > 1 ? "s" : ""} trouvée{filteredStores.length > 1 ? "s" : ""}
             </span>
-            <span className="flex items-center gap-1 text-slate-400">
+            <span className="flex items-center gap-1 text-on-surface-variant">
               <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
               Commande directe
             </span>
@@ -135,7 +135,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
                     className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between gap-2.5 group ${
                       isSelected
                         ? "bg-primary/10 border-primary/40 shadow-sm"
-                        : "bg-surface hover:bg-white/[0.04] border-white/[0.06] hover:border-white/[0.14]"
+                        : "bg-surface-card hover:bg-surface-secondary border-subtle hover:border-strong"
                     }`}
                   >
                     {/* Top row */}
@@ -144,7 +144,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
                         <img
                           src={getMediaUrl(st.logo_url) || "/media/store/logo.jpg"}
                           alt={st.name}
-                          className="w-11 h-11 rounded-lg object-cover border border-white/[0.08] bg-surface"
+                          className="w-11 h-11 rounded-lg object-cover border border-subtle bg-surface-secondary"
                           onError={(e) => {
                             e.target.onerror = null;
                             e.target.src = "/media/store/logo.jpg";
@@ -152,7 +152,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
                         />
                         {st.is_verified && (
                           <span
-                            className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-secondary text-slate-900 flex items-center justify-center text-[9px] font-bold shadow"
+                            className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-secondary text-white flex items-center justify-center text-[9px] font-bold shadow"
                             title="Vérifiée"
                           >
                             ✓
@@ -162,15 +162,15 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
-                          <h4 className="font-semibold text-white text-xs sm:text-sm truncate group-hover:text-primary transition-colors">
+                          <h4 className="font-semibold text-on-surface text-xs sm:text-sm truncate group-hover:text-primary transition-colors">
                             {st.name}
                           </h4>
-                          <span className="shrink-0 text-[11px] font-semibold text-amber-400">
+                          <span className="shrink-0 text-[11px] font-semibold text-amber-500">
                             ★ {st.rating || 4.9}
                           </span>
                         </div>
 
-                        <div className="text-xs text-slate-400 mt-0.5 truncate flex items-center gap-1">
+                        <div className="text-xs text-on-surface-variant mt-0.5 truncate flex items-center gap-1">
                           <span className="material-symbols-outlined text-[12px] text-secondary">location_on</span>
                           <span>{st.delivery_city?.split("(")[0]?.trim() || "Burkina Faso"}</span>
                         </div>
@@ -178,25 +178,25 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
                     </div>
 
                     {/* Tagline */}
-                    <p className="text-xs text-slate-400 line-clamp-1 leading-relaxed">
+                    <p className="text-xs text-on-surface-variant line-clamp-1 leading-relaxed">
                       {st.tagline || st.description}
                     </p>
 
                     {/* Action Bar */}
-                    <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] text-xs">
+                    <div className="flex items-center justify-between pt-2 border-t border-subtle text-xs">
                       {isSelected ? (
                         <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
                           <span>✓</span>
                           <span>Boutique Active</span>
                         </span>
                       ) : (
-                        <span className="text-slate-400 group-hover:text-primary transition-colors flex items-center gap-1 text-[11px] font-medium">
+                        <span className="text-on-surface-variant group-hover:text-primary transition-colors flex items-center gap-1 text-[11px] font-medium">
                           <span>Visiter</span>
                           <span className="material-symbols-outlined text-[13px]">arrow_forward</span>
                         </span>
                       )}
 
-                      <span className="text-[10px] text-slate-400 font-medium">
+                      <span className="text-[10px] text-on-surface-variant/80 font-medium">
                         {st.social_tunnel_badge || "WA Direct"}
                       </span>
                     </div>
@@ -208,14 +208,14 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/[0.06] bg-white/[0.01] shrink-0">
+        <div className="p-4 border-t border-subtle bg-surface-secondary/20 shrink-0">
           {onOpenExplorer && (
             <button
               onClick={() => {
                 onClose();
                 onOpenExplorer();
               }}
-              className="w-full py-2.5 px-4 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-white text-xs font-semibold border border-white/[0.08] transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+              className="w-full py-2.5 px-4 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-semibold border border-subtle transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
             >
               <span className="material-symbols-outlined text-[16px] text-primary">grid_view</span>
               <span>Voir la Galerie Complète des 100 Boutiques</span>

@@ -2,19 +2,112 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* LIGHT MODE (DEFAULT) */
+  --color-bg-page: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-secondary: #f1f5f9;
+  --color-surface-elevated: #ffffff;
+  --color-surface-container: #ffffff;
+  --color-surface-container-high: #f8fafc;
+  --color-surface-container-highest: #f1f5f9;
+  --color-surface-container-low: #f8fafc;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-card: #ffffff;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+
+  --color-border-subtle: rgba(15, 23, 42, 0.08);
+  --color-border-strong: rgba(15, 23, 42, 0.15);
+
+  --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
+  --shadow-card-hover: 0 12px 30px -4px rgba(15, 23, 42, 0.1);
+  --shadow-dropdown: 0 10px 30px -4px rgba(15, 23, 42, 0.12);
+  --shadow-elevated: 0 8px 30px rgba(15, 23, 42, 0.05);
+
+  --color-header-bg: rgba(255, 255, 255, 0.85);
+  --color-header-border: rgba(15, 23, 42, 0.08);
+  --color-bottomnav-bg: rgba(255, 255, 255, 0.92);
+  --color-bottomnav-border: rgba(15, 23, 42, 0.08);
+
+  --color-primary: #e06a26;
+  --color-primary-container: #ffede5;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #9a3412;
+
+  --color-secondary: #10b981;
+  --color-secondary-container: #dcfce7;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #065f46;
+
+  --color-input-bg: #ffffff;
+  --color-input-border: rgba(15, 23, 42, 0.12);
+  --color-input-text: #0f172a;
+  --color-input-placeholder: #94a3b8;
+}
+
+.dark, [data-theme="dark"] {
+  /* DARK MODE (OFFICIEL) */
+  --color-bg-page: #09090b;
+  --color-surface: #111113;
+  --color-surface-secondary: #18181b;
+  --color-surface-elevated: #202023;
+  --color-surface-container: #111113;
+  --color-surface-container-high: #18181b;
+  --color-surface-container-highest: #202023;
+  --color-surface-container-low: #0c0c0e;
+  --color-surface-container-lowest: #09090b;
+  --color-surface-card: #111113;
+
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.14);
+
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+  --shadow-card-hover: 0 12px 32px -4px rgba(0, 0, 0, 0.5);
+  --shadow-dropdown: 0 10px 30px -4px rgba(0, 0, 0, 0.6);
+  --shadow-elevated: 0 8px 30px rgba(0, 0, 0, 0.4);
+
+  --color-header-bg: rgba(17, 17, 19, 0.85);
+  --color-header-border: rgba(255, 255, 255, 0.08);
+  --color-bottomnav-bg: rgba(17, 17, 19, 0.92);
+  --color-bottomnav-border: rgba(255, 255, 255, 0.08);
+
+  --color-primary: #e06a26;
+  --color-primary-container: #2a160c;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #ffdad3;
+
+  --color-secondary: #10b981;
+  --color-secondary-container: #063725;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #a7f3d0;
+
+  --color-input-bg: #18181b;
+  --color-input-border: rgba(255, 255, 255, 0.08);
+  --color-input-text: #f8fafc;
+  --color-input-placeholder: #64748b;
+}
+
 @layer base {
   html, body {
     width: 100%;
     min-height: 100%;
     margin: 0;
     padding: 0;
-    background-color: #0b0f17;
-    color: #f8fafc;
+    background-color: var(--color-bg-page);
+    color: var(--color-text-primary);
     overflow-x: hidden;
     font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
   body {
     overscroll-behavior-y: none;
@@ -36,7 +129,7 @@
   /* Focus visible accessibility */
   *:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #0b0f17, 0 0 0 4px rgba(224, 106, 38, 0.6);
+    box-shadow: 0 0 0 2px var(--color-bg-page), 0 0 0 4px rgba(224, 106, 38, 0.6);
   }
 }
 
@@ -65,12 +158,19 @@
     animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
-  /* Subtle card styling with crisp hairline border */
+  /* Subtle card styling with crisp hairline border adhering to active theme */
   .border-subtle {
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-color: var(--color-border-subtle);
+  }
+  .border-strong {
+    border-color: var(--color-border-strong);
   }
   .border-subtle-hover:hover {
-    border-color: rgba(255, 255, 255, 0.14);
+    border-color: var(--color-border-strong);
+  }
+  .bg-surface-elevated {
+    background-color: var(--color-surface-elevated);
+    box-shadow: var(--shadow-elevated);
   }
 
   /* Respect reduced motion */

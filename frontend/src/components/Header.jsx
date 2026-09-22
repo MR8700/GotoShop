@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { getMediaUrl } from "../api/client";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Header({
   store,
@@ -53,7 +54,7 @@ export default function Header({
 
   return (
     <>
-      <header className="fixed top-0 inset-x-0 z-40 bg-surface/90 backdrop-blur-md border-b border-white/[0.07] pt-safe transition-all duration-200">
+      <header className="fixed top-0 inset-x-0 z-40 bg-surface/90 backdrop-blur-md border-b border-subtle pt-safe transition-all duration-200">
         <div className="h-15 sm:h-16 px-4 sm:px-6 max-w-5xl mx-auto flex items-center justify-between gap-3">
           {/* Left: Brand Identity */}
           <div className="flex items-center gap-2.5 min-w-0">
@@ -61,7 +62,7 @@ export default function Header({
               <button
                 aria-label="Retour au catalogue"
                 onClick={() => onNavigate("boutique")}
-                className="w-8 h-8 -ml-1 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] flex items-center justify-center transition-colors active:scale-95 shrink-0"
+                className="w-8 h-8 -ml-1 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-secondary flex items-center justify-center transition-colors active:scale-95 shrink-0"
               >
                 <span className="material-symbols-outlined text-[19px]">arrow_back</span>
               </button>
@@ -80,7 +81,7 @@ export default function Header({
                   e.target.onerror = null;
                   e.target.src = "/media/store/logo.jpg";
                 }}
-                className="w-8 h-8 sm:w-9 sm:h-9 object-cover rounded-xl border border-white/[0.08] bg-surface-container shadow-sm group-hover:border-white/20 transition-all"
+                className="w-8 h-8 sm:w-9 sm:h-9 object-cover rounded-xl border border-subtle bg-surface-container shadow-sm group-hover:border-primary/40 transition-all"
               />
               <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-secondary ring-2 ring-surface" />
             </div>
@@ -120,7 +121,7 @@ export default function Header({
             {onOpenExplorer && (
               <button
                 onClick={onOpenExplorer}
-                className="h-8 px-2.5 sm:px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-on-surface-variant hover:text-on-surface text-xs font-medium border border-white/[0.07] flex items-center gap-1.5 transition-all active:scale-95"
+                className="h-8 px-2.5 sm:px-3 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface text-xs font-medium border border-subtle flex items-center gap-1.5 transition-all active:scale-95"
                 title="Explorer toutes les boutiques"
               >
                 <span className="material-symbols-outlined text-[16px] text-primary">storefront</span>
@@ -151,7 +152,7 @@ export default function Header({
               customer ? (
                 <button
                   onClick={() => onNavigate("reglages")}
-                  className="flex items-center gap-1.5 h-8 pl-1 pr-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] transition-all"
+                  className="flex items-center gap-1.5 h-8 pl-1 pr-2.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest border border-subtle transition-all"
                   title={`Compte de ${customer.name}`}
                 >
                   <div className="w-6 h-6 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-[11px] font-bold">
@@ -178,7 +179,7 @@ export default function Header({
               <div className="relative">
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="relative flex items-center justify-center p-0.5 rounded-xl border border-white/[0.1] hover:border-secondary/50 transition-colors"
+                  className="relative flex items-center justify-center p-0.5 rounded-xl border border-subtle hover:border-secondary/50 transition-colors"
                   title={authStatus?.owner_name || "Gérante"}
                 >
                   <img
@@ -194,7 +195,7 @@ export default function Header({
                 </button>
 
                 {showProfileMenu && (
-                  <div className="absolute right-0 mt-2 w-56 bg-surface-container border border-white/[0.08] rounded-2xl shadow-dropdown p-1.5 z-50 text-xs animate-fade-in divide-y divide-white/[0.06]">
+                  <div className="absolute right-0 mt-2 w-56 bg-surface border border-subtle rounded-2xl shadow-dropdown p-1.5 z-50 text-xs animate-fade-in divide-y divide-subtle">
                     <div className="px-3 py-2">
                       <p className="font-semibold text-on-surface truncate">{authStatus.owner_name || "Commerçante"}</p>
                       <p className="text-[11px] text-secondary font-medium">Propriétaire boutique</p>
@@ -206,7 +207,7 @@ export default function Header({
                           setShowProfileMenu(false);
                           onToggleMode();
                         }}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-on-surface"
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
                       >
                         <span className="material-symbols-outlined text-[16px] text-secondary">
                           {mode === "owner" ? "smartphone" : "store"}
@@ -219,9 +220,9 @@ export default function Header({
                           setShowProfileMenu(false);
                           if (onOpenSubscription) onOpenSubscription();
                         }}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-on-surface"
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
                       >
-                        <span className="material-symbols-outlined text-[16px] text-amber-400">workspace_premium</span>
+                        <span className="material-symbols-outlined text-[16px] text-amber-500">workspace_premium</span>
                         <span>Abonnement SaaS</span>
                       </button>
 
@@ -230,7 +231,7 @@ export default function Header({
                           setShowProfileMenu(false);
                           if (onOpenStoreSwitcher) onOpenStoreSwitcher();
                         }}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-on-surface"
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
                       >
                         <span className="material-symbols-outlined text-[16px] text-primary">storefront</span>
                         <span>Changer de boutique</span>
@@ -241,9 +242,9 @@ export default function Header({
                           setShowProfileMenu(false);
                           onOpenChangePassword();
                         }}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-on-surface"
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
                       >
-                        <span className="material-symbols-outlined text-[16px] text-slate-400">key</span>
+                        <span className="material-symbols-outlined text-[16px] text-on-surface-variant">key</span>
                         <span>Mot de passe</span>
                       </button>
                     </div>
@@ -254,7 +255,7 @@ export default function Header({
                           setShowProfileMenu(false);
                           onLogout();
                         }}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-red-500/10 flex items-center gap-2 text-red-400 font-medium"
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-red-500/10 flex items-center gap-2 text-red-500 font-medium"
                       >
                         <span className="material-symbols-outlined text-[16px]">logout</span>
                         <span>Déconnexion</span>
@@ -265,6 +266,9 @@ export default function Header({
               </div>
             )}
 
+            {/* Direct Theme Toggle button in header */}
+            <ThemeToggle />
+
             {/* More options menu button */}
             <div className="relative">
               <button
@@ -272,8 +276,8 @@ export default function Header({
                 aria-label="Options"
                 className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-95 border ${
                   showToolsMenu
-                    ? "bg-white/[0.1] text-on-surface border-white/20"
-                    : "bg-white/[0.04] hover:bg-white/[0.08] text-on-surface-variant hover:text-on-surface border-white/[0.07]"
+                    ? "bg-surface-secondary text-on-surface border-strong"
+                    : "bg-surface-secondary hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface border-subtle"
                 }`}
                 title="Options et outils"
               >
@@ -283,14 +287,20 @@ export default function Header({
               </button>
 
               {showToolsMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-surface-container border border-white/[0.08] rounded-2xl shadow-dropdown p-1.5 z-50 text-xs animate-fade-in divide-y divide-white/[0.06]">
+                <div className="absolute right-0 mt-2 w-60 bg-surface border border-subtle rounded-2xl shadow-dropdown p-1.5 z-50 text-xs animate-fade-in divide-y divide-subtle">
+                  {/* Theme Switcher Row in Tools Menu */}
+                  <div className="px-3 py-2 flex items-center justify-between">
+                    <span className="text-xs text-on-surface-variant font-medium">Thème d'affichage</span>
+                    <ThemeToggle variant="segmented" />
+                  </div>
+
                   <div className="py-1 space-y-0.5">
                     <button
                       onClick={() => {
                         setShowToolsMenu(false);
                         onShare();
                       }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.06] flex items-center gap-2.5 text-on-surface transition-colors"
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface transition-colors"
                     >
                       <span className="material-symbols-outlined text-[16px] text-primary">share</span>
                       <span>Partager la vitrine</span>
@@ -302,7 +312,7 @@ export default function Header({
                           setShowToolsMenu(false);
                           onOpenExplorer();
                         }}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.06] flex items-center gap-2.5 text-on-surface transition-colors"
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface transition-colors"
                       >
                         <span className="material-symbols-outlined text-[16px] text-primary">grid_view</span>
                         <span>Galerie des 100 boutiques</span>
@@ -314,7 +324,7 @@ export default function Header({
                         setShowToolsMenu(false);
                         onOpenStoreSwitcher();
                       }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.06] flex items-center gap-2.5 text-on-surface transition-colors"
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface transition-colors"
                     >
                       <span className="material-symbols-outlined text-[16px] text-secondary">storefront</span>
                       <span>Changer de boutique</span>
@@ -339,7 +349,7 @@ export default function Header({
                           setShowToolsMenu(false);
                           onOpenLogin();
                         }}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.06] flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface transition-colors"
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface transition-colors"
                       >
                         <span className="material-symbols-outlined text-[16px]">shield_person</span>
                         <span>Espace Commerçant</span>
@@ -351,9 +361,9 @@ export default function Header({
                         setShowToolsMenu(false);
                         onOpenSuperAdmin();
                       }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.06] flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface transition-colors"
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface transition-colors"
                     >
-                      <span className="material-symbols-outlined text-[16px] text-amber-400">hub</span>
+                      <span className="material-symbols-outlined text-[16px] text-amber-500">hub</span>
                       <span>Console Super-Admin</span>
                     </button>
                   </div>

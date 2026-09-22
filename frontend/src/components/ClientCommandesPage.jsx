@@ -227,7 +227,7 @@ export default function ClientCommandesPage({
 
       {/* Summary KPI Badges */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="p-3.5 rounded-xl bg-surface-container shadow-sm border border-white/5 flex items-center gap-3">
+        <div className="p-3.5 rounded-xl bg-surface-card shadow-sm border border-subtle flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined text-[22px]">shopping_bag</span>
           </div>
@@ -236,13 +236,13 @@ export default function ClientCommandesPage({
             <p className="text-lg font-bold text-on-surface tabular-nums">{orders.length}</p>
           </div>
         </div>
-        <div className="p-3.5 rounded-xl bg-surface-container shadow-sm border border-white/5 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+        <div className="p-3.5 rounded-xl bg-surface-card shadow-sm border border-subtle flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined text-[22px]">verified</span>
           </div>
           <div>
             <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider">Livrées / Satisfaites</p>
-            <p className="text-lg font-bold text-emerald-400 tabular-nums">
+            <p className="text-lg font-bold text-emerald-500 tabular-nums">
               {Math.max(confirmedCount, satisfiedCount)}
             </p>
           </div>
@@ -256,8 +256,8 @@ export default function ClientCommandesPage({
           <p>Chargement de vos commandes...</p>
         </div>
       ) : orders.length === 0 ? (
-        <div className="rounded-2xl bg-surface-container p-8 text-center space-y-4 shadow-sm border border-white/5">
-          <div className="w-14 h-14 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center mx-auto">
+        <div className="rounded-2xl bg-surface-card p-8 text-center space-y-4 shadow-sm border border-subtle">
+          <div className="w-14 h-14 rounded-full bg-surface-secondary text-on-surface-variant flex items-center justify-center mx-auto">
             <span className="material-symbols-outlined text-[28px]">production_quantity_limits</span>
           </div>
           <div className="space-y-1">
@@ -268,7 +268,7 @@ export default function ClientCommandesPage({
           </div>
           <button
             onClick={onNavigateToShop}
-            className="px-5 py-2.5 rounded-xl bg-primary-container text-on-primary-container font-label-md font-bold hover:brightness-110 active:scale-98 transition-all"
+            className="px-5 py-2.5 rounded-xl bg-primary text-white font-label-md font-bold hover:brightness-105 active:scale-98 transition-all cursor-pointer"
           >
             Explorer le Catalogue
           </button>
@@ -285,12 +285,12 @@ export default function ClientCommandesPage({
             return (
               <div
                 key={order.id}
-                className={`rounded-2xl bg-surface-container p-4 shadow-md border space-y-3 transition-all ${
+                className={`rounded-2xl bg-surface-card p-4 shadow-md border space-y-3 transition-all ${
                   hasConflict
                     ? "border-amber-500/50 bg-amber-500/5"
                     : isMutualSale
                     ? "border-emerald-500/40"
-                    : "border-white/5 hover:border-primary/30"
+                    : "border-subtle hover:border-primary/40"
                 }`}
               >
                 {/* Order Top Bar */}
@@ -305,12 +305,12 @@ export default function ClientCommandesPage({
 
                 {/* Conflict Alert Banner if discrepancy exists */}
                 {hasConflict && (
-                  <div className="rounded-xl bg-amber-500/15 p-2.5 border border-amber-500/30 flex items-start gap-2 text-xs text-amber-300">
-                    <span className="material-symbols-outlined text-[18px] text-amber-400 shrink-0">warning</span>
+                  <div className="rounded-xl bg-amber-500/15 p-2.5 border border-amber-500/30 flex items-start gap-2 text-xs text-amber-500">
+                    <span className="material-symbols-outlined text-[18px] text-amber-500 shrink-0">warning</span>
                     <div>
                       <strong className="block font-semibold">Litige en cours de conciliation</strong>
                       <span>
-                        Vous avez déclaré cette commande annulée, mais elle figurait comme conclue côté boutique. L'équipe Awa Chic régularise le dossier.
+                        Vous avez déclaré cette commande annulée, mais elle figurait comme conclue côté boutique. L'équipe régularise le dossier.
                       </span>
                     </div>
                   </div>
@@ -321,7 +321,7 @@ export default function ClientCommandesPage({
                   <img
                     src={order.product_image_url ? getMediaUrl(order.product_image_url) : "/media/products/samsung_galaxy_a15.jpg"}
                     alt={order.product_name}
-                    className="w-16 h-16 rounded-xl object-cover bg-surface-container-highest shrink-0 border border-white/10"
+                    className="w-16 h-16 rounded-xl object-cover bg-surface-secondary shrink-0 border border-subtle"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = "/media/products/samsung_galaxy_a15.jpg";
@@ -342,21 +342,21 @@ export default function ClientCommandesPage({
                 </div>
 
                 {/* Status Badges & Explanations */}
-                <div className="flex flex-col gap-2 pt-1 border-t border-white/5">
+                <div className="flex flex-col gap-2 pt-1 border-t border-subtle">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-on-surface-variant">État client :</span>
                     {isClientSatisfied ? (
-                      <span className="flex items-center gap-1 text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                      <span className="flex items-center gap-1 text-emerald-500 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
                         <span className="material-symbols-outlined text-[14px]">thumb_up</span>
                         Satisfait(e) ({order.client_satisfaction_rating || 5}★)
                       </span>
                     ) : isClientCancelled ? (
-                      <span className="flex items-center gap-1 text-rose-400 font-bold bg-rose-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                      <span className="flex items-center gap-1 text-rose-500 font-bold bg-rose-500/15 px-2 py-0.5 rounded-full text-[11px]">
                         <span className="material-symbols-outlined text-[14px]">cancel</span>
                         Annulée par vous
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-amber-400 font-semibold bg-amber-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                      <span className="flex items-center gap-1 text-amber-500 font-semibold bg-amber-500/15 px-2 py-0.5 rounded-full text-[11px]">
                         <span className="material-symbols-outlined text-[14px]">schedule</span>
                         En attente de votre retour
                       </span>
@@ -366,17 +366,17 @@ export default function ClientCommandesPage({
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-on-surface-variant">Suivi boutique :</span>
                     {isMutualSale ? (
-                      <span className="flex items-center gap-1 text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                      <span className="flex items-center gap-1 text-emerald-500 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
                         <span className="material-symbols-outlined text-[14px]">check_circle</span>
                         Vente 100% Consolidée
                       </span>
                     ) : isConfirmedByMerchant ? (
-                      <span className="flex items-center gap-1 text-emerald-400 font-semibold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                      <span className="flex items-center gap-1 text-emerald-500 font-semibold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
                         <span className="material-symbols-outlined text-[14px]">local_shipping</span>
-                        Validé &amp; Expédié par Awa
+                        Validé &amp; Expédié
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-on-surface-variant font-medium bg-surface-container-high px-2 py-0.5 rounded-full text-[11px]">
+                      <span className="flex items-center gap-1 text-on-surface-variant font-medium bg-surface-secondary px-2 py-0.5 rounded-full text-[11px]">
                         <span className="material-symbols-outlined text-[14px]">chat</span>
                         Discussion en cours
                       </span>
@@ -408,11 +408,11 @@ export default function ClientCommandesPage({
 
                 {/* Client Action Buttons (Annuler ou Marquer Satisfait) */}
                 {!isClientSatisfied && !isClientCancelled && (
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-subtle">
                     <button
                       type="button"
                       onClick={() => handleOpenSatisfyModal(order)}
-                      className="h-10 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-label-sm font-bold flex items-center justify-center gap-1.5 transition-all active:scale-98 border border-emerald-500/30"
+                      className="h-10 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 font-label-sm font-bold flex items-center justify-center gap-1.5 transition-all active:scale-98 border border-emerald-500/30 cursor-pointer"
                     >
                       <span className="material-symbols-outlined text-[18px]">thumb_up</span>
                       <span>Marquer Satisfait(e)</span>
@@ -420,7 +420,7 @@ export default function ClientCommandesPage({
                     <button
                       type="button"
                       onClick={() => handleOpenCancelModal(order)}
-                      className="h-10 rounded-xl bg-surface-container-highest hover:bg-rose-500/20 text-on-surface-variant hover:text-rose-400 font-label-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-98 border border-white/5 hover:border-rose-500/30"
+                      className="h-10 rounded-xl bg-surface-secondary hover:bg-rose-500/20 text-on-surface-variant hover:text-rose-500 font-label-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-98 border border-subtle hover:border-rose-500/30 cursor-pointer"
                     >
                       <span className="material-symbols-outlined text-[18px]">close</span>
                       <span>Annuler Commande</span>
@@ -446,9 +446,9 @@ export default function ClientCommandesPage({
 
       {/* Satisfaction Modal */}
       {actionType === "SATISFY" && actionOrder && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="rounded-2xl bg-surface-container-high border border-white/10 p-6 max-w-sm w-full space-y-4 shadow-2xl animate-fadeIn">
-            <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="rounded-2xl bg-surface-card border border-subtle p-6 max-w-sm w-full space-y-4 shadow-2xl animate-fadeIn">
+            <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto">
               <span className="material-symbols-outlined text-[32px]">thumb_up</span>
             </div>
             <div className="text-center space-y-1">
@@ -467,8 +467,8 @@ export default function ClientCommandesPage({
                   key={s}
                   type="button"
                   onClick={() => setRating(s)}
-                  className={`text-[28px] transition-transform active:scale-125 ${
-                    s <= rating ? "text-amber-400" : "text-on-surface-variant opacity-40"
+                  className={`text-[28px] transition-transform active:scale-125 cursor-pointer ${
+                    s <= rating ? "text-amber-500" : "text-on-surface-variant opacity-30"
                   }`}
                 >
                   ★
@@ -486,7 +486,7 @@ export default function ClientCommandesPage({
                 value={feedbackNote}
                 onChange={(e) => setFeedbackNote(e.target.value)}
                 placeholder="Qualité du produit, rapidité de livraison..."
-                className="w-full rounded-xl bg-surface-container border border-white/10 p-2.5 text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-emerald-500"
+                className="w-full rounded-xl bg-surface-secondary border border-subtle p-2.5 text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
@@ -497,7 +497,7 @@ export default function ClientCommandesPage({
                   setActionType(null);
                   setActionOrder(null);
                 }}
-                className="h-11 rounded-xl bg-surface-container hover:bg-surface-container-highest text-on-surface-variant font-label-md font-semibold transition-colors"
+                className="h-11 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant font-label-md font-semibold transition-colors cursor-pointer"
               >
                 Fermer
               </button>
@@ -505,7 +505,7 @@ export default function ClientCommandesPage({
                 type="button"
                 disabled={submittingAction}
                 onClick={handleSubmitAction}
-                className="h-11 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-surface font-label-md font-bold transition-all shadow-md active:scale-98"
+                className="h-11 rounded-xl bg-emerald-500 hover:brightness-105 text-white font-label-md font-bold transition-all shadow-md active:scale-98 cursor-pointer"
               >
                 {submittingAction ? "Envoi..." : "Valider (5★)"}
               </button>
@@ -516,9 +516,9 @@ export default function ClientCommandesPage({
 
       {/* Cancel Modal */}
       {actionType === "CANCEL" && actionOrder && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="rounded-2xl bg-surface-container-high border border-white/10 p-6 max-w-sm w-full space-y-4 shadow-2xl animate-fadeIn">
-            <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="rounded-2xl bg-surface-card border border-subtle p-6 max-w-sm w-full space-y-4 shadow-2xl animate-fadeIn">
+            <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center mx-auto">
               <span className="material-symbols-outlined text-[32px]">cancel</span>
             </div>
             <div className="text-center space-y-1">
@@ -548,12 +548,12 @@ export default function ClientCommandesPage({
                   className={`flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer border transition-colors ${
                     cancelReason === r
                       ? "bg-rose-500/15 border-rose-500/40 text-on-surface font-semibold"
-                      : "bg-surface-container border-white/5 text-on-surface-variant hover:bg-surface-container-highest"
+                      : "bg-surface-secondary border-subtle text-on-surface-variant hover:bg-surface-elevated"
                   }`}
                 >
                   <span>{r}</span>
                   {cancelReason === r && (
-                    <span className="material-symbols-outlined text-rose-400 text-[16px]">check</span>
+                    <span className="material-symbols-outlined text-rose-500 text-[16px]">check</span>
                   )}
                 </label>
               ))}
@@ -564,7 +564,7 @@ export default function ClientCommandesPage({
                   value={customReason}
                   onChange={(e) => setCustomReason(e.target.value)}
                   placeholder="Précisez votre motif..."
-                  className="w-full rounded-xl bg-surface-container border border-white/10 p-2.5 text-xs text-on-surface mt-1 focus:outline-none focus:border-rose-400"
+                  className="w-full rounded-xl bg-surface-secondary border border-subtle p-2.5 text-xs text-on-surface mt-1 focus:outline-none focus:border-rose-400"
                 />
               )}
             </div>
@@ -576,7 +576,7 @@ export default function ClientCommandesPage({
                   setActionType(null);
                   setActionOrder(null);
                 }}
-                className="h-11 rounded-xl bg-surface-container hover:bg-surface-container-highest text-on-surface-variant font-label-md font-semibold transition-colors"
+                className="h-11 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant font-label-md font-semibold transition-colors cursor-pointer"
               >
                 Garder la commande
               </button>
@@ -584,7 +584,7 @@ export default function ClientCommandesPage({
                 type="button"
                 disabled={submittingAction}
                 onClick={handleSubmitAction}
-                className="h-11 rounded-xl bg-rose-500 hover:bg-rose-600 text-surface font-label-md font-bold transition-all shadow-md active:scale-98"
+                className="h-11 rounded-xl bg-rose-500 hover:brightness-105 text-white font-label-md font-bold transition-all shadow-md active:scale-98 cursor-pointer"
               >
                 {submittingAction ? "Annulation..." : "Confirmer l'annulation"}
               </button>

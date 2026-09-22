@@ -196,31 +196,31 @@ export default function SubscriptionModal({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md overflow-y-auto"
     >
-      <div className="relative w-full max-w-2xl bg-surface-container border border-subtle rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
+      <div className="relative w-full max-w-2xl bg-surface-card border border-subtle rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
         {/* Header bar */}
-        <div className="px-5 py-4 bg-surface-container-high border-b border-subtle text-slate-100 flex items-center justify-between flex-shrink-0">
+        <div className="px-5 py-4 bg-surface-secondary border-b border-subtle text-on-surface flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center flex-shrink-0">
               <span className="material-symbols-outlined text-[22px]">workspace_premium</span>
             </div>
             <div>
-              <h2 className="text-base font-semibold text-slate-100 tracking-tight leading-snug">
+              <h2 className="text-base font-semibold text-on-surface tracking-tight leading-snug">
                 {mode === "NEW_STORE"
                   ? "Ouvrir ma Boutique en Ligne"
                   : mode === "UPGRADE"
                   ? "Changer de Formule"
                   : "Renouveler mon Abonnement"}
               </h2>
-              <p className="text-xs text-slate-400 font-normal">
+              <p className="text-xs text-on-surface-variant font-normal">
                 Paiement Mobile Money par USSD & validation directe
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-surface-card hover:bg-surface-container-highest border border-subtle flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors"
+            className="w-8 h-8 rounded-lg bg-surface-card hover:bg-surface-elevated border border-subtle flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
             aria-label="Fermer"
           >
             <span className="material-symbols-outlined text-[18px]">close</span>
@@ -228,26 +228,26 @@ export default function SubscriptionModal({
         </div>
 
         {/* Content Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-6 text-slate-100 flex-grow">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-6 text-on-surface flex-grow">
           {loading ? (
             <div className="py-16 text-center space-y-3">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="text-xs text-slate-400 font-medium">
+              <p className="text-xs text-on-surface-variant font-medium">
                 Chargement des formules et passerelles de paiement...
               </p>
             </div>
           ) : submitSuccess ? (
             /* SUCCESS CONFIRMATION SCREEN */
             <div className="text-center py-6 px-2 space-y-5 animate-fade-in">
-              <div className="w-14 h-14 rounded-2xl bg-secondary/15 border border-secondary/30 text-secondary flex items-center justify-center mx-auto shadow-lg shadow-black/40">
+              <div className="w-14 h-14 rounded-2xl bg-secondary/15 border border-secondary/30 text-secondary flex items-center justify-center mx-auto shadow-md">
                 <span className="material-symbols-outlined text-[32px]">check_circle</span>
               </div>
               <div className="space-y-1.5">
-                <h3 className="text-lg font-bold text-white tracking-tight">
+                <h3 className="text-lg font-bold text-on-surface tracking-tight">
                   Demande transmise avec succès
                 </h3>
-                <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                  Merci <strong className="text-slate-200">{ownerName}</strong>. Votre capture de paiement de{" "}
+                <p className="text-xs text-on-surface-variant max-w-md mx-auto leading-relaxed">
+                  Merci <strong className="text-on-surface">{ownerName}</strong>. Votre capture de paiement de{" "}
                   <span className="text-primary font-bold">
                     {submittedData?.amount || activePlan?.price} {submittedData?.currency || "FCFA"}
                   </span>{" "}
@@ -256,29 +256,29 @@ export default function SubscriptionModal({
               </div>
 
               {/* Status card */}
-              <div className="bg-surface-card border border-subtle p-4 rounded-xl text-left space-y-3 max-w-md mx-auto">
+              <div className="bg-surface-secondary border border-subtle p-4 rounded-xl text-left space-y-3 max-w-md mx-auto">
                 <div className="flex justify-between items-center text-xs pb-2.5 border-b border-subtle">
-                  <span className="text-slate-400 font-medium">Statut de la demande :</span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 font-medium text-[11px]">
+                  <span className="text-on-surface-variant font-medium">Statut de la demande :</span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 font-medium text-[11px]">
                     <span className="material-symbols-outlined text-[13px]">schedule</span>
                     En attente de vérification
                   </span>
                 </div>
-                <div className="text-xs space-y-1.5 text-slate-300">
+                <div className="text-xs space-y-1.5 text-on-surface-variant">
                   <p>
-                    <span className="text-slate-400">Boutique :</span> {submittedData?.store_name || storeName}
+                    <span className="text-on-surface-variant/70">Boutique :</span> {submittedData?.store_name || storeName}
                   </p>
                   <p>
-                    <span className="text-slate-400">Formule choisie :</span> {submittedData?.plan_name || activePlan?.name}
+                    <span className="text-on-surface-variant/70">Formule choisie :</span> {submittedData?.plan_name || activePlan?.name}
                   </p>
                   <p>
-                    <span className="text-slate-400">Canal de contact :</span> {ownerPhone} {ownerEmail ? `• ${ownerEmail}` : ""}
+                    <span className="text-on-surface-variant/70">Canal de contact :</span> {ownerPhone} {ownerEmail ? `• ${ownerEmail}` : ""}
                   </p>
                 </div>
-                <div className="p-3 bg-surface-container rounded-lg border border-subtle text-xs text-slate-300 leading-relaxed flex items-start gap-2">
+                <div className="p-3 bg-surface-card rounded-lg border border-subtle text-xs text-on-surface-variant leading-relaxed flex items-start gap-2">
                   <span className="material-symbols-outlined text-primary text-[18px] shrink-0 mt-0.5">verified</span>
                   <div>
-                    <strong className="text-white">Prochaine étape :</strong> L'administrateur valide votre reçu sous peu. Vos identifiants de connexion et le lien de votre vitrine vous seront automatiquement délivrés par WhatsApp et par Email.
+                    <strong className="text-on-surface">Prochaine étape :</strong> L'administrateur valide votre reçu sous peu. Vos identifiants de connexion et le lien de votre vitrine vous seront automatiquement délivrés par WhatsApp et par Email.
                   </div>
                 </div>
               </div>
@@ -291,14 +291,14 @@ export default function SubscriptionModal({
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-5 py-2.5 rounded-xl bg-secondary hover:bg-secondary/90 text-on-secondary font-semibold text-xs shadow-md flex items-center justify-center gap-2 transition-colors"
+                  className="px-5 py-2.5 rounded-xl bg-secondary hover:brightness-105 text-white font-semibold text-xs shadow-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[16px]">chat</span>
                   <span>Contacter le Support WhatsApp</span>
                 </a>
                 <button
                   onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl bg-surface-card hover:bg-surface-container-highest border border-subtle text-slate-300 font-medium text-xs transition-colors"
+                  className="px-5 py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-elevated border border-subtle text-on-surface font-medium text-xs transition-colors cursor-pointer"
                 >
                   Fermer
                 </button>
@@ -321,7 +321,7 @@ export default function SubscriptionModal({
                     <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">1</span>
                     <span>Choisissez votre Formule d'Abonnement</span>
                   </label>
-                  <span className="text-[11px] text-slate-400 font-normal">
+                  <span className="text-[11px] text-on-surface-variant font-normal">
                     Durée : 30 jours
                   </span>
                 </div>
@@ -336,8 +336,8 @@ export default function SubscriptionModal({
                         onClick={() => setSelectedPlanCode(p.code)}
                         className={`relative rounded-xl p-4 border transition-all cursor-pointer flex flex-col justify-between ${
                           isSelected
-                            ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-md"
-                            : "bg-surface-card border-subtle hover:border-slate-700"
+                            ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-sm"
+                            : "bg-surface-card border-subtle hover:border-strong"
                         }`}
                       >
                         {p.is_popular && (
@@ -347,14 +347,14 @@ export default function SubscriptionModal({
                         )}
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
-                            <span className="font-semibold text-sm text-slate-100">
+                            <span className="font-semibold text-sm text-on-surface">
                               {p.name.replace(/\(.*\)/, "").trim()}
                             </span>
                             <div
                               className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
                                 isSelected
                                   ? "border-primary bg-primary"
-                                  : "border-slate-600"
+                                  : "border-subtle"
                               }`}
                             >
                               {isSelected && (
@@ -362,19 +362,19 @@ export default function SubscriptionModal({
                               )}
                             </div>
                           </div>
-                          <div className="text-lg font-bold text-slate-100 my-1">
+                          <div className="text-lg font-bold text-on-surface my-1">
                             {p.price.toLocaleString("fr-FR")}{" "}
-                            <span className="text-xs font-normal text-slate-400">
+                            <span className="text-xs font-normal text-on-surface-variant">
                               FCFA / mois
                             </span>
                           </div>
-                          <p className="text-[11px] text-slate-400 leading-snug mb-3 font-normal">
+                          <p className="text-[11px] text-on-surface-variant leading-snug mb-3 font-normal">
                             {p.description}
                           </p>
                         </div>
 
                         {/* Features bullet list */}
-                        <ul className="space-y-1.5 text-[11px] text-slate-300 border-t border-subtle pt-3">
+                        <ul className="space-y-1.5 text-[11px] text-on-surface-variant border-t border-subtle pt-3">
                           {features.slice(0, 3).map((f, idx) => (
                             <li key={idx} className="flex items-start gap-1.5">
                               <span className="material-symbols-outlined text-[14px] text-primary shrink-0 mt-0.5">check</span>
@@ -397,7 +397,7 @@ export default function SubscriptionModal({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-on-surface-variant mb-1">
                       Nom de la boutique <span className="text-primary">*</span>
                     </label>
                     <input
@@ -406,12 +406,12 @@ export default function SubscriptionModal({
                       placeholder="Ex: Awa Chic Mode, Faso Tech..."
                       value={storeName}
                       onChange={(e) => setStoreName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-card border border-subtle text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-on-surface-variant mb-1">
                       Votre nom complet <span className="text-primary">*</span>
                     </label>
                     <input
@@ -420,12 +420,12 @@ export default function SubscriptionModal({
                       placeholder="Ex: Traoré Awa"
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-card border border-subtle text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-on-surface-variant mb-1">
                       Numéro WhatsApp fonctionnel <span className="text-primary">*</span>
                     </label>
                     <input
@@ -434,23 +434,23 @@ export default function SubscriptionModal({
                       placeholder="+226 70 00 00 00"
                       value={ownerPhone}
                       onChange={(e) => setOwnerPhone(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-card border border-subtle text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                     />
-                    <p className="text-[10px] text-slate-400 mt-1">
+                    <p className="text-[10px] text-on-surface-variant/70 mt-1">
                       Vos identifiants et alertes commandes y seront envoyés.
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Adresse Email <span className="text-slate-500 font-normal">(Recommandé)</span>
+                    <label className="block text-xs font-medium text-on-surface-variant mb-1">
+                      Adresse Email <span className="text-on-surface-variant/60 font-normal">(Recommandé)</span>
                     </label>
                     <input
                       type="email"
                       placeholder="vendeur@gmail.com"
                       value={ownerEmail}
                       onChange={(e) => setOwnerEmail(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-card border border-subtle text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                     />
                   </div>
                 </div>
@@ -463,7 +463,7 @@ export default function SubscriptionModal({
                     <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">3</span>
                     <span>Paiement Mobile Money par Code USSD</span>
                   </label>
-                  <span className="text-xs font-semibold text-slate-200 px-2.5 py-1 rounded-lg bg-surface-card border border-subtle">
+                  <span className="text-xs font-semibold text-on-surface px-2.5 py-1 rounded-lg bg-surface-secondary border border-subtle">
                     Montant : {activePlan?.price.toLocaleString("fr-FR")} FCFA
                   </span>
                 </div>
@@ -479,10 +479,10 @@ export default function SubscriptionModal({
                         type="button"
                         key={opt.operator_code}
                         onClick={() => setSelectedOperator(opt.operator_code)}
-                        className={`p-3 rounded-xl border text-left transition-all flex items-center gap-3 ${
+                        className={`p-3 rounded-xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
                           isOpSelected
-                            ? "bg-surface-container-highest border-primary ring-1 ring-primary/40 shadow-sm"
-                            : "bg-surface-card border-subtle hover:border-slate-700 opacity-80 hover:opacity-100"
+                            ? "bg-surface-elevated border-primary ring-1 ring-primary/40 shadow-sm"
+                            : "bg-surface-card border-subtle hover:border-strong opacity-80 hover:opacity-100"
                         }`}
                       >
                         <div
@@ -498,10 +498,10 @@ export default function SubscriptionModal({
                           {isOrange ? "OM" : isMoov ? "MOOV" : "WAVE"}
                         </div>
                         <div className="min-w-0">
-                          <div className="font-semibold text-xs text-slate-200 truncate">
+                          <div className="font-semibold text-xs text-on-surface truncate">
                             {opt.operator_name}
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate">
+                          <div className="text-[10px] text-on-surface-variant truncate">
                             {opt.merchant_number}
                           </div>
                         </div>
@@ -512,10 +512,10 @@ export default function SubscriptionModal({
 
                 {/* Dynamic USSD Action Panel */}
                 {currentDialOption && (
-                  <div className="bg-surface-card border border-subtle p-4 rounded-xl space-y-3">
+                  <div className="bg-surface-secondary border border-subtle p-4 rounded-xl space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
-                        <span className="text-[11px] font-medium text-slate-400 block">
+                        <span className="text-[11px] font-medium text-on-surface-variant block">
                           Code USSD généré pour {activePlan?.name} :
                         </span>
                         <span className="font-mono text-base sm:text-lg font-bold tracking-wide text-primary select-all">
@@ -528,7 +528,7 @@ export default function SubscriptionModal({
                         {currentDialOption.ussd_code.startsWith("*") && (
                           <a
                             href={currentDialOption.tel_link}
-                            className="px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/90 text-on-secondary text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors"
+                            className="px-3.5 py-2 rounded-xl bg-secondary hover:brightness-105 text-white text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-[16px]">call</span>
                             <span>Composer l'USSD</span>
@@ -537,7 +537,7 @@ export default function SubscriptionModal({
                         <button
                           type="button"
                           onClick={() => copyToClipboard(currentDialOption.ussd_code)}
-                          className="px-3 py-2 rounded-xl bg-surface-container hover:bg-surface-container-highest border border-subtle text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors"
+                          className="px-3 py-2 rounded-xl bg-surface-card hover:bg-surface-elevated border border-subtle text-on-surface text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
                         >
                           <span className="material-symbols-outlined text-[15px]">
                             {copiedCode ? "check" : "content_copy"}
@@ -548,11 +548,11 @@ export default function SubscriptionModal({
                     </div>
 
                     {/* Clear Notice Banner */}
-                    <div className="p-3 rounded-lg bg-surface-container border border-subtle text-xs text-slate-300 leading-relaxed flex items-start gap-2">
+                    <div className="p-3 rounded-lg bg-surface-card border border-subtle text-xs text-on-surface-variant leading-relaxed flex items-start gap-2">
                       <span className="material-symbols-outlined text-primary text-[18px] shrink-0 mt-0.5">info</span>
                       <div>
-                        <span className="font-semibold text-slate-200">Instruction de validation : </span>
-                        <span className="text-slate-400">
+                        <span className="font-semibold text-on-surface">Instruction de validation : </span>
+                        <span className="text-on-surface-variant">
                           {currentDialOption.instructions ||
                             "Effectuez le paiement via le code USSD ci-dessus, puis chargez la capture d'écran du reçu SMS de confirmation ci-dessous."}
                         </span>
@@ -569,7 +569,7 @@ export default function SubscriptionModal({
                   <span>Capture d'écran du Paiement (Preuve Obligatoire)</span>
                 </label>
 
-                <div className="border-2 border-dashed border-subtle hover:border-slate-600 rounded-xl p-4 text-center transition-colors bg-surface-card/40">
+                <div className="border-2 border-dashed border-subtle hover:border-primary rounded-xl p-4 text-center transition-colors bg-surface-secondary/40">
                   {proofPreview ? (
                     <div className="space-y-3">
                       <div className="relative inline-block max-w-[200px] max-h-[220px] rounded-xl overflow-hidden border border-subtle shadow-md">
@@ -584,7 +584,7 @@ export default function SubscriptionModal({
                             setProofPreview(null);
                             setProofData(null);
                           }}
-                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow"
+                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow cursor-pointer"
                           title="Supprimer cette capture"
                         >
                           <span className="material-symbols-outlined text-[14px]">close</span>
@@ -597,13 +597,13 @@ export default function SubscriptionModal({
                     </div>
                   ) : (
                     <label className="cursor-pointer block space-y-2 py-3">
-                      <div className="w-11 h-11 rounded-xl bg-surface-container border border-subtle flex items-center justify-center text-slate-400 mx-auto">
+                      <div className="w-11 h-11 rounded-xl bg-surface-secondary border border-subtle flex items-center justify-center text-on-surface-variant mx-auto">
                         <span className="material-symbols-outlined text-[24px]">photo_camera</span>
                       </div>
-                      <div className="text-xs font-medium text-slate-200">
+                      <div className="text-xs font-medium text-on-surface">
                         Cliquez ici pour charger la capture d'écran du reçu
                       </div>
-                      <p className="text-[11px] text-slate-400 font-normal">
+                      <p className="text-[11px] text-on-surface-variant font-normal">
                         Format photo PNG, JPG ou WEBP (SMS ou notification Mobile Money)
                       </p>
                       <input
@@ -617,7 +617,7 @@ export default function SubscriptionModal({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                  <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
                     Référence de transaction ou remarque (Optionnel) :
                   </label>
                   <input
@@ -625,7 +625,7 @@ export default function SubscriptionModal({
                     placeholder="Ex: ID Tx BF2609..., Payé depuis le 70000000..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-surface-card border border-subtle text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
@@ -635,22 +635,22 @@ export default function SubscriptionModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl bg-surface-card hover:bg-surface-container-highest border border-subtle text-slate-300 font-medium text-xs transition-colors"
+                  className="px-4 py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-elevated border border-subtle text-on-surface font-medium text-xs transition-colors cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !proofData}
-                  className={`px-5 py-2.5 rounded-xl font-semibold text-xs shadow-md flex items-center gap-2 transition-all ${
+                  className={`px-5 py-2.5 rounded-xl font-semibold text-xs shadow-md flex items-center gap-2 transition-all cursor-pointer ${
                     isSubmitting || !proofData
-                      ? "bg-surface-card text-slate-500 border border-subtle cursor-not-allowed"
-                      : "bg-primary hover:bg-primary/90 text-on-primary active:scale-98"
+                      ? "bg-surface-secondary text-on-surface-variant/40 border border-subtle cursor-not-allowed"
+                      : "bg-primary hover:brightness-105 text-white active:scale-98"
                   }`}
                 >
                   {isSubmitting ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       <span>Envoi en cours...</span>
                     </>
                   ) : (

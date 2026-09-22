@@ -1,20 +1,34 @@
 <!DOCTYPE html>
-<html class="dark" lang="fr">
+<html lang="fr" data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b0f17" />
-    <title>ShopChat</title>
+    <meta name="theme-color" content="#f8fafc" id="theme-color-meta" />
+    <title>GotoShop</title>
     <script>
       (function() {
         try {
+          var saved = localStorage.getItem("gotoshop_theme");
+          // Default is LIGHT unless the user explicitly saved 'dark'
+          if (saved === "dark") {
+            document.documentElement.classList.add("dark");
+            document.documentElement.setAttribute("data-theme", "dark");
+            var meta = document.getElementById("theme-color-meta");
+            if (meta) meta.setAttribute("content", "#09090b");
+          } else {
+            document.documentElement.classList.remove("dark");
+            document.documentElement.setAttribute("data-theme", "light");
+            var meta = document.getElementById("theme-color-meta");
+            if (meta) meta.setAttribute("content", "#f8fafc");
+          }
+
           var h = window.location.hostname || "localhost";
           var p = new URLSearchParams(window.location.search);
           var s = p.get("store") || localStorage.getItem("conversastore_active_slug");
           if ((h === "localhost" || h === "127.0.0.1") && s) {
             h = s + ".localhost";
           }
-          document.title = "ShopChat + " + h;
+          document.title = "GotoShop • " + (s ? s.replace("-", " ") : "Boutiques d'Afrique");
         } catch (e) {}
       })();
     </script>
