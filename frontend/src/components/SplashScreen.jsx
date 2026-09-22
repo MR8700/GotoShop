@@ -8,7 +8,7 @@ export default function SplashScreen({ store, onFinished }) {
   const messages = [
     "Bienvenue dans votre boutique...",
     "Sélection de vos créations favorites...",
-    "Prêt pour vous accueillir ✨",
+    "Prêt pour vous accueillir",
   ];
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function SplashScreen({ store, onFinished }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-between bg-[#0e1117] px-6 py-12 transition-opacity duration-400 select-none ${
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-between bg-surface px-6 py-12 transition-opacity duration-400 select-none ${
         isFading ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
     >
@@ -41,7 +41,7 @@ export default function SplashScreen({ store, onFinished }) {
       <div className="relative flex flex-col items-center text-center max-w-xs w-full animate-fade-in">
         {/* Boutique Logo with elegant soft ring */}
         <div className="relative mb-5">
-          <div className="relative w-20 h-20 rounded-2xl bg-surface-container border border-white/10 p-2.5 shadow-xl flex items-center justify-center overflow-hidden">
+          <div className="relative w-20 h-20 rounded-2xl bg-surface-container border border-subtle p-2 shadow-xl flex items-center justify-center overflow-hidden">
             <img
               src={getMediaUrl(store?.logo_url) || "/media/store/logo.jpg"}
               alt="Logo"
@@ -53,19 +53,19 @@ export default function SplashScreen({ store, onFinished }) {
             />
           </div>
           {/* Subtle online dot */}
-          <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-surface shadow-md ring-2 ring-[#0e1117]">
+          <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-surface shadow-md ring-2 ring-surface">
             <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
           </span>
         </div>
 
         {/* Store Title */}
-        <h1 className="font-headline-sm text-2xl font-bold tracking-tight text-white mb-1.5">
+        <h1 className="text-xl font-bold tracking-tight text-white mb-1">
           {store?.name || "GotoShop"}
         </h1>
 
         {/* Warm emotional tagline */}
-        <p className="text-xs text-on-surface-variant font-medium mb-6 max-w-[240px] leading-relaxed">
-          {store?.tagline || "Le réseau des meilleures boutiques africaines en direct ✨"}
+        <p className="text-xs text-slate-400 font-normal mb-6 max-w-[240px] leading-relaxed">
+          {store?.tagline || "Le réseau des meilleures boutiques d'Afrique en direct"}
         </p>
 
         {/* Clean, minimalist progress line */}
@@ -78,7 +78,7 @@ export default function SplashScreen({ store, onFinished }) {
 
         {/* Dynamic Human Message */}
         <div className="h-5 flex items-center justify-center">
-          <p className="text-[11px] text-on-surface-variant flex items-center gap-1.5 animate-fade-in font-medium">
+          <p className="text-[11px] text-slate-400 flex items-center gap-1.5 animate-fade-in font-normal">
             <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
             <span>{messages[stage]}</span>
           </p>
@@ -87,7 +87,7 @@ export default function SplashScreen({ store, onFinished }) {
 
       {/* Emotional reassurance footer */}
       <div className="text-center">
-        <span className="text-[11px] text-on-surface-variant/50 font-medium tracking-wide">
+        <span className="text-[11px] text-slate-500 font-medium tracking-wide">
           Boutiques officielles certifiées • Burkina Faso &amp; International
         </span>
       </div>

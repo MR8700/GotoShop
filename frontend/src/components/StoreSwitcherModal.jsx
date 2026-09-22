@@ -46,84 +46,83 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fade-in"
+      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
     >
-      <div className="w-full max-w-2xl bg-surface-container-high border border-white/10 rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="w-full max-w-xl bg-surface-container border border-white/[0.08] rounded-2xl shadow-dropdown overflow-hidden max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-surface-container/60 shrink-0">
+        <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-primary/15 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-2xl">storefront</span>
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <span className="material-symbols-outlined text-[20px]">storefront</span>
             </div>
             <div>
-              <h3 className="font-extrabold text-on-surface text-base sm:text-lg">Changer de Boutique</h3>
-              <p className="text-xs text-on-surface-variant">
-                Explorez nos boutiques partenaires au Burkina Faso et en Afrique
+              <h3 className="font-semibold text-white text-base">Changer de Boutique</h3>
+              <p className="text-xs text-slate-400">
+                100 vitrines certifiées au Burkina Faso et en Afrique
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-transform active:scale-95"
+            className="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white flex items-center justify-center transition-colors active:scale-95"
             aria-label="Fermer"
           >
-            <span className="material-symbols-outlined text-lg">close</span>
+            <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
 
         {/* Search Bar */}
-        <div className="p-4 border-b border-white/5 bg-surface-container-high/40 shrink-0 space-y-2">
+        <div className="p-4 border-b border-white/[0.06] bg-white/[0.01] shrink-0 space-y-2">
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3.5 top-3 text-on-surface-variant text-[19px]">
+            <span className="material-symbols-outlined absolute left-3.5 top-2.5 text-slate-400 text-[18px]">
               search
             </span>
             <input
               type="text"
-              placeholder="Rechercher une boutique par nom, ville, spécialité..."
+              placeholder="Rechercher une boutique par nom, ville ou spécialité..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-10 pr-9 rounded-xl bg-surface-container border border-white/10 text-on-surface placeholder:text-on-surface-variant/50 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary shadow-inner"
+              className="w-full h-10 pl-10 pr-9 rounded-xl bg-surface border border-white/[0.08] text-white placeholder:text-slate-500 text-xs sm:text-sm focus:outline-none focus:border-white/20 transition-all"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-2.5 w-5 h-5 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center hover:text-on-surface text-xs"
+                className="absolute right-3 top-2.5 w-5 h-5 rounded-full bg-white/[0.08] text-slate-400 flex items-center justify-center hover:text-white text-xs"
               >
                 ✕
               </button>
             )}
           </div>
-          <div className="flex items-center justify-between text-[11px] text-on-surface-variant px-1">
+          <div className="flex items-center justify-between text-xs text-slate-400 px-1">
             <span>
-              {filteredStores.length} boutique{filteredStores.length > 1 ? "s" : ""} disponible{filteredStores.length > 1 ? "s" : ""}
+              {filteredStores.length} boutique{filteredStores.length > 1 ? "s" : ""} trouvée{filteredStores.length > 1 ? "s" : ""}
             </span>
-            <span className="flex items-center gap-1 text-secondary font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
-              Commande directe WhatsApp
+            <span className="flex items-center gap-1 text-slate-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
+              Commande directe
             </span>
           </div>
         </div>
 
-        {/* Stores Cards Grid */}
-        <div className="p-4 overflow-y-auto flex-1 space-y-3">
+        {/* Stores List */}
+        <div className="p-4 overflow-y-auto flex-1 space-y-2.5">
           {loading ? (
             <div className="text-center py-16 space-y-3">
-              <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs text-on-surface-variant">Chargement des boutiques...</p>
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs text-slate-400">Chargement des boutiques...</p>
             </div>
           ) : filteredStores.length === 0 ? (
-            <div className="text-center py-12 px-4 bg-surface-container rounded-2xl border border-white/5 space-y-2">
-              <span className="material-symbols-outlined text-3xl text-on-surface-variant">storefront</span>
-              <p className="font-bold text-sm text-on-surface">Aucune boutique trouvée</p>
-              <p className="text-xs text-on-surface-variant">
-                Aucun résultat pour "{searchQuery}". Essayez un autre mot-clé.
+            <div className="text-center py-12 px-4 bg-white/[0.02] rounded-xl border border-white/[0.06] space-y-2">
+              <span className="material-symbols-outlined text-2xl text-slate-400">storefront</span>
+              <p className="font-semibold text-sm text-white">Aucune boutique trouvée</p>
+              <p className="text-xs text-slate-400">
+                Aucun résultat pour "{searchQuery}".
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {filteredStores.map((st) => {
                 const isSelected = activeSlug === st.slug || (!activeSlug && st.slug === "faso-danfani");
-                const primaryCol = st.primary_color || "#ec761e";
 
                 return (
                   <div
@@ -133,93 +132,72 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
                       if (onSelectStore) onSelectStore(st.slug);
                       onClose();
                     }}
-                    className={`relative p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-3 group ${
+                    className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between gap-2.5 group ${
                       isSelected
-                        ? "bg-primary/10 border-primary/50 shadow-md ring-1 ring-primary/30"
-                        : "bg-surface-container hover:bg-surface-container-highest/80 border-white/5 hover:border-white/20"
+                        ? "bg-primary/10 border-primary/40 shadow-sm"
+                        : "bg-surface hover:bg-white/[0.04] border-white/[0.06] hover:border-white/[0.14]"
                     }`}
                   >
-                    {/* Top row: Logo, Identity, Rating */}
+                    {/* Top row */}
                     <div className="flex items-start gap-3 min-w-0">
                       <div className="relative shrink-0">
-                        <div
-                          className="w-12 h-12 rounded-xl overflow-hidden border flex items-center justify-center font-bold text-white shadow-sm bg-surface-container-highest"
-                          style={{ borderColor: primaryCol }}
-                        >
-                          {st.logo_url ? (
-                            <img
-                              src={getMediaUrl(st.logo_url)}
-                              alt={st.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.style.display = "none";
-                              }}
-                            />
-                          ) : (
-                            <span style={{ color: primaryCol }}>{st.name.charAt(0).toUpperCase()}</span>
-                          )}
-                        </div>
+                        <img
+                          src={getMediaUrl(st.logo_url) || "/media/store/logo.jpg"}
+                          alt={st.name}
+                          className="w-11 h-11 rounded-lg object-cover border border-white/[0.08] bg-surface"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "/media/store/logo.jpg";
+                          }}
+                        />
                         {st.is_verified && (
                           <span
-                            className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-secondary text-surface flex items-center justify-center text-[10px] font-bold shadow"
-                            title="Boutique vérifiée"
+                            className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-secondary text-slate-900 flex items-center justify-center text-[9px] font-bold shadow"
+                            title="Vérifiée"
                           >
                             ✓
                           </span>
                         )}
                       </div>
 
-                      <div className="flex-1 min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
-                          <h4 className="font-bold text-on-surface text-xs sm:text-sm truncate group-hover:text-primary transition-colors">
+                          <h4 className="font-semibold text-white text-xs sm:text-sm truncate group-hover:text-primary transition-colors">
                             {st.name}
                           </h4>
-                          {/* Rating */}
-                          <span className="shrink-0 flex items-center gap-0.5 text-[11px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-md">
+                          <span className="shrink-0 text-[11px] font-semibold text-amber-400">
                             ★ {st.rating || 4.9}
                           </span>
                         </div>
 
-                        {/* Owner & City */}
-                        <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant mt-0.5 truncate">
-                          {st.owner_name && (
-                            <>
-                              <span className="font-medium text-slate-300 truncate max-w-[90px]">
-                                {st.owner_name}
-                              </span>
-                              <span>•</span>
-                            </>
-                          )}
-                          <span className="truncate flex items-center gap-0.5">
-                            <span className="material-symbols-outlined text-[12px] text-secondary">location_on</span>
-                            {st.delivery_city?.split("(")[0]?.trim() || "Burkina Faso"}
-                          </span>
+                        <div className="text-xs text-slate-400 mt-0.5 truncate flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[12px] text-secondary">location_on</span>
+                          <span>{st.delivery_city?.split("(")[0]?.trim() || "Burkina Faso"}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Tagline / Activity in a few words */}
-                    <p className="text-[11px] text-on-surface-variant/90 line-clamp-2 leading-relaxed">
-                      {st.tagline || st.description || "Boutique en ligne avec commande directe WhatsApp et paiement à la livraison."}
+                    {/* Tagline */}
+                    <p className="text-xs text-slate-400 line-clamp-1 leading-relaxed">
+                      {st.tagline || st.description}
                     </p>
 
                     {/* Action Bar */}
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
+                    <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] text-xs">
                       {isSelected ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-primary text-on-primary flex items-center gap-1">
+                        <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
                           <span>✓</span>
                           <span>Boutique Active</span>
                         </span>
                       ) : (
-                        <span className="text-on-surface-variant group-hover:text-primary transition-colors flex items-center gap-1 font-semibold">
-                          <span>Visiter la boutique</span>
+                        <span className="text-slate-400 group-hover:text-primary transition-colors flex items-center gap-1 text-[11px] font-medium">
+                          <span>Visiter</span>
                           <span className="material-symbols-outlined text-[13px]">arrow_forward</span>
                         </span>
                       )}
 
-                      <span className="text-[10px] text-secondary font-bold px-2 py-0.5 rounded-md bg-secondary/10">
-                        {st.social_tunnel_badge || "WA/FB"}
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {st.social_tunnel_badge || "WA Direct"}
                       </span>
                     </div>
                   </div>
@@ -229,18 +207,18 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
           )}
         </div>
 
-        {/* Footer actions */}
-        <div className="p-4 border-t border-white/10 bg-surface-container/80 shrink-0">
+        {/* Footer */}
+        <div className="p-4 border-t border-white/[0.06] bg-white/[0.01] shrink-0">
           {onOpenExplorer && (
             <button
               onClick={() => {
                 onClose();
                 onOpenExplorer();
               }}
-              className="w-full py-2.5 px-4 rounded-xl bg-primary/15 hover:bg-primary/25 text-primary text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              className="w-full py-2.5 px-4 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-white text-xs font-semibold border border-white/[0.08] transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
             >
-              <span className="material-symbols-outlined text-base">grid_view</span>
-              <span>Voir la Galerie Complète des Boutiques</span>
+              <span className="material-symbols-outlined text-[16px] text-primary">grid_view</span>
+              <span>Voir la Galerie Complète des 100 Boutiques</span>
             </button>
           )}
         </div>

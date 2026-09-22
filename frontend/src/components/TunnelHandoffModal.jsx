@@ -51,7 +51,7 @@ export default function TunnelHandoffModal({
         setCustomerLocationUrl(mapsUrl);
         setWantSendGps(true);
         setIsLocating(false);
-        showToast("📍 Position GPS prête à l'envoi !");
+        showToast("Position GPS capturée avec succès");
       },
       (error) => {
         setIsLocating(false);
@@ -72,12 +72,12 @@ export default function TunnelHandoffModal({
     showToast("Position GPS retirée.");
   };
 
-  // Available cities from store or defaults (Burkina Faso oriented)
+  // Available cities from store or defaults
   const cities = store?.delivery_cities?.length
     ? store.delivery_cities
     : [
-        { id: "1", name: "Ouagadougou", display_label: "📍 Ouaga" },
-        { id: "2", name: "Bobo-Dioulasso", display_label: "📍 Bobo" },
+        { id: "1", name: "Ouagadougou", display_label: "Ouagadougou" },
+        { id: "2", name: "Bobo-Dioulasso", display_label: "Bobo-Dioulasso" },
         { id: "3", name: "Koudougou", display_label: "Koudougou" },
         { id: "4", name: "Autre", display_label: "Autre Ville" },
       ];
@@ -93,7 +93,7 @@ export default function TunnelHandoffModal({
   const copyRefCode = () => {
     navigator.clipboard?.writeText(referenceCode).catch(() => {});
     setCopied(true);
-    showToast(`Référence #${referenceCode} copiée !`);
+    showToast(`Référence #${referenceCode} copiée`);
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -102,9 +102,9 @@ export default function TunnelHandoffModal({
   const getDefaultMessage = () => {
     const colorStr = selectedColor ? ` (${selectedColor})` : "";
     const clientGreeting = customer ? `Je suis ${customer.name}. ` : "";
-    let msg = `Bonjour ${store?.name || "Boutique"}, ${clientGreeting}je confirme l'achat de ${quantity}x ${product?.name}${colorStr} pour ${destinationStr}. Réf: ${referenceCode}`;
+    let msg = `Bonjour ${store?.name || "Boutique"}, ${clientGreeting}je souhaite commander ${quantity}x ${product?.name}${colorStr} pour livraison à ${destinationStr}. Réf: ${referenceCode}`;
     if (wantSendGps && customerLocationUrl) {
-      msg += ` 📍 Ma localisation exacte : ${customerLocationUrl}`;
+      msg += ` 📍 Position GPS livraison : ${customerLocationUrl}`;
     }
     return msg;
   };
@@ -128,7 +128,7 @@ export default function TunnelHandoffModal({
 
   const handleLaunchHandshake = async () => {
     setIsSubmitting(true);
-    showToast(`Création de l'intention ${referenceCode}...`);
+    showToast(`Préparation de la commande #${referenceCode}...`);
 
     const finalMessage = (customMessage.trim() || getDefaultMessage()).trim();
 
@@ -150,8 +150,8 @@ export default function TunnelHandoffModal({
       };
 
       const res = await createOrderIntent(payload);
-      
-      // Persist in local storage so guest can track and manage even without account
+
+      // Persist in local storage for guest tracking
       saveLocalGuestOrder({
         id: res.id,
         reference_code: res.reference_code,
@@ -199,38 +199,32 @@ export default function TunnelHandoffModal({
     }
   };
 
-  // CTA button styling per channel
+  // Channel configuration
   const getCtaConfig = () => {
     switch (activeChannel) {
       case "MESSENGER":
         return {
-          bg: "bg-[#0084FF] text-on-surface shadow-[#0084FF]/20",
+          bg: "bg-[#0084FF] text-white hover:bg-[#0073e6]",
           icon: "forum",
           label: "Discuter sur Messenger Facebook",
         };
-      case "TIKTOK":
-        return {
-          bg: "bg-[#FE2C55] text-on-surface shadow-[#FE2C55]/20",
-          icon: "smart_display",
-          label: `Envoyer un TikTok DM (${store?.channels?.find(c => c.channel_type === 'TIKTOK')?.account_handle || "@awachic"})`,
-        };
       case "SMS":
         return {
-          bg: "bg-surface-variant text-on-surface shadow-md border border-primary/40",
+          bg: "bg-white/[0.1] hover:bg-white/[0.15] text-white border border-white/20",
           icon: "sms",
-          label: "Envoyer un SMS Direct",
+          label: "Envoyer par SMS Direct",
         };
       case "CALL":
         return {
-          bg: "bg-primary-container text-on-primary-container shadow-primary-container/20",
+          bg: "bg-primary hover:brightness-105 text-white",
           icon: "phone_in_talk",
-          label: "Lancer un Appel Vocal Immédiat",
+          label: "Appeler le commerçant",
         };
       default:
         return {
-          bg: "bg-[#25D366] text-surface-container-lowest shadow-[#25D366]/20",
+          bg: "bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 font-bold",
           icon: "chat",
-          label: "Ouvrir la conversation WhatsApp",
+          label: "Ouvrir WhatsApp et commander",
         };
     }
   };
@@ -238,89 +232,74 @@ export default function TunnelHandoffModal({
   const cta = getCtaConfig();
 
   if (orderSuccessIntent) {
-    const pointsEst = Math.max(1, Math.floor(totalPrice / 1000));
     return (
-      <div className="flex flex-col w-full max-w-lg mx-auto pb-safe space-y-4 pt-4 pb-24 text-center animate-fadeIn">
+      <div className="flex flex-col w-full max-w-lg mx-auto pb-safe space-y-4 pt-6 pb-24 text-center animate-fade-in">
         {/* Success Icon */}
-        <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shadow-sm">
-          <span className="material-symbols-outlined text-[36px]">check_circle</span>
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-secondary/15 text-secondary flex items-center justify-center border border-secondary/30 shadow-sm">
+          <span className="material-symbols-outlined text-[30px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            check_circle
+          </span>
         </div>
 
         {/* Title */}
         <div className="space-y-1 px-4">
-          <span className="font-mono text-xs font-bold text-secondary bg-secondary/15 px-3 py-1 rounded-full">
+          <span className="font-mono text-xs font-semibold text-secondary bg-secondary/10 px-3 py-1 rounded-full border border-secondary/20">
             #{orderSuccessIntent.reference_code}
           </span>
-          <h2 className="font-headline-sm text-xl font-bold text-on-surface pt-1">
-            Commande Transmise sur {activeChannel} !
+          <h2 className="text-xl font-bold text-white pt-2 tracking-tight">
+            Commande Transmise avec Succès
           </h2>
-          <p className="text-xs text-on-surface-variant max-w-xs mx-auto">
-            La conversation avec {store?.name || "Awa"} est ouverte. Votre commande est enregistrée.
+          <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+            La discussion directe avec {store?.name || "le commerçant"} est initiée. Votre demande a bien été enregistrée.
           </p>
         </div>
 
-        {/* VIP Advantage Nudge Card */}
-        <div className="rounded-2xl bg-surface-container p-4 text-left border border-primary/20 shadow-md space-y-3 mx-2">
+        {/* Account Activation Banner */}
+        <div className="rounded-2xl bg-surface-container p-5 text-left border border-white/[0.08] shadow-card space-y-3 mx-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[22px]">stars</span>
-              <span className="font-label-lg font-bold text-on-surface text-sm">Awa Club Privilège</span>
+              <span className="material-symbols-outlined text-primary text-[20px]">stars</span>
+              <span className="text-sm font-semibold text-white">Espace Client Partagé</span>
             </div>
-            <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-bold">
-              +{pointsEst} Points
+            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+              Reconnu Partout
             </span>
           </div>
 
-          <p className="text-xs text-on-surface-variant leading-relaxed">
-            Activez votre compte en 3 secondes (Nom + WhatsApp) pour sécuriser vos avantages :
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Activez votre compte en 10 secondes (Nom &amp; WhatsApp) pour synchroniser vos adresses de livraison et suivre vos commandes en direct.
           </p>
 
-          <div className="space-y-2 text-xs text-on-surface">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-emerald-400 text-[18px] shrink-0">verified</span>
-              <span><strong>Suivi en direct</strong> &amp; confirmation de livraison en 1 clic</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary text-[18px] shrink-0">pin_drop</span>
-              <span><strong>GPS mémorisé</strong> pour vos prochaines livraisons</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[18px] shrink-0">card_membership</span>
-              <span><strong>Réductions VIP</strong> cumulables dès aujourd'hui</span>
-            </div>
-          </div>
-
-          {/* Registration CTA Button */}
           <button
             type="button"
             onClick={() => {
               if (onOpenCustomerAuth) onOpenCustomerAuth();
               onClose();
             }}
-            className="w-full h-11 rounded-xl bg-primary text-on-primary font-label-lg font-bold flex items-center justify-center gap-2 shadow-md hover:brightness-105 tap-scale transition-all cursor-pointer"
+            className="w-full h-11 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[18px]">bolt</span>
-            <span>Activer mes points &amp; M'inscrire</span>
+            <span className="material-symbols-outlined text-[16px]">bolt</span>
+            <span>Activer mon profil client</span>
           </button>
         </div>
 
         {/* Secondary Actions */}
-        <div className="flex flex-col gap-2 px-3 pt-1">
+        <div className="flex flex-col gap-2 px-3 pt-2">
           <button
             type="button"
             onClick={() => {
               if (onNavigateToOrders) onNavigateToOrders();
               onClose();
             }}
-            className="w-full h-11 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md font-semibold flex items-center justify-center gap-2 tap-scale transition-colors cursor-pointer"
+            className="w-full h-11 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-white text-xs font-medium flex items-center justify-center gap-2 border border-white/[0.07] transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[18px]">receipt_long</span>
-            <span>Suivre ma commande en mode invité</span>
+            <span className="material-symbols-outlined text-[17px]">receipt_long</span>
+            <span>Suivre ma commande</span>
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-2 text-xs text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+            className="w-full py-2 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
             Retourner au catalogue
           </button>
@@ -330,25 +309,23 @@ export default function TunnelHandoffModal({
   }
 
   return (
-    <div className="flex flex-col w-full max-w-lg mx-auto pb-safe space-y-3.5 pt-2 pb-24">
-      {/* Top step indicators */}
+    <div className="flex flex-col w-full max-w-lg mx-auto pb-safe space-y-4 pt-2 pb-24 animate-fade-in">
+      {/* Top Header */}
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center space-x-2">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-xs">
-            Commande Directe
-          </span>
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-secondary/15 text-secondary font-label-sm text-xs font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-secondary mr-1.5 animate-pulse"></span>
-            Vendeur disponible
-          </span>
-        </div>
-        <span className="font-label-sm text-xs text-on-surface-variant font-mono">Étape 1/2</span>
+        <button
+          onClick={onClose}
+          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+          <span>Retour</span>
+        </button>
+        <span className="text-xs text-slate-400 font-mono">Commande Directe</span>
       </div>
 
-      {/* Order Intent Summary Card */}
-      <div className="rounded-2xl bg-surface-container p-4 border border-white/5 shadow-sm">
-        <div className="flex gap-3.5 items-start">
-          <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-surface-container-highest shadow-sm">
+      {/* Selected Product Summary Card */}
+      <div className="rounded-2xl bg-surface-container p-4 border border-white/[0.08] shadow-card">
+        <div className="flex gap-3.5 items-center">
+          <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-surface border border-white/[0.08]">
             <img
               className="w-full h-full object-cover"
               src={getMediaUrl(product?.primary_image_url)}
@@ -358,80 +335,63 @@ export default function TunnelHandoffModal({
                 e.target.src = "/media/products/samsung_galaxy_a15.jpg";
               }}
             />
-            <span className="absolute bottom-1 right-1 bg-surface/80 text-on-surface text-[10px] font-bold px-1.5 py-0.5 rounded backdrop-blur-sm">
-              Stock: {product?.stock || 4}
-            </span>
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <span className="font-label-sm text-[11px] text-primary font-bold uppercase tracking-wider">
-                Article Sélectionné
-              </span>
-              <span className="font-label-sm text-[10px] text-secondary bg-secondary/15 px-2 py-0.5 rounded-full font-mono font-medium">
-                DISPO
-              </span>
-            </div>
-            <h2 className="font-headline-sm text-base font-bold text-on-surface truncate mt-0.5">
+            <span className="text-[11px] font-semibold text-primary uppercase tracking-wide block">
+              Article sélectionné
+            </span>
+            <h2 className="text-sm sm:text-base font-semibold text-white truncate mt-0.5">
               {product?.name}
             </h2>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-lg font-bold text-primary tabular-nums">
+
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-lg font-bold text-white tabular-nums">
                 {totalPrice.toLocaleString("fr-FR")}
               </span>
-              <span className="text-xs text-on-surface-variant uppercase font-bold">
+              <span className="text-xs text-slate-400 font-medium">
                 {product?.currency || "FCFA"}
               </span>
-              {product?.old_price && (
-                <span className="text-xs text-on-surface-variant line-through ml-1 opacity-60">
-                  {(product.old_price * quantity).toLocaleString("fr-FR")}
-                </span>
-              )}
             </div>
 
-            {/* Reference Box */}
-            <div className="mt-2 flex items-center justify-between bg-surface-container-high/60 px-2.5 py-1.5 rounded-xl">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="material-symbols-outlined text-[15px] text-on-surface-variant">tag</span>
-                <span className="font-label-sm text-xs text-on-surface-variant font-mono truncate">
-                  RÉF: #{referenceCode}
-                </span>
-              </div>
+            <div className="mt-2 flex items-center justify-between bg-white/[0.03] border border-white/[0.06] px-2.5 py-1 rounded-lg">
+              <span className="text-[11px] text-slate-400 font-mono">
+                RÉF #{referenceCode}
+              </span>
               <button
                 onClick={copyRefCode}
-                className="flex items-center gap-1 text-primary hover:text-primary-fixed-dim tap-scale text-xs font-bold cursor-pointer"
+                className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-1"
               >
-                <span className="material-symbols-outlined text-[13px]">content_copy</span>
-                <span>{copied ? "COPIÉ !" : "COPIER"}</span>
+                <span>{copied ? "Copié !" : "Copier"}</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Précisez votre commande */}
-      <div className="bg-surface-container rounded-2xl p-4 border border-white/5 shadow-sm space-y-3">
+      {/* Customization Options */}
+      <div className="bg-surface-container rounded-2xl p-4 border border-white/[0.08] shadow-card space-y-3.5">
         <div className="flex items-center justify-between">
-          <h3 className="font-headline-sm text-sm font-bold text-on-surface flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-primary text-[18px]">tune</span>
-            Options de commande
+          <h3 className="text-xs font-semibold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-primary text-[17px]">tune</span>
+            <span>Options de livraison</span>
           </h3>
-          <span className="text-xs text-on-surface-variant">Personnalisable</span>
+          <span className="text-[11px] text-slate-400">Paiement à la remise</span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          {/* Color Pills */}
+          {/* Color Variant */}
           <div className="space-y-1">
-            <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold">Variante</label>
-            <div className="flex gap-1.5 p-1 bg-surface-container-high/60 rounded-xl">
+            <label className="text-xs text-slate-400 font-medium">Variante / Couleur</label>
+            <div className="flex gap-1 p-1 bg-surface rounded-xl border border-white/[0.06]">
               {colorOptions.map((cName) => (
                 <button
                   key={cName}
                   onClick={() => setSelectedColor(cName)}
-                  className={`flex-1 py-1.5 rounded-lg text-center font-label-sm text-xs tap-scale transition-all cursor-pointer ${
+                  className={`flex-1 py-1.5 rounded-lg text-center text-xs font-medium transition-all ${
                     selectedColor === cName
-                      ? "bg-surface-container-highest text-on-surface font-bold shadow-sm"
-                      : "text-on-surface-variant hover:text-on-surface"
+                      ? "bg-white/[0.12] text-white font-semibold"
+                      : "text-slate-400 hover:text-white"
                   }`}
                 >
                   {cName.split(" ")[0]}
@@ -442,37 +402,37 @@ export default function TunnelHandoffModal({
 
           {/* Quantity Stepper */}
           <div className="space-y-1">
-            <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold">Quantité</label>
-            <div className="flex items-center justify-between p-1 bg-surface-container-high/60 rounded-xl h-9">
+            <label className="text-xs text-slate-400 font-medium">Quantité</label>
+            <div className="flex items-center justify-between p-1 bg-surface rounded-xl border border-white/[0.06] h-9">
               <button
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="w-7 h-7 rounded-lg flex items-center justify-center bg-surface-container-highest text-on-surface tap-scale cursor-pointer"
+                className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/[0.06] text-white hover:bg-white/[0.1] active:scale-95 transition-all"
               >
-                <span className="material-symbols-outlined text-[16px]">remove</span>
+                <span className="material-symbols-outlined text-[15px]">remove</span>
               </button>
-              <span className="font-headline-sm text-sm font-bold text-on-surface">{quantity}</span>
+              <span className="text-sm font-semibold text-white">{quantity}</span>
               <button
                 onClick={() => setQuantity((q) => Math.min(10, q + 1))}
-                className="w-7 h-7 rounded-lg flex items-center justify-center bg-surface-container-highest text-on-surface tap-scale cursor-pointer"
+                className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/[0.06] text-white hover:bg-white/[0.1] active:scale-95 transition-all"
               >
-                <span className="material-symbols-outlined text-[16px]">add</span>
+                <span className="material-symbols-outlined text-[15px]">add</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* City selection */}
+        {/* City Selection */}
         <div className="space-y-1">
-          <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold">Ville de livraison</label>
+          <label className="text-xs text-slate-400 font-medium">Ville de destination</label>
           <div className="grid grid-cols-4 gap-1.5">
             {cities.map((city) => (
               <button
                 key={city.id}
                 onClick={() => setSelectedCity(city.name)}
-                className={`py-2 px-1 rounded-xl text-center font-label-sm text-xs tap-scale transition-all cursor-pointer ${
+                className={`py-2 px-1 rounded-xl text-center text-xs font-medium transition-all ${
                   selectedCity === city.name
-                    ? "bg-secondary/15 text-secondary font-bold ring-1 ring-secondary/40"
-                    : "bg-surface-container-high/60 text-on-surface-variant hover:text-on-surface"
+                    ? "bg-white/[0.12] text-white font-semibold border border-white/20"
+                    : "bg-surface text-slate-400 hover:text-white border border-white/[0.06]"
                 }`}
               >
                 {city.display_label}
@@ -481,44 +441,35 @@ export default function TunnelHandoffModal({
           </div>
         </div>
 
-        {/* Free-text Locality / Quartier / Repère */}
+        {/* Quartier / Repère text field */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold">
-              Quartier &amp; Repère précis (Champ libre)
-            </label>
-            <span className="text-[10px] text-primary">Facilite la livraison</span>
-          </div>
-          <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-primary">
-              pin_drop
-            </span>
-            <input
-              type="text"
-              placeholder="Ex: Ouaga 2000, Dassasgho face pharmacie, Zone 4..."
-              value={customLocality}
-              onChange={(e) => setCustomLocality(e.target.value)}
-              className="w-full h-10 pl-9 pr-3 rounded-xl bg-surface-container-high/60 border border-white/10 text-on-surface placeholder:text-on-surface-variant/40 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
+          <label className="text-xs text-slate-400 font-medium">
+            Quartier ou repère de livraison (champ libre)
+          </label>
+          <input
+            type="text"
+            placeholder="Ex: Ouaga 2000, face pharmacie, Zone 4..."
+            value={customLocality}
+            onChange={(e) => setCustomLocality(e.target.value)}
+            className="w-full h-10 px-3 rounded-xl bg-surface border border-white/[0.08] text-white placeholder:text-slate-500 text-xs focus:outline-none focus:border-white/20 transition-all"
+          />
         </div>
 
-        {/* Localisation GPS exacte pour livraison directe (Opt-in exclusif) */}
-        <div className="space-y-2 pt-2 border-t border-white/5">
+        {/* Optional GPS Location Toggle */}
+        <div className="pt-2 border-t border-white/[0.06] space-y-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-[18px]">pin_drop</span>
               <div>
-                <span className="font-label-sm text-xs font-bold text-on-surface block">
-                  Partager ma localisation GPS exacte
+                <span className="text-xs font-medium text-white block">
+                  Partager ma position GPS exacte
                 </span>
-                <span className="text-[10px] text-on-surface-variant">
-                  {wantSendGps ? "Préremplie dans le message WhatsApp" : "Optionnel • Non partagée par défaut"}
+                <span className="text-[11px] text-slate-400">
+                  {wantSendGps ? "Transmise au livreur dans le message" : "Optionnel • Non partagée par défaut"}
                 </span>
               </div>
             </div>
 
-            {/* Consent Toggle Switch */}
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
@@ -529,275 +480,129 @@ export default function TunnelHandoffModal({
                   if (val && !customerCoordinates) {
                     handleCaptureLocation();
                   } else if (val) {
-                    showToast("📍 Position GPS activée pour le message");
+                    showToast("Position GPS activée");
                   } else {
-                    showToast("Position GPS désactivée (non transmise)");
+                    showToast("Position GPS désactivée");
                   }
                 }}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
+              <div className="w-10 h-5 bg-white/[0.1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-secondary"></div>
             </label>
           </div>
 
           {wantSendGps && (
-            <div className="mt-1 transition-all">
+            <div className="pt-1">
               {!customerCoordinates ? (
                 <button
                   type="button"
                   onClick={handleCaptureLocation}
                   disabled={isLocating}
-                  className="w-full py-2.5 px-3 rounded-lg bg-surface-container-lowest border border-dashed border-secondary/50 hover:border-secondary text-secondary flex items-center justify-center gap-2 font-label-sm text-xs font-semibold transition-all active:scale-[0.98]"
+                  className="w-full py-2 px-3 rounded-xl bg-surface border border-white/[0.1] text-secondary text-xs font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
                 >
-                  <span className={`material-symbols-outlined text-[18px] ${isLocating ? "animate-spin" : ""}`}>
+                  <span className={`material-symbols-outlined text-[16px] ${isLocating ? "animate-spin" : ""}`}>
                     {isLocating ? "progress_activity" : "my_location"}
                   </span>
-                  <span>
-                    {isLocating ? "Détection satellite GPS en cours..." : "Capturer ma position GPS exacte (1 clic)"}
-                  </span>
+                  <span>{isLocating ? "Recherche satellite GPS..." : "Capturer ma position GPS"}</span>
                 </button>
               ) : (
-                <div className="p-2.5 rounded-lg bg-secondary/10 border border-secondary/30 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="material-symbols-outlined text-secondary text-[20px] shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
-                      check_circle
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-label-sm text-xs text-secondary font-bold truncate">
-                        📍 Position prête : {customerCoordinates}
-                      </p>
-                      <a
-                        href={customerLocationUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[11px] text-on-surface-variant underline hover:text-primary flex items-center gap-1 mt-0.5"
-                      >
-                        <span>Vérifier sur Google Maps</span>
-                        <span className="material-symbols-outlined text-[12px]">open_in_new</span>
-                      </a>
-                    </div>
+                <div className="p-2.5 rounded-xl bg-secondary/10 border border-secondary/20 flex items-center justify-between text-xs text-secondary">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                    <span>Position capturée : {customerCoordinates}</span>
                   </div>
-
                   <button
                     type="button"
                     onClick={handleClearLocation}
-                    className="w-7 h-7 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center justify-center shrink-0"
-                    title="Supprimer la position"
+                    className="text-slate-400 hover:text-white"
                   >
-                    <span className="material-symbols-outlined text-[16px]">close</span>
+                    ✕
                   </button>
                 </div>
               )}
             </div>
           )}
-
-          <p className="font-body-sm text-[10px] text-on-surface-variant/80">
-            {wantSendGps
-              ? "Le lien GPS exact sera directement prérempli dans votre message pour guider le livreur moto à votre porte."
-              : "La position GPS ne sera PAS transmise. Activez l'interrupteur ci-dessus uniquement si vous souhaitez guider le livreur."}
-          </p>
         </div>
       </div>
 
-      {/* Choisir le canal de discussion */}
-      <div className="space-y-space-xs">
-        <div className="flex items-center justify-between px-space-xs">
-          <h3 className="font-headline-sm text-headline-sm text-on-surface">Choisir le canal de discussion</h3>
-          <span className="font-label-sm text-label-sm text-secondary flex items-center gap-1 font-semibold">
-            <span className="material-symbols-outlined text-[14px]">bolt</span>
-            Instantané
-          </span>
-        </div>
+      {/* Channel Selector */}
+      <div className="space-y-2">
+        <label className="text-xs font-semibold text-white uppercase tracking-wider px-1">
+          Canal de discussion
+        </label>
 
         <div className="space-y-2">
-          {/* WhatsApp Card */}
+          {/* WhatsApp highlighted */}
           <div
             onClick={() => setActiveChannel("WHATSAPP")}
-            className={`cursor-pointer p-3 rounded-2xl transition-all tap-scale flex flex-col gap-2 ${
+            className={`cursor-pointer p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
               activeChannel === "WHATSAPP"
-                ? "bg-surface-container-high shadow-md ring-1 ring-[#25D366]/40"
-                : "bg-surface-container hover:bg-surface-container-high/50"
+                ? "bg-surface-container border-[#25D366]/40 shadow-sm"
+                : "bg-surface-container hover:bg-white/[0.04] border-white/[0.06]"
             }`}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#25D366]/15 text-[#25D366] shrink-0">
-                  <span className="material-symbols-outlined text-[22px]">chat</span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-headline-sm text-sm font-bold text-on-surface">WhatsApp Direct</span>
-                    <span className="font-label-sm text-[10px] px-2 py-0.5 rounded-full bg-[#25D366]/20 text-[#25D366] font-bold">
-                      RECOMMANDÉ
-                    </span>
-                  </div>
-                  <p className="font-body-sm text-xs text-on-surface-variant">Réponse en moins de 3 min</p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#25D366]/15 text-[#25D366] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-[20px]">chat</span>
               </div>
-              <span
-                className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                  activeChannel === "WHATSAPP"
-                    ? "bg-[#25D366] text-surface-container-lowest"
-                    : "bg-surface-container-highest text-transparent"
-                }`}
-              >
-                <span className="material-symbols-outlined text-[13px] font-bold">check</span>
-              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-white">WhatsApp Direct</span>
+                  <span className="px-2 py-0.2 rounded-full bg-[#25D366]/15 text-[#25D366] text-[10px] font-semibold">
+                    Recommandé
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400">Réponse moyenne en moins de 3 minutes</p>
+              </div>
             </div>
-            {activeChannel === "WHATSAPP" && (
-              <div className="p-2.5 rounded-xl bg-surface-container-lowest/80 text-on-surface-variant font-body-sm text-xs flex items-start gap-1.5">
-                <span className="material-symbols-outlined text-[15px] text-[#25D366] shrink-0 mt-0.5">sms</span>
-                <span className="italic text-on-surface-variant/90 line-clamp-2">
-                  "{customMessage}"
-                </span>
-              </div>
-            )}
+            <span
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                activeChannel === "WHATSAPP"
+                  ? "bg-[#25D366] text-slate-900"
+                  : "border border-white/20 text-transparent"
+              }`}
+            >
+              ✓
+            </span>
           </div>
 
-          {/* Messenger Card */}
+          {/* Messenger */}
           <div
             onClick={() => setActiveChannel("MESSENGER")}
-            className={`cursor-pointer p-3 rounded-2xl transition-all tap-scale flex items-center justify-between ${
+            className={`cursor-pointer p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
               activeChannel === "MESSENGER"
-                ? "bg-surface-container-high shadow-md ring-1 ring-[#0084FF]/40"
-                : "bg-surface-container hover:bg-surface-container-high/50"
+                ? "bg-surface-container border-[#0084FF]/40 shadow-sm"
+                : "bg-surface-container hover:bg-white/[0.04] border-white/[0.06]"
             }`}
           >
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#0084FF]/15 text-[#0084FF] shrink-0">
-                <span className="material-symbols-outlined text-[22px]">forum</span>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#0084FF]/15 text-[#0084FF] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-[20px]">forum</span>
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-headline-sm text-sm font-bold text-on-surface">Messenger</span>
-                  <span className="font-label-sm text-[10px] px-2 py-0.5 rounded-full bg-[#0084FF]/20 text-[#0084FF] font-semibold">
-                    Facebook
-                  </span>
-                </div>
-                <p className="font-body-sm text-xs text-on-surface-variant">Messagerie officielle</p>
+                <span className="text-sm font-semibold text-white">Messenger Facebook</span>
+                <p className="text-xs text-slate-400">Messagerie officielle de la page</p>
               </div>
             </div>
             <span
-              className={`w-5 h-5 rounded-full flex items-center justify-center ${
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
                 activeChannel === "MESSENGER"
-                  ? "bg-[#0084FF] text-surface-container-lowest"
-                  : "bg-surface-container-highest text-transparent"
+                  ? "bg-[#0084FF] text-white"
+                  : "border border-white/20 text-transparent"
               }`}
             >
-              <span className="material-symbols-outlined text-[13px]">check</span>
-            </span>
-          </div>
-
-          {/* TikTok Card */}
-          <div
-            onClick={() => setActiveChannel("TIKTOK")}
-            className={`cursor-pointer p-3 rounded-2xl transition-all tap-scale flex items-center justify-between ${
-              activeChannel === "TIKTOK"
-                ? "bg-surface-container-high shadow-md ring-1 ring-[#FE2C55]/40"
-                : "bg-surface-container hover:bg-surface-container-high/50"
-            }`}
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#FE2C55]/15 text-[#FE2C55] shrink-0">
-                <span className="material-symbols-outlined text-[22px]">smart_display</span>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-headline-sm text-sm font-bold text-on-surface">TikTok</span>
-                  <span className="font-label-sm text-[10px] px-2 py-0.5 rounded-full bg-surface-container-highest text-on-surface font-semibold">
-                    @awachic
-                  </span>
-                </div>
-                <p className="font-body-sm text-xs text-on-surface-variant">Message direct</p>
-              </div>
-            </div>
-            <span
-              className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                activeChannel === "TIKTOK"
-                  ? "bg-[#FE2C55] text-surface-container-lowest"
-                  : "bg-surface-container-highest text-transparent"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[13px]">check</span>
-            </span>
-          </div>
-
-          {/* Call Vocal Card */}
-          <div
-            onClick={() => setActiveChannel("CALL")}
-            className={`cursor-pointer p-3 rounded-2xl transition-all tap-scale flex items-center justify-between ${
-              activeChannel === "CALL"
-                ? "bg-surface-container-high shadow-md ring-1 ring-primary/40"
-                : "bg-surface-container hover:bg-surface-container-high/50"
-            }`}
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/15 text-primary shrink-0">
-                <span className="material-symbols-outlined text-[22px]">phone_in_talk</span>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-headline-sm text-sm font-bold text-on-surface">Appel Vocal</span>
-                  <span className="font-label-sm text-[10px] px-2 py-0.5 rounded-full bg-surface-container-highest text-on-surface font-semibold">
-                    Direct
-                  </span>
-                </div>
-                <p className="font-body-sm text-xs text-on-surface-variant">Ligne téléphonique</p>
-              </div>
-            </div>
-            <span
-              className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                activeChannel === "CALL"
-                  ? "bg-primary text-surface-container-lowest"
-                  : "bg-surface-container-highest text-transparent"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[13px]">check</span>
-            </span>
-          </div>
-
-          {/* SMS Direct Card */}
-          <div
-            onClick={() => setActiveChannel("SMS")}
-            className={`cursor-pointer p-3 rounded-2xl transition-all tap-scale flex items-center justify-between ${
-              activeChannel === "SMS"
-                ? "bg-surface-container-high shadow-md ring-1 ring-secondary/40"
-                : "bg-surface-container hover:bg-surface-container-high/50"
-            }`}
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-secondary/15 text-secondary shrink-0">
-                <span className="material-symbols-outlined text-[22px]">sms</span>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-headline-sm text-sm font-bold text-on-surface">SMS Instantané</span>
-                  <span className="font-label-sm text-[10px] px-2 py-0.5 rounded-full bg-surface-container-highest text-on-surface font-semibold">
-                    Sans Internet
-                  </span>
-                </div>
-                <p className="font-body-sm text-xs text-on-surface-variant">Message texte classique</p>
-              </div>
-            </div>
-            <span
-              className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                activeChannel === "SMS"
-                  ? "bg-secondary text-surface-container-lowest"
-                  : "bg-surface-container-highest text-transparent"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[13px]">check</span>
+              ✓
             </span>
           </div>
         </div>
       </div>
 
-      {/* Message Prérempli & Personnalisable */}
-      <div className="bg-surface-container rounded-2xl p-4 border border-white/5 shadow-sm space-y-2.5">
+      {/* Dedicated Editable Message Card */}
+      <div className="bg-surface-container rounded-2xl p-4 border border-white/[0.08] shadow-card space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-primary text-[18px]">edit_note</span>
-            <label className="font-headline-sm text-xs font-bold text-on-surface">
+            <span className="material-symbols-outlined text-primary text-[17px]">edit_note</span>
+            <label className="text-xs font-semibold text-white uppercase tracking-wider">
               Message prérempli pour le vendeur
             </label>
           </div>
@@ -809,7 +614,7 @@ export default function TunnelHandoffModal({
                 setCustomMessage(getDefaultMessage());
                 showToast("Message réinitialisé");
               }}
-              className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-0.5 cursor-pointer"
+              className="text-xs text-primary hover:underline font-medium flex items-center gap-0.5 cursor-pointer"
             >
               <span className="material-symbols-outlined text-[13px]">refresh</span>
               <span>Réinitialiser</span>
@@ -824,52 +629,41 @@ export default function TunnelHandoffModal({
             setIsMessageEdited(true);
             setCustomMessage(e.target.value);
           }}
-          placeholder="Personnalisez votre message ou vos consignes de livraison ici..."
-          className="w-full p-3 rounded-xl bg-surface-container-high/70 border border-white/10 text-on-surface placeholder:text-on-surface-variant/40 text-xs focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed resize-none transition-all"
+          placeholder="Personnalisez vos consignes ou votre message..."
+          className="w-full p-3 rounded-xl bg-surface border border-white/[0.08] text-white placeholder:text-slate-500 text-xs focus:outline-none focus:border-white/20 leading-relaxed resize-none transition-all"
         />
 
-        <div className="flex items-center justify-between text-[10px] text-on-surface-variant px-1">
-          <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[12px] text-secondary">check_circle</span>
-            <span>Vous pourrez aussi éditer ce texte directement dans {activeChannel === "WHATSAPP" ? "WhatsApp" : activeChannel}</span>
-          </span>
-          <span className="font-mono text-[10px]">{customMessage.length} car.</span>
+        <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
+          <span>Vous pourrez modifier ce texte directement dans {activeChannel === "WHATSAPP" ? "WhatsApp" : activeChannel}</span>
+          <span className="font-mono">{customMessage.length} car.</span>
         </div>
       </div>
 
-      {/* Trust guarantees strip */}
+      {/* Trust Guarantees */}
       <div className="grid grid-cols-2 gap-2 pt-1">
-        <div className="flex items-center space-x-2 bg-surface-container p-3 rounded-xl border border-white/5">
-          <span className="material-symbols-outlined text-secondary text-[20px] shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
-            verified_user
-          </span>
-          <span className="font-label-sm text-xs text-on-surface-variant leading-tight">
-            Paiement à la livraison
-          </span>
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-surface-container border border-white/[0.06]">
+          <span className="material-symbols-outlined text-secondary text-[18px]">verified_user</span>
+          <span className="text-xs text-slate-300">Paiement après vérification</span>
         </div>
-        <div className="flex items-center space-x-2 bg-surface-container p-3 rounded-xl border border-white/5">
-          <span className="material-symbols-outlined text-primary text-[20px] shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
-            handshake
-          </span>
-          <span className="font-label-sm text-xs text-on-surface-variant leading-tight">
-            Discussion sans intermédiaire
-          </span>
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-surface-container border border-white/[0.06]">
+          <span className="material-symbols-outlined text-primary text-[18px]">handshake</span>
+          <span className="text-xs text-slate-300">Zéro intermédiaire</span>
         </div>
       </div>
 
-      {/* Sticky Bottom CTA */}
+      {/* Sticky Bottom Final CTA Button */}
       <div className="sticky bottom-2 z-20 pt-2">
-        <div className="p-2 rounded-2xl bg-surface/90 backdrop-blur-xl shadow-2xl border border-white/5">
+        <div className="p-2 rounded-2xl bg-surface/90 backdrop-blur-xl border border-white/[0.08] shadow-card-hover">
           <button
             onClick={handleLaunchHandshake}
             disabled={isSubmitting}
-            className={`w-full h-13 rounded-xl font-label-lg text-sm flex items-center justify-center gap-2 font-bold tracking-wide transition-all duration-150 tap-scale cursor-pointer shadow-lg ${cta.bg}`}
+            className={`w-full h-12 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md active:scale-[0.99] ${cta.bg}`}
           >
-            <span className="material-symbols-outlined text-[20px]">{cta.icon}</span>
-            <span>{isSubmitting ? "Génération..." : cta.label}</span>
+            <span className="material-symbols-outlined text-[19px]">{cta.icon}</span>
+            <span>{isSubmitting ? "Connexion..." : cta.label}</span>
           </button>
-          <p className="text-center font-label-sm text-[11px] text-on-surface-variant mt-1.5 opacity-80">
-            Réf #{referenceCode} préremplie automatiquement
+          <p className="text-center text-[11px] text-slate-400 mt-1.5">
+            Référence #{referenceCode} préremplie
           </p>
         </div>
       </div>

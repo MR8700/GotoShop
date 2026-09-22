@@ -33,7 +33,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
     try {
       if (mode === "register") {
         if (!name.trim()) throw new Error("Veuillez renseigner votre prénom et nom.");
-        if (!phone.trim()) throw new Error("Veuillez saisir votre numéro WhatsApp / Téléphone.");
+        if (!phone.trim()) throw new Error("Veuillez saisir votre numéro WhatsApp.");
 
         const effectiveCity = city === "Autre" ? (customCity.trim() || "Autre ville") : city;
         const fullAddress = locality.trim() ? `${effectiveCity} (${locality.trim()})` : effectiveCity;
@@ -45,7 +45,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
           country: currentCountry.name,
           locality: locality.trim(),
         });
-        showToast(`Bienvenue ${res.customer.name} ! Compte activé ⚡`);
+        showToast(`Bienvenue ${res.customer.name} ! Compte activé.`);
         onSuccess(res.customer);
       } else {
         if (!phone.trim()) throw new Error("Veuillez saisir votre numéro de téléphone.");
@@ -62,41 +62,49 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-md rounded-3xl bg-surface-container-high border border-primary/20 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in"
+    >
+      <div className="relative w-full max-w-md rounded-2xl bg-surface-container border border-white/[0.08] p-6 shadow-dropdown space-y-4 max-h-[90vh] overflow-y-auto">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center hover:text-on-surface"
+          className="absolute top-4 right-4 w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+          aria-label="Fermer"
         >
           <span className="material-symbols-outlined text-[18px]">close</span>
         </button>
 
-        {/* Modal Header */}
-        <div className="text-center space-y-1">
-          <div className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-primary/15 text-primary mb-1">
-            <span className="material-symbols-outlined text-[24px]">stars</span>
+        {/* Header */}
+        <div className="text-center space-y-1 pt-1">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 text-primary mb-1">
+            <span className="material-symbols-outlined text-[20px]">stars</span>
           </div>
-          <h2 className="font-headline-sm text-lg font-bold text-on-surface">
-            {mode === "register" ? "Espace Fidélité & Livraison ✨" : "Retrouver mes Commandes"}
+          <h2 className="text-base sm:text-lg font-semibold text-white">
+            {mode === "register" ? "Compte Client Unique" : "Retrouver mes Commandes"}
           </h2>
-          <p className="font-body-sm text-xs text-on-surface-variant">
+          <p className="text-xs text-slate-400 max-w-xs mx-auto">
             {mode === "register"
-              ? "Accédez à vos avantages, réductions et suivez vos colis en direct."
-              : "Consultez l'état de vos commandes en 1 clic sans mot de passe."}
+              ? "Accédez à vos avantages, mémorisez vos adresses et suivez vos livraisons."
+              : "Consultez l'historique de vos commandes sans mot de passe."}
           </p>
         </div>
 
         {/* Tab switch */}
-        <div className="flex rounded-xl bg-surface-container p-1 text-xs font-semibold">
+        <div className="flex rounded-xl bg-surface p-1 text-xs font-medium border border-white/[0.06]">
           <button
             type="button"
             onClick={() => {
               setMode("register");
               setError("");
             }}
-            className={`flex-1 py-2 rounded-lg tap-scale transition-all cursor-pointer ${
-              mode === "register" ? "bg-primary text-on-primary shadow-sm font-bold" : "text-on-surface-variant hover:text-on-surface"
+            className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
+              mode === "register"
+                ? "bg-white text-slate-900 font-semibold shadow-sm"
+                : "text-slate-400 hover:text-white"
             }`}
           >
             Nouveau Client
@@ -107,8 +115,10 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
               setMode("login");
               setError("");
             }}
-            className={`flex-1 py-2 rounded-lg tap-scale transition-all cursor-pointer ${
-              mode === "login" ? "bg-primary text-on-primary shadow-sm font-bold" : "text-on-surface-variant hover:text-on-surface"
+            className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
+              mode === "login"
+                ? "bg-white text-slate-900 font-semibold shadow-sm"
+                : "text-slate-400 hover:text-white"
             }`}
           >
             Déjà Client
@@ -116,20 +126,20 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
         </div>
 
         {error && (
-          <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs text-center">
+          <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center">
             {error}
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           {mode === "register" && (
             <div>
-              <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
-                Nom &amp; Prénom *
+              <label className="text-xs text-slate-400 font-medium block mb-1">
+                Nom &amp; Prénom
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-3 text-[18px] text-on-surface-variant">
+                <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-slate-400">
                   person
                 </span>
                 <input
@@ -137,7 +147,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
                   placeholder="Ex: Ibrahim Ouédraogo"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full h-11 pl-9 pr-3 rounded-xl bg-surface-container border border-white/10 text-on-surface placeholder:text-on-surface-variant/40 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full h-10 pl-9 pr-3 rounded-xl bg-surface border border-white/[0.08] text-white placeholder:text-slate-500 text-xs sm:text-sm focus:outline-none focus:border-white/20 transition-all"
                   required
                 />
               </div>
@@ -146,16 +156,16 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
 
           {/* Country Selection */}
           <div>
-            <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
+            <label className="text-xs text-slate-400 font-medium block mb-1">
               Pays de résidence
             </label>
             <select
               value={selectedCountryCode}
               onChange={(e) => handleCountryChange(e.target.value)}
-              className="w-full h-11 px-3 rounded-xl bg-surface-container border border-white/10 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full h-10 px-3 rounded-xl bg-surface border border-white/[0.08] text-white text-xs sm:text-sm focus:outline-none focus:border-white/20 transition-all"
             >
               {WEST_AFRICAN_COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
+                <option key={c.code} value={c.code} className="bg-surface text-white">
                   {c.flag} {c.name} ({c.dial})
                 </option>
               ))}
@@ -164,11 +174,11 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
 
           {/* WhatsApp Phone */}
           <div>
-            <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
-              Numéro WhatsApp / Téléphone *
+            <label className="text-xs text-slate-400 font-medium block mb-1">
+              Numéro WhatsApp / Téléphone
             </label>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-3 text-[18px] text-secondary">
+              <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-slate-400">
                 phone_iphone
               </span>
               <input
@@ -176,7 +186,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
                 placeholder={`Ex: ${currentCountry.dial} 70 12 34 56`}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full h-11 pl-9 pr-3 rounded-xl bg-surface-container border border-white/10 text-on-surface placeholder:text-on-surface-variant/40 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-10 pl-9 pr-3 rounded-xl bg-surface border border-white/[0.08] text-white placeholder:text-slate-500 text-xs sm:text-sm focus:outline-none focus:border-white/20 transition-all"
                 required
               />
             </div>
@@ -186,16 +196,16 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
             <>
               {/* City */}
               <div>
-                <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
+                <label className="text-xs text-slate-400 font-medium block mb-1">
                   Ville Principale
                 </label>
                 <select
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="w-full h-11 px-3 rounded-xl bg-surface-container border border-white/10 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full h-10 px-3 rounded-xl bg-surface border border-white/[0.08] text-white text-xs sm:text-sm focus:outline-none focus:border-white/20 transition-all"
                 >
                   {currentCountry.cities.map((ct) => (
-                    <option key={ct} value={ct}>
+                    <option key={ct} value={ct} className="bg-surface text-white">
                       {ct}
                     </option>
                   ))}
@@ -206,31 +216,28 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
                     placeholder="Précisez votre ville..."
                     value={customCity}
                     onChange={(e) => setCustomCity(e.target.value)}
-                    className="w-full h-11 mt-2 px-3 rounded-xl bg-surface-container border border-white/10 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full h-10 mt-2 px-3 rounded-xl bg-surface border border-white/[0.08] text-white text-xs sm:text-sm focus:outline-none focus:border-white/20 transition-all"
                   />
                 )}
               </div>
 
-              {/* Free-text Locality / Neighborhood */}
+              {/* Free-text Locality */}
               <div>
-                <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
-                  Quartier / Repère de livraison (Champ libre)
+                <label className="text-xs text-slate-400 font-medium block mb-1">
+                  Quartier / Repère de livraison (champ libre)
                 </label>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-3 text-[18px] text-primary">
+                  <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-slate-400">
                     pin_drop
                   </span>
                   <input
                     type="text"
-                    placeholder="Ex: Ouaga 2000, Dassasgho face pharmacie, Zone 4..."
+                    placeholder="Ex: Ouaga 2000, face pharmacie..."
                     value={locality}
                     onChange={(e) => setLocality(e.target.value)}
-                    className="w-full h-11 pl-9 pr-3 rounded-xl bg-surface-container border border-white/10 text-on-surface placeholder:text-on-surface-variant/40 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full h-10 pl-9 pr-3 rounded-xl bg-surface border border-white/[0.08] text-white placeholder:text-slate-500 text-xs focus:outline-none focus:border-white/20 transition-all"
                   />
                 </div>
-                <p className="text-[10px] text-on-surface-variant mt-1">
-                  Permet au livreur moto de trouver directement votre porte sans vous faire perdre de temps.
-                </p>
               </div>
             </>
           )}
@@ -239,28 +246,29 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-11 rounded-xl bg-primary text-on-primary font-label-lg text-sm font-bold shadow-md hover:brightness-105 tap-scale transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full h-11 rounded-xl bg-primary hover:brightness-105 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
             >
               {loading ? (
-                <span>Validation instantanée...</span>
+                <span>Vérification...</span>
               ) : mode === "register" ? (
                 <>
-                  <span>Activer mon Espace</span>
-                  <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                  <span>Créer mon compte</span>
+                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </>
               ) : (
                 <>
-                  <span>Accéder à mes Commandes</span>
-                  <span className="material-symbols-outlined text-[18px]">login</span>
+                  <span>Accéder à mes commandes</span>
+                  <span className="material-symbols-outlined text-[16px]">login</span>
                 </>
               )}
             </button>
           </div>
         </form>
 
-        <p className="text-[11px] text-center text-on-surface-variant/70 leading-relaxed">
-          🔒 Vos coordonnées sont protégées et servent uniquement à vos livraisons.
-        </p>
+        <div className="flex items-center justify-center gap-1 text-[11px] text-slate-500 pt-1">
+          <span className="material-symbols-outlined text-[14px]">lock</span>
+          <span>Coordonnées protégées pour vos livraisons exclusives</span>
+        </div>
       </div>
     </div>
   );

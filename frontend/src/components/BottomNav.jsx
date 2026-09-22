@@ -5,44 +5,47 @@ export default function BottomNav({ activeTab, onSelectTab, pendingCount = 0, mo
 
   const tabs = isClient
     ? [
-        { id: "boutique", label: "Boutique", icon: "storefront" },
+        { id: "boutique", label: "Vitrine", icon: "storefront" },
         { id: "commandes", label: "Commandes", icon: "receipt_long", badge: clientOrdersCount },
         { id: "stats", label: "Avantages", icon: "stars" },
-        { id: "reglages", label: "Profil", icon: "person" },
+        { id: "reglages", label: "Mon Compte", icon: "person" },
       ]
     : [
-        { id: "boutique", label: "Boutique", icon: "storefront" },
-        { id: "commandes", label: "Commandes", icon: "receipt_long", badge: pendingCount },
+        { id: "boutique", label: "Vitrine", icon: "storefront" },
+        { id: "commandes", label: "Arbitrage", icon: "receipt_long", badge: pendingCount },
         { id: "stats", label: "Stats", icon: "monitoring" },
-        { id: "reglages", label: "Réglages", icon: "tune" },
+        { id: "reglages", label: "Paramètres", icon: "tune" },
       ];
 
   return (
-    <nav className="fixed bottom-0 w-full z-50 pb-safe bg-surface/90 backdrop-blur-xl border-t border-white/5 shadow-[0_-8px_24px_rgba(0,0,0,0.4)]">
-      <div className="flex justify-around items-center h-16 px-2 max-w-lg mx-auto">
+    <nav className="fixed bottom-0 inset-x-0 z-40 pb-safe bg-surface/90 backdrop-blur-md border-t border-white/[0.07]">
+      <div className="flex justify-around items-center h-15 px-3 max-w-md mx-auto">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => onSelectTab(tab.id)}
-              className={`flex flex-col items-center justify-center gap-0.5 w-16 h-12 rounded-xl transition-all duration-150 tap-scale cursor-pointer ${
+              className={`relative flex flex-col items-center justify-center gap-1 w-16 h-11 rounded-xl transition-all duration-150 cursor-pointer active:scale-95 ${
                 isActive
-                  ? "text-primary bg-primary/10 border border-primary/20 font-bold shadow-sm"
-                  : "text-on-surface-variant hover:text-on-surface"
+                  ? "text-primary font-semibold"
+                  : "text-slate-400 hover:text-slate-200 font-medium"
               }`}
             >
               <div className="relative flex items-center justify-center">
-                <span className="material-symbols-outlined text-[21px]" style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}>
+                <span
+                  className="material-symbols-outlined text-[20px] transition-transform"
+                  style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}
+                >
                   {tab.icon}
                 </span>
                 {tab.badge && tab.badge > 0 ? (
-                  <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-primary text-surface font-label-sm text-[10px] font-bold leading-none">
+                  <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center leading-none">
                     {tab.badge}
                   </span>
                 ) : null}
               </div>
-              <span className="text-[11px] font-medium tracking-tight">
+              <span className="text-[11px] tracking-tight leading-none">
                 {tab.label}
               </span>
             </button>

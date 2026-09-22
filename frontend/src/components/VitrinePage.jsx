@@ -50,24 +50,24 @@ export default function VitrinePage({
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <div className="flex flex-col w-full gap-space-md max-w-lg mx-auto pb-32">
-      {/* Personalized Welcome Banner for Client / Owner */}
+    <div className="flex flex-col w-full max-w-2xl mx-auto space-y-5 px-3 sm:px-4 pb-32">
+      {/* Personalized Welcome Banner for Client */}
       {mode === "client" && customer && (
-        <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-surface-container border border-secondary/20 shadow-sm animate-fade-in">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-secondary/15 text-secondary text-sm font-bold">
-              ✨
-            </span>
+        <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-surface-container border border-white/[0.07] shadow-sm animate-fade-in">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[18px]">verified_user</span>
+            </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-on-surface truncate">
+              <p className="text-xs font-semibold text-white truncate">
                 Ravi de vous revoir, {customer.name}
               </p>
-              <p className="text-[11px] text-on-surface-variant truncate">
-                Merci pour votre fidélité ! Vos avantages sont actifs.
+              <p className="text-[11px] text-slate-400 truncate">
+                Vos adresses et historiques sont synchronisés.
               </p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full bg-secondary/15 text-secondary text-[10px] font-bold shrink-0">
+          <span className="px-2.5 py-0.5 rounded-full bg-secondary/10 border border-secondary/20 text-secondary text-[10px] font-semibold shrink-0">
             Membre VIP
           </span>
         </div>
@@ -76,167 +76,150 @@ export default function VitrinePage({
       {mode === "client" && !customer && (
         <div
           onClick={onOpenCustomerAuth}
-          className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-surface-container border border-white/5 hover:border-primary/30 transition-all cursor-pointer shadow-sm group active:scale-[0.98] tap-scale animate-fade-in"
+          className="flex items-center justify-between px-4 py-3 rounded-2xl bg-surface-container border border-white/[0.07] hover:border-white/[0.15] transition-all cursor-pointer shadow-sm group active:scale-[0.99] animate-fade-in"
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary text-xs font-bold">
-              ⭐
-            </span>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[18px]">bolt</span>
+            </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-on-surface truncate group-hover:text-primary transition-colors">
-                Club Privilège Awa
+              <p className="text-xs font-semibold text-white group-hover:text-primary transition-colors truncate">
+                Compte Client Unique
               </p>
-              <p className="text-[11px] text-on-surface-variant truncate">
-                Points fidélité & livraison GPS en 1 clic
+              <p className="text-[11px] text-slate-400 truncate">
+                Commandez en 1 clic sans mot de passe à mémoriser
               </p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full bg-primary text-surface text-[10px] font-bold shrink-0 shadow-sm flex items-center gap-0.5">
-            <span>Activer</span>
-            <span className="material-symbols-outlined text-[12px]">chevron_right</span>
+          <span className="px-3 py-1 rounded-xl bg-white/[0.06] text-white text-xs font-medium shrink-0 group-hover:bg-primary group-hover:text-white transition-all flex items-center gap-1">
+            <span>Se connecter</span>
+            <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
           </span>
         </div>
       )}
 
       {mode === "owner" && (
-        <div className="flex items-center justify-between p-3 rounded-2xl bg-surface-container border border-primary/20 shadow-md text-xs">
+        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-surface-container border border-secondary/30 shadow-sm text-xs">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-surface shadow-sm">
-              <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+            <span className="w-8 h-8 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0 font-bold">
+              <span className="material-symbols-outlined text-[18px]">tune</span>
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-on-surface truncate">
-                Gestion Vitrine & Articles
+              <p className="font-semibold text-white truncate">
+                Mode Gestion Commerçante
               </p>
-              <p className="text-[11px] text-on-surface-variant truncate">
-                Modifiez vos produits et ajustez les stocks
+              <p className="text-[11px] text-slate-400 truncate">
+                Ajustez vos articles, stocks et visuels en direct
               </p>
             </div>
           </div>
           <button
             onClick={() => setIsNewProductOpen(true)}
-            className="px-3 py-1.5 rounded-xl bg-primary text-surface font-label-md text-xs font-bold shrink-0 shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold shrink-0 shadow-sm transition-all flex items-center gap-1 cursor-pointer"
           >
             <span className="material-symbols-outlined text-[16px]">add</span>
-            <span>Nouveau</span>
+            <span>Nouvel Article</span>
           </button>
         </div>
       )}
 
-      {/* Sticky/Floating Top Flash Promo Pill */}
+      {/* Flash Sale Pill (Subdued, high-end) */}
       {store?.is_flash_active && (
-        <div className="sticky top-16 z-30 w-full animate-fade-in">
-          <div className="flex items-center justify-between gap-2 rounded-2xl bg-surface-container/95 border border-primary/25 px-3.5 py-2 shadow-lg backdrop-blur-md">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary text-sm font-bold">
-                ⚡
-              </span>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-primary truncate">
-                  {store?.flash_title || "Vente Flash Express"}
-                </span>
-                <span className="text-[11px] text-on-surface-variant truncate">
-                  {store?.flash_subtitle || "Ouaga & Abidjan • Envoi sous 2h chrono"}
-                </span>
-              </div>
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-surface-container border border-primary/25 shadow-sm">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[16px]">timer</span>
             </div>
-            <div className="flex items-center gap-1 shrink-0 bg-surface-container-highest/80 px-2.5 py-1 rounded-xl">
-              <span className="material-symbols-outlined text-primary text-[14px]">timer</span>
-              <span className="font-mono text-xs font-bold text-primary tabular-nums">
-                {formatCountdown(countdownSeconds)}
+            <div className="min-w-0">
+              <span className="text-xs font-semibold text-white truncate block">
+                {store?.flash_title || "Vente Flash Spéciale"}
+              </span>
+              <span className="text-[11px] text-slate-400 truncate block">
+                {store?.flash_subtitle || "Ouagadougou & Abidjan • Expédition express"}
               </span>
             </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08]">
+            <span className="font-mono text-xs font-semibold text-primary tabular-nums">
+              {formatCountdown(countdownSeconds)}
+            </span>
           </div>
         </div>
       )}
 
-      {/* Merchant Identity & Trust Badge Card */}
-      <section className="rounded-xl bg-surface-container p-space-md shadow-md">
-        <div className="flex items-start justify-between gap-space-sm">
-          <div className="flex gap-space-sm items-center">
-            {/* Dual Identity: Boutique Brand Logo + Certified Merchant Avatar */}
-            <div className="relative flex-shrink-0">
+      {/* Store Identity Card */}
+      <section className="rounded-2xl bg-surface-container p-5 sm:p-6 border border-white/[0.08] shadow-card space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            {/* Store Logo with Verified Badge */}
+            <div className="relative shrink-0">
               <img
-                className="w-16 h-16 rounded-2xl object-cover shadow-lg border-2 border-primary/40 bg-surface-container-highest"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-white/[0.08] bg-surface"
                 src={getMediaUrl(store?.logo_url) || "/media/store/logo.jpg"}
-                alt={`Logo ${store?.name}`}
+                alt={store?.name}
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = "/media/store/logo.jpg";
                 }}
               />
-              <div
-                className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full border-2 border-surface overflow-hidden shadow-md bg-surface-container-high"
-                title="Awa - Gérante Certifiée"
-              >
-                <img
-                  className="w-full h-full object-cover"
-                  src={getMediaUrl(store?.avatar_url) || "/media/store/awa_portrait.jpg"}
-                  alt="Awa Gérante"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "/media/store/awa_portrait.jpg";
-                  }}
-                />
-              </div>
-              <span className="absolute -top-1 -left-1 flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-surface text-[9px] font-bold shadow">
-                <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  verified
+              {store?.is_verified && (
+                <span
+                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-secondary text-slate-900 flex items-center justify-center text-[11px] font-bold shadow"
+                  title="Commerçant certifié"
+                >
+                  ✓
                 </span>
-              </span>
+              )}
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1">
-                <h1 className="font-headline-sm text-headline-sm text-on-surface">{store?.name}</h1>
-                {store?.is_verified && (
-                  <span className="material-symbols-outlined text-secondary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    verified
+
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight truncate">
+                {store?.name}
+              </h1>
+              <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">
+                {store?.tagline || store?.description}
+              </p>
+              <div className="flex items-center gap-2 text-xs mt-1.5">
+                <span className="flex items-center gap-1 text-amber-400 font-semibold">
+                  <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    star
                   </span>
-                )}
-              </div>
-              <span className="font-body-sm text-body-sm text-on-surface-variant">
-                {store?.tagline}
-              </span>
-              <div className="mt-1 flex items-center gap-1.5">
-                <span className="flex items-center text-amber-400 font-label-md text-label-md font-bold">
-                  ★ {store?.rating || 4.9}
+                  <span>{store?.rating || 4.9}</span>
                 </span>
-                <span className="text-on-surface-variant font-label-sm text-label-sm">
-                  • {store?.sales_count || 342} commandes conclues
+                <span className="text-slate-500">•</span>
+                <span className="text-slate-400">
+                  {store?.sales_count || 340} ventes conclues
                 </span>
               </div>
             </div>
           </div>
 
+          {/* Quick Direct WhatsApp Icon */}
           <button
             onClick={() => onOpenTunnel(heroProduct, "WHATSAPP")}
-            aria-label="WhatsApp Contact"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container-highest text-secondary hover:scale-105 active:scale-95 transition-transform"
+            aria-label="Contacter sur WhatsApp"
+            className="w-10 h-10 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/20 flex items-center justify-center transition-colors shrink-0"
+            title="Ouvrir WhatsApp direct"
           >
             <span className="material-symbols-outlined text-[20px]">chat</span>
           </button>
         </div>
 
-        {/* Owner Bio Presentation */}
+        {/* Owner Note / Bio */}
         {store?.owner_bio && (
-          <div className="mt-3 p-2.5 rounded-lg bg-surface-container-low border-l-2 border-primary/70 flex items-start gap-2">
-            <span className="material-symbols-outlined text-primary text-[18px] shrink-0 mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }}>
-              format_quote
-            </span>
-            <p className="font-body-sm text-xs text-on-surface-variant italic leading-relaxed">
-              "{store.owner_bio}"
-            </p>
+          <div className="p-3 rounded-xl bg-white/[0.02] border-l-2 border-primary/60 text-xs text-slate-300 leading-relaxed italic">
+            "{store.owner_bio}"
           </div>
         )}
 
-        {/* Trust Badges Strip */}
-        <div className="mt-space-sm grid grid-cols-3 gap-space-xs pt-space-xs">
+        {/* Trust Badges */}
+        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/[0.06]">
           {store?.trust_badges?.map((badge, idx) => (
-            <div key={idx} className="flex flex-col items-center rounded-lg bg-surface-container-low py-2 px-1 text-center">
-              <span className={`material-symbols-outlined text-[16px] text-${badge.badge_type}`}>
+            <div key={idx} className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.02] text-center">
+              <span className="material-symbols-outlined text-[17px] text-primary">
                 {badge.icon_name}
               </span>
-              <span className="font-label-sm text-[10px] text-on-surface font-semibold mt-0.5">
+              <span className="text-[11px] font-medium text-slate-300 mt-1 line-clamp-1">
                 {badge.label}
               </span>
             </div>
@@ -244,8 +227,8 @@ export default function VitrinePage({
         </div>
       </section>
 
-      {/* Horizontal Scrollable Category Pills */}
-      <nav className="relative -mx-margin px-margin flex items-center gap-2 overflow-x-auto pb-2 scroll-smooth no-scrollbar touch-pan-x">
+      {/* Horizontal Category Navigation */}
+      <nav className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat.id || (!selectedCategory && cat.slug === "all");
           return (
@@ -255,10 +238,10 @@ export default function VitrinePage({
                 onSelectCategory(cat.slug === "all" ? null : cat.id);
                 showToast(`Catégorie : ${cat.name}`);
               }}
-              className={`flex-shrink-0 px-4 py-2 rounded-full font-label-md text-xs sm:text-sm font-semibold transition-all duration-150 active:scale-95 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
                 isActive
-                  ? "bg-primary-container text-on-primary-container shadow-md font-bold ring-1 ring-primary/40"
-                  : "bg-surface-container hover:bg-surface-container-high text-on-surface"
+                  ? "bg-white text-slate-900 font-semibold shadow-sm"
+                  : "bg-surface-container text-slate-400 hover:text-white border border-white/[0.06]"
               }`}
             >
               {cat.name}
@@ -267,354 +250,319 @@ export default function VitrinePage({
         })}
       </nav>
 
-      {/* Featured Hero Deal Card: Samsung Galaxy A15 */}
+      {/* Featured Hero Product Card */}
       {heroProduct && (
-        <section className="relative overflow-hidden rounded-xl bg-surface-container p-space-md shadow-xl">
-          <div className="absolute -top-12 -right-12 h-44 w-44 rounded-full bg-primary-container/20 blur-3xl pointer-events-none"></div>
-          <div className="relative flex flex-col gap-space-sm">
-            <div className="flex items-center justify-between">
-              <span className="px-2.5 py-0.5 rounded-full bg-primary-container text-on-primary-container font-label-sm text-label-sm uppercase tracking-wider font-bold">
-                {heroProduct.badge_tag || "Top Vente High-Tech"}
+        <section className="relative overflow-hidden rounded-2xl bg-surface-container border border-white/[0.08] shadow-card p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between text-xs">
+            <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary font-semibold text-[11px] uppercase tracking-wide">
+              {heroProduct.badge_tag || "Offre Vedette"}
+            </span>
+            <span className="flex items-center gap-1 text-secondary text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
+              <span>{heroProduct.active_discussions_count} clients intéressés</span>
+            </span>
+          </div>
+
+          {/* Product Image */}
+          <div className="relative w-full h-56 sm:h-64 rounded-xl overflow-hidden bg-surface">
+            <img
+              className="w-full h-full object-cover"
+              src={getMediaUrl(heroProduct.primary_image_url)}
+              alt={heroProduct.name}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "/media/products/samsung_galaxy_a15.jpg";
+              }}
+            />
+            <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-[11px] font-medium">
+              Stock disponible
+            </div>
+            {heroProduct.guarantee_text && (
+              <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-md text-white text-[11px]">
+                {heroProduct.guarantee_text}
+              </div>
+            )}
+          </div>
+
+          {/* Details */}
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-base sm:text-lg font-semibold text-white">
+                {heroProduct.name}
+              </h2>
+              <span className="text-[11px] font-medium text-slate-400 shrink-0">
+                {heroProduct.stock_label || `Stock: ${heroProduct.stock}`}
               </span>
-              <div className="flex items-center gap-1 text-secondary font-label-sm text-label-sm">
-                <span className="material-symbols-outlined text-[14px]">forum</span>
-                <span>{heroProduct.active_discussions_count} en discussion active</span>
-              </div>
             </div>
 
-            <div className="relative w-full h-56 rounded-lg overflow-hidden bg-surface-container-lowest">
-              <img
-                className="w-full h-full object-cover"
-                src={getMediaUrl(heroProduct.primary_image_url)}
-                alt={heroProduct.name}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "/media/products/samsung_galaxy_a15.jpg";
-                }}
-              />
-              <div className="absolute top-2 left-2 rounded-full bg-surface-container-lowest/80 backdrop-blur-md px-2.5 py-1 text-on-surface font-label-sm text-label-sm flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
-                Stock Abidjan & Ouaga
-              </div>
-              <div className="absolute bottom-2 right-2 rounded-lg bg-surface/90 backdrop-blur-md px-2 py-1 text-on-surface font-label-sm text-[11px] font-semibold">
-                {heroProduct.guarantee_text || "Garantie 12 Mois"}
-              </div>
-            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {heroProduct.short_description || heroProduct.description}
+            </p>
 
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <h2 className="font-headline-sm text-headline-sm text-on-surface font-bold">
-                  {heroProduct.name}
-                </h2>
-                <span className="rounded-full bg-error-container/25 text-error font-label-sm text-[10px] px-2 py-0.5 uppercase font-bold">
-                  {heroProduct.stock_label || `Plus que ${heroProduct.stock} en stock !`}
-                </span>
-              </div>
-              <p className="font-body-sm text-body-sm text-on-surface-variant">
-                {heroProduct.short_description || heroProduct.description}
-              </p>
-
-              {/* Variants Chips */}
-              {heroProduct.variants && heroProduct.variants.length > 0 && (
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="font-label-sm text-on-surface-variant text-[11px]">Coloris :</span>
+            {/* Color variants */}
+            {heroProduct.variants && heroProduct.variants.length > 0 && (
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs text-slate-400 font-medium">Variante :</span>
+                <div className="flex items-center gap-1.5">
                   {heroProduct.variants.map((v) => (
                     <button
                       key={v.id}
                       onClick={() => setSelectedHeroColor(v.name)}
-                      className={`px-2 py-0.5 rounded-md font-label-sm text-[11px] font-medium active:scale-95 transition-all ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                         selectedHeroColor === v.name
-                          ? "bg-surface-container-highest text-on-surface font-bold ring-1 ring-primary/40"
-                          : "bg-surface-container-low text-on-surface-variant"
+                          ? "bg-white/[0.12] text-white border border-white/20"
+                          : "bg-white/[0.03] text-slate-400 hover:text-white border border-transparent"
                       }`}
                     >
                       {v.name}
                     </button>
                   ))}
                 </div>
-              )}
-
-              {/* Pricing with Discount */}
-              <div className="flex items-baseline gap-2 mt-2">
-                <span className="font-headline-lg-mobile text-headline-lg-mobile text-primary font-bold">
-                  {heroProduct.price.toLocaleString("fr-FR")} {heroProduct.currency}
-                </span>
-                {heroProduct.old_price && (
-                  <span className="font-body-sm text-body-sm text-outline line-through">
-                    {heroProduct.old_price.toLocaleString("fr-FR")} {heroProduct.currency}
-                  </span>
-                )}
-                {heroProduct.old_price && (
-                  <span className="rounded-full bg-secondary/15 text-secondary font-label-sm text-[10px] px-1.5 py-0.2 font-bold">
-                    -{Math.round(((heroProduct.old_price - heroProduct.price) / heroProduct.old_price) * 100)}%
-                  </span>
-                )}
               </div>
-            </div>
-
-            {/* Owner vs Client Action */}
-            {mode === "owner" ? (
-              <div className="grid grid-cols-2 gap-2 mt-space-xs">
-                <button
-                  type="button"
-                  onClick={() => setManagedProduct(heroProduct)}
-                  className="h-12 rounded-xl bg-primary text-surface font-label-md text-sm font-bold flex items-center justify-center gap-1.5 shadow-md hover:brightness-110 active:scale-98 transition-all cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px]">edit</span>
-                  <span>Gérer ce Produit</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm(`Supprimer définitivement "${heroProduct.name}" de la boutique ?`)) {
-                      onProductDeleted?.(heroProduct.id);
-                    }
-                  }}
-                  className="h-12 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 font-label-md text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-red-500/25 active:scale-98 transition-all cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px]">delete</span>
-                  <span>Supprimer</span>
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => onOpenTunnel(heroProduct, "WHATSAPP", selectedHeroColor)}
-                className="mt-space-xs flex items-center justify-between w-full h-14 px-space-md rounded-xl bg-primary-container text-on-primary-container font-label-lg text-label-lg shadow-lg hover:brightness-110 active:scale-98 transition-all"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[22px]">shopping_bag</span>
-                  <span>Commander sur WhatsApp</span>
-                </span>
-                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-              </button>
             )}
+
+            {/* Price */}
+            <div className="flex items-baseline gap-2 pt-2">
+              <span className="text-2xl font-bold text-white tracking-tight">
+                {heroProduct.price.toLocaleString("fr-FR")} {heroProduct.currency}
+              </span>
+              {heroProduct.old_price && (
+                <span className="text-sm text-slate-500 line-through">
+                  {heroProduct.old_price.toLocaleString("fr-FR")} {heroProduct.currency}
+                </span>
+              )}
+            </div>
           </div>
+
+          {/* Action Button */}
+          {mode === "owner" ? (
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setManagedProduct(heroProduct)}
+                className="h-10 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px]">edit</span>
+                <span>Gérer l'article</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Supprimer "${heroProduct.name}" ?`)) {
+                    onProductDeleted?.(heroProduct.id);
+                  }
+                }}
+                className="h-10 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px]">delete</span>
+                <span>Supprimer</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => onOpenTunnel(heroProduct, "WHATSAPP", selectedHeroColor)}
+              className="w-full h-12 rounded-xl bg-primary hover:brightness-105 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99]"
+            >
+              <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
+              <span>Commander en direct sur WhatsApp</span>
+            </button>
+          )}
         </section>
       )}
 
-      {/* Feed Title Strip */}
-      <div className="flex items-center justify-between pt-space-xs">
-        <div className="flex items-center gap-2">
-          <h3 className="font-headline-sm text-sm sm:text-base font-bold text-on-surface">
-            {selectedCategory ? "Articles Sélectionnés" : "Coups de Cœur d'Awa"}
-          </h3>
-          <span className="flex h-2 w-2 rounded-full bg-secondary"></span>
-        </div>
+      {/* Catalog Title Strip */}
+      <div className="flex items-center justify-between pt-2 px-1">
+        <h3 className="text-sm sm:text-base font-semibold text-white">
+          {selectedCategory ? "Articles de la sélection" : "Catalogue & Nouveautés"}
+        </h3>
         {selectedCategory ? (
           <button
             onClick={() => onSelectCategory(null)}
-            className="font-label-sm text-xs text-primary font-bold hover:underline flex items-center gap-1"
+            className="text-xs text-primary hover:underline font-medium flex items-center gap-1"
           >
             <span className="material-symbols-outlined text-[14px]">refresh</span>
             <span>Toutes les catégories</span>
           </button>
-        ) : products.length > 0 ? (
-          <span className="font-label-sm text-xs text-on-surface-variant font-medium">
-            {products.length} article(s)
+        ) : (
+          <span className="text-xs text-slate-400">
+            {products.length} article{products.length > 1 ? "s" : ""}
           </span>
-        ) : null}
+        )}
       </div>
 
-      {/* Product Grid / Feed Cards or Friendly Empty State */}
+      {/* Products Feed */}
       {products.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-6 sm:p-8 rounded-2xl bg-surface-container border border-white/5 text-center my-2 shadow-sm space-y-3">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-primary/15 text-primary flex items-center justify-center">
-            <span className="material-symbols-outlined text-[26px]">
-              {selectedCategory ? "inventory_2" : "sentiment_satisfied"}
-            </span>
+        <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-surface-container border border-white/[0.07] text-center space-y-3">
+          <div className="w-12 h-12 rounded-xl bg-white/[0.05] text-slate-400 flex items-center justify-center">
+            <span className="material-symbols-outlined text-2xl">inventory_2</span>
           </div>
-
           <div className="space-y-1">
-            <h4 className="font-headline-sm text-sm sm:text-base text-on-surface font-bold">
-              {selectedCategory ? "Collection bientôt disponible" : "Merci pour votre fidélité ! ✨"}
-            </h4>
-            <p className="font-body-sm text-xs text-on-surface-variant max-w-xs mx-auto leading-relaxed">
-              {selectedCategory
-                ? "Les articles de cette sélection sont actuellement en cours de réapprovisionnement express par Awa."
-                : "Notre catalogue en ligne est en cours de mise à jour avec de nouveaux arrivages vérifiés."}
+            <p className="font-semibold text-white text-sm">Aucun article dans cette sélection</p>
+            <p className="text-xs text-slate-400 max-w-xs">
+              De nouveaux arrivages sont préparés en atelier par le commerçant.
             </p>
           </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 w-full max-w-xs">
-            {selectedCategory ? (
-              <button
-                onClick={() => onSelectCategory(null)}
-                className="w-full h-11 px-4 rounded-xl bg-primary text-surface font-label-md text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px]">apps</span>
-                <span>Voir les autres collections</span>
-              </button>
-            ) : null}
-
-            <button
-              onClick={() => {
-                showToast("Ouverture de la discussion avec Awa...");
-                const msg = selectedCategory
-                  ? "Bonjour Awa ! Avez-vous des articles disponibles dans cette catégorie ?"
-                  : "Bonjour Awa ! J'aimerais savoir quels sont vos prochains arrivages en boutique.";
-                window.open("https://wa.me/2250700000000?text=" + encodeURIComponent(msg), "_blank");
-              }}
-              className="w-full h-11 px-4 rounded-xl bg-secondary/15 hover:bg-secondary/25 text-secondary border border-secondary/30 font-label-md text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[16px]">chat</span>
-              <span>Demander à Awa sur WhatsApp</span>
-            </button>
-          </div>
+          <button
+            onClick={() => onSelectCategory(null)}
+            className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white text-xs font-medium transition-colors"
+          >
+            Voir tous les articles
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-space-md">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {feedProducts.map((p) => (
-          <article key={p.id} className="relative overflow-hidden rounded-xl bg-surface-container shadow-md flex flex-col">
-            <div className="relative w-full h-64 bg-surface-container-low">
-              <img
-                className="w-full h-full object-cover"
-                src={getMediaUrl(p.primary_image_url)}
-                alt={p.name}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "/media/products/robe_ankara_reine_sika.jpg";
-                }}
-              />
-              <div className="absolute top-3 left-3 flex flex-col gap-1">
-                <span className="px-2 py-0.5 rounded-full bg-surface-container-lowest/80 backdrop-blur-md text-secondary font-label-sm text-label-sm font-bold uppercase">
-                  {p.badge_tag || "Création Originale"}
-                </span>
-              </div>
-              <button
-                aria-label="Ajouter aux favoris"
-                onClick={() => showToast(`Ajouté aux favoris : ${p.name}`)}
-                className="absolute top-3 right-3 h-8 w-8 rounded-full bg-surface-container-lowest/70 backdrop-blur-md text-on-surface flex items-center justify-center hover:text-error active:scale-90 transition-transform"
-              >
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </button>
-              {/* Social Proof Floating Pill */}
-              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-lg bg-surface/85 backdrop-blur-md px-3 py-1.5 text-on-surface">
-                <div className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-secondary text-[16px]">chat_bubble</span>
-                  <span className="font-label-sm text-label-sm">{p.active_discussions_count} personnes discutent de cet article</span>
-                </div>
-                <span className="font-label-sm text-error font-bold">{p.stock_label || `Reste ${p.stock}`}</span>
-              </div>
-            </div>
-
-            <div className="p-space-md flex flex-col gap-space-xs">
-              <div>
-                <h4 className="font-headline-sm text-headline-sm text-on-surface">{p.name}</h4>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">
-                  {p.short_description || p.description}
-                </p>
-              </div>
-
-              {/* Price & Action */}
-              <div className="flex items-center justify-between pt-1">
-                <div className="flex flex-col">
-                  <span className="font-headline-md text-headline-md text-on-surface font-bold">
-                    {p.price.toLocaleString("fr-FR")} {p.currency}
+            <article
+              key={p.id}
+              className="group bg-surface-container rounded-2xl border border-white/[0.07] hover:border-white/[0.18] overflow-hidden shadow-card transition-all duration-200 flex flex-col justify-between"
+            >
+              {/* Product Image */}
+              <div className="relative w-full h-52 sm:h-56 bg-surface overflow-hidden">
+                <img
+                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
+                  src={getMediaUrl(p.primary_image_url)}
+                  alt={p.name}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "/media/products/robe_ankara_reine_sika.jpg";
+                  }}
+                />
+                {p.badge_tag && (
+                  <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-white font-medium text-[10px] uppercase">
+                    {p.badge_tag}
                   </span>
-                  {p.old_price && (
-                    <span className="font-body-sm text-[11px] text-outline line-through">
-                      {p.old_price.toLocaleString("fr-FR")} {p.currency}
-                    </span>
-                  )}
+                )}
+                <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[11px] text-white">
+                  <span>En stock : {p.stock}</span>
+                  <span className="text-secondary font-medium">Paiement livraison</span>
                 </div>
-                <button
-                  onClick={() => onAddToCart(p)}
-                  className="add-to-cart-btn px-4 py-2 rounded-lg bg-surface-container-highest text-secondary hover:bg-secondary hover:text-on-secondary font-label-md text-label-md font-bold transition-all active:scale-95 flex items-center gap-1"
-                >
-                  <span className="material-symbols-outlined text-[18px]">add</span>
-                  Ajouter
-                </button>
               </div>
 
-              {mode === "owner" ? (
-                <div className="grid grid-cols-2 gap-2 mt-2">
+              {/* Product Info */}
+              <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <h4 className="font-semibold text-sm text-white line-clamp-1">
+                    {p.name}
+                  </h4>
+                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                    {p.short_description || p.description}
+                  </p>
+                </div>
+
+                <div className="flex items-baseline justify-between pt-1">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-base font-bold text-white">
+                      {p.price.toLocaleString("fr-FR")}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">
+                      {p.currency}
+                    </span>
+                  </div>
+
                   <button
-                    type="button"
-                    onClick={() => setManagedProduct(p)}
-                    className="h-11 rounded-xl bg-primary text-surface font-label-md text-xs font-bold flex items-center justify-center gap-1 shadow-md hover:brightness-110 active:scale-98 transition-all cursor-pointer"
+                    onClick={() => onAddToCart(p)}
+                    className="h-8 px-3 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-white text-xs font-medium border border-white/[0.08] transition-colors flex items-center gap-1 active:scale-95"
+                    title="Ajouter au panier"
                   >
-                    <span className="material-symbols-outlined text-[16px]">edit</span>
-                    <span>Modifier</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm(`Supprimer définitivement "${p.name}" de la boutique ?`)) {
-                        onProductDeleted?.(p.id);
-                      }
-                    }}
-                    className="h-11 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 font-label-md text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-500/25 active:scale-98 transition-all cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">delete</span>
-                    <span>Supprimer</span>
+                    <span className="material-symbols-outlined text-[15px]">add</span>
+                    <span>Ajouter</span>
                   </button>
                 </div>
-              ) : (
-                <button
-                  onClick={() => onOpenTunnel(p, "WHATSAPP")}
-                  className="mt-2 flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-secondary-container text-on-secondary font-label-lg text-label-lg font-bold shadow-md hover:brightness-105 active:scale-98 transition-all"
-                >
-                  <span className="material-symbols-outlined text-[20px]">send</span>
-                  <span>Discuter / Commander direct</span>
-                </button>
-              )}
-            </div>
-          </article>
-        ))}
-      </div>
+
+                {/* Direct Order Button */}
+                {mode === "owner" ? (
+                  <div className="grid grid-cols-2 gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setManagedProduct(p)}
+                      className="h-9 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-white text-xs font-medium flex items-center justify-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">edit</span>
+                      <span>Modifier</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`Supprimer "${p.name}" ?`)) {
+                          onProductDeleted?.(p.id);
+                        }
+                      }}
+                      className="h-9 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium flex items-center justify-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">delete</span>
+                      <span>Supprimer</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => onOpenTunnel(p, "WHATSAPP")}
+                    className="w-full h-10 rounded-xl bg-white/[0.06] hover:bg-primary hover:text-white text-slate-200 text-xs font-semibold border border-white/[0.07] transition-all flex items-center justify-center gap-1.5 active:scale-[0.99]"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">chat</span>
+                    <span>Commander sur WhatsApp</span>
+                  </button>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
       )}
 
-      {/* Conversational Guarantee & Delivery Banner */}
-      <section className="rounded-2xl bg-surface-container border border-white/5 p-4 shadow-sm mt-4 flex flex-col gap-3">
+      {/* Personal Contact Assistance Banner */}
+      <section className="rounded-2xl bg-surface-container border border-white/[0.07] p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-secondary/15 text-secondary">
-            <span className="material-symbols-outlined text-[22px]">support_agent</span>
+          <div className="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[20px]">support_agent</span>
           </div>
-          <div className="flex flex-col min-w-0">
-            <h4 className="font-headline-sm text-sm font-bold text-on-surface truncate">
-              {store?.voice_note_title || "Besoin d'un conseil ?"}
+          <div>
+            <h4 className="font-semibold text-sm text-white">
+              {store?.voice_note_title || "Besoin d'un conseil taille ou sur mesure ?"}
             </h4>
-            <p className="font-body-sm text-xs text-on-surface-variant">
-              {store?.voice_note_subtitle || "Discutez en direct ou envoyez une note vocale."}
+            <p className="text-xs text-slate-400">
+              {store?.voice_note_subtitle || "Échangez directement avec le commerçant en audio ou texte."}
             </p>
           </div>
         </div>
+
         <button
           onClick={() => {
-            showToast("Ouverture de l'audio WhatsApp avec Awa...");
-            window.open("https://wa.me/2250700000000?text=" + encodeURIComponent("Bonjour Awa ! J'aimerais des conseils personnalisés pour une commande sur mesure."), "_blank");
+            showToast("Ouverture de la discussion avec le commerçant...");
+            const msg = "Bonjour ! J'aimerais des conseils personnalisés pour ma commande.";
+            const waNumber = store?.contact_whatsapp?.replace(/\D/g, "") || "22670123456";
+            window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
           }}
-          className="flex items-center justify-center gap-2 h-11 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-secondary font-label-md text-xs font-bold tap-scale transition-colors cursor-pointer"
+          className="w-full sm:w-auto h-10 px-4 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white text-xs font-semibold border border-white/[0.08] transition-colors flex items-center justify-center gap-2 shrink-0 active:scale-95"
         >
-          <span className="material-symbols-outlined text-[18px]">mic</span>
-          <span>Envoyer une note vocale à Awa</span>
+          <span className="material-symbols-outlined text-[16px] text-secondary">mic</span>
+          <span>Poser une question en direct</span>
         </button>
       </section>
 
-      {/* Floating Sticky Thumb Bar */}
+      {/* Floating Cart Drawer when items present */}
       {cartCount > 0 && (
-        <aside className="fixed bottom-20 left-0 right-0 z-40 px-margin pointer-events-none transition-transform duration-300">
-          <div className="pointer-events-auto mx-auto max-w-md rounded-2xl bg-surface-container-highest/95 p-3 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-space-sm border border-white/5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-container text-on-primary-container font-bold shadow-md">
-                <span className="material-symbols-outlined text-[22px]">shopping_bag</span>
-                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-on-secondary text-[10px] font-bold">
+        <aside className="fixed bottom-20 left-0 right-0 z-40 px-4 pointer-events-none transition-transform duration-300">
+          <div className="pointer-events-auto mx-auto max-w-md rounded-2xl bg-surface-container-high/95 p-3.5 backdrop-blur-xl shadow-card-hover flex items-center justify-between gap-3 border border-white/[0.1]">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-bold shadow-sm shrink-0">
+                <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-secondary text-slate-900 text-[10px] font-bold flex items-center justify-center">
                   {cartCount}
                 </span>
               </div>
-              <div className="flex flex-col min-w-0">
-                <span className="font-label-sm text-[11px] text-on-surface-variant">Panier Actuel</span>
-                <span className="font-headline-sm text-[16px] text-on-surface font-bold truncate">
+              <div className="min-w-0">
+                <span className="text-[11px] text-slate-400 block">Total Panier</span>
+                <span className="text-sm font-bold text-white truncate block">
                   {cartTotal.toLocaleString("fr-FR")} {store?.currency || "FCFA"}
                 </span>
               </div>
             </div>
+
             <button
               onClick={onCheckoutCart}
-              className="flex-shrink-0 h-11 px-4 rounded-xl bg-primary text-on-primary font-label-md text-xs font-bold flex items-center gap-1.5 shadow-md tap-scale transition-transform hover:brightness-105 cursor-pointer"
+              className="h-10 px-4 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 cursor-pointer shrink-0"
             >
-              <span>Finaliser</span>
-              <span className="material-symbols-outlined text-[18px]">qr_code_2</span>
+              <span>Valider la commande</span>
+              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
             </button>
           </div>
         </aside>

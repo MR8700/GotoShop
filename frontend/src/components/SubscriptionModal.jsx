@@ -198,32 +198,32 @@ export default function SubscriptionModal({
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto"
     >
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
+      <div className="relative w-full max-w-2xl bg-surface-container border border-subtle rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
         {/* Header bar */}
-        <div className="relative px-5 py-4 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-500 text-white flex items-center justify-between shadow-md flex-shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-black text-xl shadow-inner">
-              ⭐
+        <div className="px-5 py-4 bg-surface-container-high border-b border-subtle text-slate-100 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-[22px]">workspace_premium</span>
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black tracking-tight leading-tight">
+              <h2 className="text-base font-semibold text-slate-100 tracking-tight leading-snug">
                 {mode === "NEW_STORE"
                   ? "Ouvrir ma Boutique en Ligne"
                   : mode === "UPGRADE"
                   ? "Changer de Formule"
                   : "Renouveler mon Abonnement"}
               </h2>
-              <p className="text-xs text-amber-100/90 font-medium">
-                Paiement Mobile Money instantané par USSD & Activation directe
+              <p className="text-xs text-slate-400 font-normal">
+                Paiement Mobile Money par USSD & validation directe
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center text-white text-lg font-bold transition-transform active:scale-95"
+            className="w-8 h-8 rounded-lg bg-surface-card hover:bg-surface-container-highest border border-subtle flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors"
             aria-label="Fermer"
           >
-            ✕
+            <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
 
@@ -231,24 +231,24 @@ export default function SubscriptionModal({
         <div className="p-4 sm:p-6 overflow-y-auto space-y-6 text-slate-100 flex-grow">
           {loading ? (
             <div className="py-16 text-center space-y-3">
-              <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="text-sm text-slate-400 font-medium">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="text-xs text-slate-400 font-medium">
                 Chargement des formules et passerelles de paiement...
               </p>
             </div>
           ) : submitSuccess ? (
             /* SUCCESS CONFIRMATION SCREEN */
             <div className="text-center py-6 px-2 space-y-5 animate-fade-in">
-              <div className="w-16 h-16 rounded-3xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center text-3xl mx-auto shadow-lg shadow-emerald-950">
-                ✓
+              <div className="w-14 h-14 rounded-2xl bg-secondary/15 border border-secondary/30 text-secondary flex items-center justify-center mx-auto shadow-lg shadow-black/40">
+                <span className="material-symbols-outlined text-[32px]">check_circle</span>
               </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-black text-white">
-                  Demande Transmise avec Succès !
+              <div className="space-y-1.5">
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  Demande transmise avec succès
                 </h3>
-                <p className="text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
-                  Merci <strong>{ownerName}</strong> ! Votre capture de paiement de{" "}
-                  <span className="text-amber-400 font-bold">
+                <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Merci <strong className="text-slate-200">{ownerName}</strong>. Votre capture de paiement de{" "}
+                  <span className="text-primary font-bold">
                     {submittedData?.amount || activePlan?.price} {submittedData?.currency || "FCFA"}
                   </span>{" "}
                   a bien été reçue par notre équipe d'administration.
@@ -256,44 +256,49 @@ export default function SubscriptionModal({
               </div>
 
               {/* Status card */}
-              <div className="bg-slate-800/90 border border-slate-700 p-4 rounded-2xl text-left space-y-3 max-w-md mx-auto">
-                <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-700/60">
-                  <span className="text-slate-400">Statut de la demande :</span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">
-                    ⏳ EN ATTENTE DE VÉRIFICATION
+              <div className="bg-surface-card border border-subtle p-4 rounded-xl text-left space-y-3 max-w-md mx-auto">
+                <div className="flex justify-between items-center text-xs pb-2.5 border-b border-subtle">
+                  <span className="text-slate-400 font-medium">Statut de la demande :</span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 font-medium text-[11px]">
+                    <span className="material-symbols-outlined text-[13px]">schedule</span>
+                    En attente de vérification
                   </span>
                 </div>
-                <div className="text-xs space-y-1 text-slate-300">
+                <div className="text-xs space-y-1.5 text-slate-300">
                   <p>
-                    <strong>Boutique :</strong> {submittedData?.store_name || storeName}
+                    <span className="text-slate-400">Boutique :</span> {submittedData?.store_name || storeName}
                   </p>
                   <p>
-                    <strong>Formule choisie :</strong> {submittedData?.plan_name || activePlan?.name}
+                    <span className="text-slate-400">Formule choisie :</span> {submittedData?.plan_name || activePlan?.name}
                   </p>
                   <p>
-                    <strong>Canal de contact :</strong> {ownerPhone} {ownerEmail ? `• ${ownerEmail}` : ""}
+                    <span className="text-slate-400">Canal de contact :</span> {ownerPhone} {ownerEmail ? `• ${ownerEmail}` : ""}
                   </p>
                 </div>
-                <div className="p-3 bg-slate-900/80 rounded-xl border border-amber-500/30 text-xs text-amber-200/90 leading-relaxed">
-                  📲 <strong>Prochaine étape :</strong> L'administrateur valide votre reçu sous peu. Vos identifiants de connexion et le lien de votre vitrine vous seront automatiquement délivrés par <strong>WhatsApp</strong> et par <strong>Email</strong>.
+                <div className="p-3 bg-surface-container rounded-lg border border-subtle text-xs text-slate-300 leading-relaxed flex items-start gap-2">
+                  <span className="material-symbols-outlined text-primary text-[18px] shrink-0 mt-0.5">verified</span>
+                  <div>
+                    <strong className="text-white">Prochaine étape :</strong> L'administrateur valide votre reçu sous peu. Vos identifiants de connexion et le lien de votre vitrine vous seront automatiquement délivrés par WhatsApp et par Email.
+                  </div>
                 </div>
               </div>
 
               {/* Action buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+              <div className="flex flex-col sm:flex-row gap-2.5 justify-center pt-2">
                 <a
                   href={`https://wa.me/22565711741?text=${encodeURIComponent(
                     `Bonjour GotoShop, je viens de soumettre ma demande d'abonnement pour la boutique "${storeName}". Nom: ${ownerName}, Montant: ${activePlan?.price} FCFA.`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md flex items-center justify-center space-x-2 transition-all"
+                  className="px-5 py-2.5 rounded-xl bg-secondary hover:bg-secondary/90 text-on-secondary font-semibold text-xs shadow-md flex items-center justify-center gap-2 transition-colors"
                 >
-                  <span>💬 Contacter le Support WhatsApp</span>
+                  <span className="material-symbols-outlined text-[16px]">chat</span>
+                  <span>Contacter le Support WhatsApp</span>
                 </a>
                 <button
                   onClick={onClose}
-                  className="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm transition-all"
+                  className="px-5 py-2.5 rounded-xl bg-surface-card hover:bg-surface-container-highest border border-subtle text-slate-300 font-medium text-xs transition-colors"
                 >
                   Fermer
                 </button>
@@ -303,8 +308,8 @@ export default function SubscriptionModal({
             /* MULTI-STEP SUBSCRIPTION FORM */
             <form onSubmit={handleSubmit} className="space-y-6">
               {errorMessage && (
-                <div className="p-3.5 bg-rose-500/20 border border-rose-500/50 rounded-2xl text-xs font-semibold text-rose-200 flex items-center space-x-2">
-                  <span>⚠️</span>
+                <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs font-medium text-rose-300 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px] text-rose-400">error</span>
                   <span>{errorMessage}</span>
                 </div>
               )}
@@ -312,11 +317,11 @@ export default function SubscriptionModal({
               {/* SECTION 1: CHOIX DU FORFAIT */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
-                    <span>1.</span>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">1</span>
                     <span>Choisissez votre Formule d'Abonnement</span>
                   </label>
-                  <span className="text-[11px] text-slate-400 font-medium">
+                  <span className="text-[11px] text-slate-400 font-normal">
                     Durée : 30 jours
                   </span>
                 </div>
@@ -329,50 +334,50 @@ export default function SubscriptionModal({
                       <div
                         key={p.id}
                         onClick={() => setSelectedPlanCode(p.code)}
-                        className={`relative rounded-2xl p-3.5 border transition-all cursor-pointer flex flex-col justify-between ${
+                        className={`relative rounded-xl p-4 border transition-all cursor-pointer flex flex-col justify-between ${
                           isSelected
-                            ? "bg-amber-500/10 border-amber-500 shadow-md shadow-amber-950/40 ring-2 ring-amber-500/30"
-                            : "bg-slate-800/60 border-slate-700 hover:border-slate-600"
+                            ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-md"
+                            : "bg-surface-card border-subtle hover:border-slate-700"
                         }`}
                       >
                         {p.is_popular && (
-                          <div className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-[10px] font-black text-white uppercase tracking-wider shadow-sm">
-                            ⭐ Recommandé
+                          <div className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-[10px] font-semibold text-primary uppercase tracking-wider">
+                            Recommandé
                           </div>
                         )}
                         <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-extrabold text-sm text-white">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-semibold text-sm text-slate-100">
                               {p.name.replace(/\(.*\)/, "").trim()}
                             </span>
                             <div
-                              className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                              className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
                                 isSelected
-                                  ? "border-amber-400 bg-amber-500"
-                                  : "border-slate-500"
+                                  ? "border-primary bg-primary"
+                                  : "border-slate-600"
                               }`}
                             >
                               {isSelected && (
-                                <div className="w-1.5 h-1.5 rounded-full bg-slate-900" />
+                                <div className="w-1.5 h-1.5 rounded-full bg-surface" />
                               )}
                             </div>
                           </div>
-                          <div className="text-xl font-black text-amber-400 my-1">
+                          <div className="text-lg font-bold text-slate-100 my-1">
                             {p.price.toLocaleString("fr-FR")}{" "}
-                            <span className="text-xs font-bold text-slate-300">
+                            <span className="text-xs font-normal text-slate-400">
                               FCFA / mois
                             </span>
                           </div>
-                          <p className="text-[11px] text-slate-400 leading-snug mb-3">
+                          <p className="text-[11px] text-slate-400 leading-snug mb-3 font-normal">
                             {p.description}
                           </p>
                         </div>
 
                         {/* Features bullet list */}
-                        <ul className="space-y-1 text-[11px] text-slate-300 border-t border-slate-700/60 pt-2.5">
+                        <ul className="space-y-1.5 text-[11px] text-slate-300 border-t border-subtle pt-3">
                           {features.slice(0, 3).map((f, idx) => (
-                            <li key={idx} className="flex items-start space-x-1.5">
-                              <span className="text-amber-400 font-bold">✓</span>
+                            <li key={idx} className="flex items-start gap-1.5">
+                              <span className="material-symbols-outlined text-[14px] text-primary shrink-0 mt-0.5">check</span>
                               <span className="line-clamp-1">{f}</span>
                             </li>
                           ))}
@@ -384,30 +389,30 @@ export default function SubscriptionModal({
               </div>
 
               {/* SECTION 2: COORDONNÉES DE LA BOUTIQUE */}
-              <div className="space-y-3 border-t border-slate-800 pt-5">
-                <label className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
-                  <span>2.</span>
+              <div className="space-y-3 border-t border-subtle pt-5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">2</span>
                   <span>Informations de la Boutique & Gérant</span>
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Nom de la boutique <span className="text-amber-400">*</span>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Nom de la boutique <span className="text-primary">*</span>
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: Awa Chic Mode, Kadi Cosmétiques..."
+                      placeholder="Ex: Awa Chic Mode, Faso Tech..."
                       value={storeName}
                       onChange={(e) => setStoreName(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-card border border-subtle text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Votre Nom complet <span className="text-amber-400">*</span>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Votre nom complet <span className="text-primary">*</span>
                     </label>
                     <input
                       type="text"
@@ -415,21 +420,21 @@ export default function SubscriptionModal({
                       placeholder="Ex: Traoré Awa"
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-card border border-subtle text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Numéro WhatsApp fonctionnel <span className="text-amber-400">*</span>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Numéro WhatsApp fonctionnel <span className="text-primary">*</span>
                     </label>
                     <input
                       type="tel"
                       required
-                      placeholder="+225 07 12 34 56 78"
+                      placeholder="+226 70 00 00 00"
                       value={ownerPhone}
                       onChange={(e) => setOwnerPhone(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-card border border-subtle text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                     />
                     <p className="text-[10px] text-slate-400 mt-1">
                       Vos identifiants et alertes commandes y seront envoyés.
@@ -437,33 +442,33 @@ export default function SubscriptionModal({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Adresse Email <span className="text-slate-400 font-normal">(Recommandé)</span>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Adresse Email <span className="text-slate-500 font-normal">(Recommandé)</span>
                     </label>
                     <input
                       type="email"
                       placeholder="vendeur@gmail.com"
                       value={ownerEmail}
                       onChange={(e) => setOwnerEmail(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-card border border-subtle text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* SECTION 3: PAIEMENT USSD ORANGE / MOOV */}
-              <div className="space-y-4 border-t border-slate-800 pt-5">
+              {/* SECTION 3: PAIEMENT USSD ORANGE / MOOV / WAVE */}
+              <div className="space-y-4 border-t border-subtle pt-5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
-                    <span>3.</span>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">3</span>
                     <span>Paiement Mobile Money par Code USSD</span>
                   </label>
-                  <span className="text-xs font-black text-white px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/30">
+                  <span className="text-xs font-semibold text-slate-200 px-2.5 py-1 rounded-lg bg-surface-card border border-subtle">
                     Montant : {activePlan?.price.toLocaleString("fr-FR")} FCFA
                   </span>
                 </div>
 
-                {/* Operator Selector Buttons with official colors and logos */}
+                {/* Operator Selector Buttons */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {currentPlanInfo?.payment_options?.map((opt) => {
                     const isOpSelected = selectedOperator === opt.operator_code;
@@ -474,43 +479,29 @@ export default function SubscriptionModal({
                         type="button"
                         key={opt.operator_code}
                         onClick={() => setSelectedOperator(opt.operator_code)}
-                        className={`p-3 rounded-2xl border text-left transition-all flex items-center space-x-3 ${
+                        className={`p-3 rounded-xl border text-left transition-all flex items-center gap-3 ${
                           isOpSelected
-                            ? "ring-2 shadow-lg"
-                            : "opacity-80 hover:opacity-100 bg-slate-800/80 border-slate-700"
+                            ? "bg-surface-container-highest border-primary ring-1 ring-primary/40 shadow-sm"
+                            : "bg-surface-card border-subtle hover:border-slate-700 opacity-80 hover:opacity-100"
                         }`}
-                        style={{
-                          backgroundColor: isOpSelected
-                            ? isOrange
-                              ? "#FF7900"
-                              : isMoov
-                              ? "#005BAA"
-                              : "#0284c7"
-                            : undefined,
-                          borderColor: isOpSelected ? "#ffffff" : undefined,
-                          color: isOpSelected ? "#ffffff" : "#f1f5f9",
-                        }}
                       >
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0 shadow-sm"
+                          className="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-sm text-white"
                           style={{
-                            backgroundColor: isOpSelected
-                              ? "rgba(255,255,255,0.2)"
-                              : isOrange
+                            backgroundColor: isOrange
                               ? "#FF7900"
                               : isMoov
                               ? "#005BAA"
                               : "#0284c7",
-                            color: "#FFFFFF",
                           }}
                         >
                           {isOrange ? "OM" : isMoov ? "MOOV" : "WAVE"}
                         </div>
                         <div className="min-w-0">
-                          <div className="font-extrabold text-xs truncate">
+                          <div className="font-semibold text-xs text-slate-200 truncate">
                             {opt.operator_name}
                           </div>
-                          <div className="text-[10px] opacity-90 truncate">
+                          <div className="text-[10px] text-slate-400 truncate">
                             {opt.merchant_number}
                           </div>
                         </div>
@@ -521,64 +512,67 @@ export default function SubscriptionModal({
 
                 {/* Dynamic USSD Action Panel */}
                 {currentDialOption && (
-                  <div className="bg-slate-800/90 border border-slate-700 p-4 rounded-2xl space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="bg-surface-card border border-subtle p-4 rounded-xl space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
-                        <span className="text-[11px] font-semibold text-slate-400 block">
+                        <span className="text-[11px] font-medium text-slate-400 block">
                           Code USSD généré pour {activePlan?.name} :
                         </span>
-                        <span className="font-mono text-base sm:text-lg font-black tracking-wide text-amber-400 select-all">
+                        <span className="font-mono text-base sm:text-lg font-bold tracking-wide text-primary select-all">
                           {currentDialOption.ussd_code}
                         </span>
                       </div>
 
                       {/* Direct Dial & Copy buttons */}
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-2">
                         {currentDialOption.ussd_code.startsWith("*") && (
                           <a
                             href={currentDialOption.tel_link}
-                            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-md flex items-center space-x-1.5 transition-all"
+                            className="px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/90 text-on-secondary text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors"
                           >
-                            <span>📞</span>
+                            <span className="material-symbols-outlined text-[16px]">call</span>
                             <span>Composer l'USSD</span>
                           </a>
                         )}
                         <button
                           type="button"
                           onClick={() => copyToClipboard(currentDialOption.ussd_code)}
-                          className="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold flex items-center space-x-1 transition-all"
+                          className="px-3 py-2 rounded-xl bg-surface-container hover:bg-surface-container-highest border border-subtle text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors"
                         >
-                          <span>{copiedCode ? "✓ Copié !" : "📋 Copier"}</span>
+                          <span className="material-symbols-outlined text-[15px]">
+                            {copiedCode ? "check" : "content_copy"}
+                          </span>
+                          <span>{copiedCode ? "Copié !" : "Copier"}</span>
                         </button>
                       </div>
                     </div>
 
                     {/* Clear Notice Banner */}
-                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed space-y-1">
-                      <p className="font-bold flex items-center space-x-1.5">
-                        <span>💡</span>
-                        <span>Instruction de validation obligatoire :</span>
-                      </p>
-                      <p className="text-[11px] text-amber-100/90">
-                        {currentDialOption.instructions ||
-                          "Effectuez le paiement via le code USSD ci-dessus, puis chargez obligatoirement la capture d'écran du reçu SMS de confirmation ci-dessous."}
-                      </p>
+                    <div className="p-3 rounded-lg bg-surface-container border border-subtle text-xs text-slate-300 leading-relaxed flex items-start gap-2">
+                      <span className="material-symbols-outlined text-primary text-[18px] shrink-0 mt-0.5">info</span>
+                      <div>
+                        <span className="font-semibold text-slate-200">Instruction de validation : </span>
+                        <span className="text-slate-400">
+                          {currentDialOption.instructions ||
+                            "Effectuez le paiement via le code USSD ci-dessus, puis chargez la capture d'écran du reçu SMS de confirmation ci-dessous."}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* SECTION 4: CHARGER LA CAPTURE DU PAIEMENT */}
-              <div className="space-y-3 border-t border-slate-800 pt-5">
-                <label className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
-                  <span>4.</span>
+              <div className="space-y-3 border-t border-subtle pt-5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">4</span>
                   <span>Capture d'écran du Paiement (Preuve Obligatoire)</span>
                 </label>
 
-                <div className="border-2 border-dashed border-slate-700 hover:border-amber-500 rounded-2xl p-4 text-center transition-all bg-slate-800/40">
+                <div className="border-2 border-dashed border-subtle hover:border-slate-600 rounded-xl p-4 text-center transition-colors bg-surface-card/40">
                   {proofPreview ? (
                     <div className="space-y-3">
-                      <div className="relative inline-block max-w-[200px] max-h-[220px] rounded-xl overflow-hidden border border-slate-600 shadow-md">
+                      <div className="relative inline-block max-w-[200px] max-h-[220px] rounded-xl overflow-hidden border border-subtle shadow-md">
                         <img
                           src={proofPreview}
                           alt="Capture Reçu de Paiement"
@@ -590,26 +584,27 @@ export default function SubscriptionModal({
                             setProofPreview(null);
                             setProofData(null);
                           }}
-                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-600 text-white font-bold text-xs flex items-center justify-center shadow"
+                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow"
                           title="Supprimer cette capture"
                         >
-                          ✕
+                          <span className="material-symbols-outlined text-[14px]">close</span>
                         </button>
                       </div>
-                      <p className="text-xs font-semibold text-emerald-400 flex items-center justify-center space-x-1">
-                        <span>✓ Capture d'écran prête</span>
+                      <p className="text-xs font-medium text-secondary flex items-center justify-center gap-1">
+                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                        <span>Capture d'écran prête</span>
                       </p>
                     </div>
                   ) : (
-                    <label className="cursor-pointer block space-y-2 py-4">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-700/80 border border-slate-600 flex items-center justify-center text-2xl mx-auto text-amber-400">
-                        📷
+                    <label className="cursor-pointer block space-y-2 py-3">
+                      <div className="w-11 h-11 rounded-xl bg-surface-container border border-subtle flex items-center justify-center text-slate-400 mx-auto">
+                        <span className="material-symbols-outlined text-[24px]">photo_camera</span>
                       </div>
-                      <div className="text-xs font-bold text-white">
+                      <div className="text-xs font-medium text-slate-200">
                         Cliquez ici pour charger la capture d'écran du reçu
                       </div>
-                      <p className="text-[11px] text-slate-400">
-                        Format photo PNG, JPG ou WEBP (SMS ou reçu Mobile Money)
+                      <p className="text-[11px] text-slate-400 font-normal">
+                        Format photo PNG, JPG ou WEBP (SMS ou notification Mobile Money)
                       </p>
                       <input
                         type="file"
@@ -622,46 +617,46 @@ export default function SubscriptionModal({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">
                     Référence de transaction ou remarque (Optionnel) :
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: ID Tx CI2609..., Payé depuis le 07080910..."
+                    placeholder="Ex: ID Tx BF2609..., Payé depuis le 70000000..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-500"
+                    className="w-full px-3 py-2 rounded-xl bg-surface-card border border-subtle text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
 
               {/* Submit Button */}
-              <div className="border-t border-slate-800 pt-4 flex items-center justify-end space-x-3">
+              <div className="border-t border-subtle pt-4 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all"
+                  className="px-4 py-2.5 rounded-xl bg-surface-card hover:bg-surface-container-highest border border-subtle text-slate-300 font-medium text-xs transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !proofData}
-                  className={`px-6 py-3 rounded-2xl font-black text-sm shadow-xl flex items-center space-x-2 transition-all ${
+                  className={`px-5 py-2.5 rounded-xl font-semibold text-xs shadow-md flex items-center gap-2 transition-all ${
                     isSubmitting || !proofData
-                      ? "bg-slate-700 text-slate-400 cursor-not-allowed"
-                      : "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-white shadow-amber-950/60 active:scale-98"
+                      ? "bg-surface-card text-slate-500 border border-subtle cursor-not-allowed"
+                      : "bg-primary hover:bg-primary/90 text-on-primary active:scale-98"
                   }`}
                 >
                   {isSubmitting ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></div>
                       <span>Envoi en cours...</span>
                     </>
                   ) : (
                     <>
                       <span>Valider et Activer ma Boutique</span>
-                      <span>➔</span>
+                      <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                     </>
                   )}
                 </button>
