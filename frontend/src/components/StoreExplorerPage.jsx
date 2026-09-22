@@ -14,16 +14,21 @@ export default function StoreExplorerPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
+  const itemsPerPage = 12;
 
-  // Filter categories
+  // Filter categories covering national (Burkina) and international stores
   const filterOptions = [
     { id: "ALL", label: "Toutes les Boutiques", icon: "storefront" },
-    { id: "OUAGA", label: "🇧🇫 Ouagadougou", icon: "location_on" },
-    { id: "BOBO", label: "🇧🇫 Bobo-Dioulasso", icon: "location_on" },
-    { id: "FASHION", label: "Mode & Tissé", icon: "checkroom" },
+    { id: "BURKINA", label: "🇧🇫 Burkina Faso", icon: "location_on" },
+    { id: "CI", label: "🇨🇮 Côte d'Ivoire", icon: "location_on" },
+    { id: "MALI", label: "🇲🇱 Mali", icon: "location_on" },
+    { id: "SENEGAL", label: "🇸🇳 Sénégal", icon: "location_on" },
+    { id: "TOGO_BENIN", label: "🇹🇬 Togo / 🇧🇯 Bénin", icon: "location_on" },
+    { id: "DIASPORA", label: "🌍 Diaspora & International", icon: "public" },
+    { id: "FASHION", label: "Mode & Pagne", icon: "checkroom" },
     { id: "TECH", label: "High-Tech", icon: "devices" },
     { id: "BEAUTY", label: "Beauté & Bio", icon: "spa" },
+    { id: "FOOD", label: "Terroir & Épicerie", icon: "restaurant" },
   ];
 
   // Filtered stores
@@ -41,36 +46,39 @@ export default function StoreExplorerPage({
 
       if (!matchesSearch) return false;
 
-      if (selectedFilter === "OUAGA") {
-        return (st.delivery_city || "").toLowerCase().includes("ouaga");
+      const cityLower = (st.delivery_city || "").toLowerCase();
+      const nameLower = (st.name || "").toLowerCase();
+      const tagLower = (st.tagline || "").toLowerCase();
+
+      if (selectedFilter === "BURKINA") {
+        return st.country === "BF" || cityLower.includes("ouaga") || cityLower.includes("bobo") || cityLower.includes("koudougou") || cityLower.includes("kaya") || cityLower.includes("banfora") || cityLower.includes("dédougou") || cityLower.includes("fada") || cityLower.includes("burkina");
       }
-      if (selectedFilter === "BOBO") {
-        return (st.delivery_city || "").toLowerCase().includes("bobo");
+      if (selectedFilter === "CI") {
+        return st.country === "CI" || cityLower.includes("abidjan") || cityLower.includes("yamoussoukro") || cityLower.includes("ivoire");
+      }
+      if (selectedFilter === "MALI") {
+        return st.country === "ML" || cityLower.includes("bamako") || cityLower.includes("ségou") || cityLower.includes("mali");
+      }
+      if (selectedFilter === "SENEGAL") {
+        return st.country === "SN" || cityLower.includes("dakar") || cityLower.includes("sénégal");
+      }
+      if (selectedFilter === "TOGO_BENIN") {
+        return st.country === "TG" || st.country === "BJ" || cityLower.includes("lomé") || cityLower.includes("cotonou") || cityLower.includes("togo") || cityLower.includes("bénin");
+      }
+      if (selectedFilter === "DIASPORA") {
+        return st.country === "DIASPORA" || cityLower.includes("paris") || cityLower.includes("bruxelles") || cityLower.includes("montréal") || cityLower.includes("france") || cityLower.includes("europe");
       }
       if (selectedFilter === "FASHION") {
-        return (
-          st.name?.toLowerCase().includes("danfani") ||
-          st.name?.toLowerCase().includes("mode") ||
-          st.tagline?.toLowerCase().includes("textile") ||
-          st.tagline?.toLowerCase().includes("pagne")
-        );
+        return st.category === "FASHION" || nameLower.includes("danfani") || nameLower.includes("mode") || nameLower.includes("pagne") || nameLower.includes("couture") || nameLower.includes("chaussures") || nameLower.includes("kôkô") || tagLower.includes("textile") || tagLower.includes("pagne");
       }
       if (selectedFilter === "TECH") {
-        return (
-          st.name?.toLowerCase().includes("tech") ||
-          st.name?.toLowerCase().includes("gadget") ||
-          st.tagline?.toLowerCase().includes("smartphone") ||
-          st.tagline?.toLowerCase().includes("tech")
-        );
+        return st.category === "TECH" || nameLower.includes("tech") || nameLower.includes("gadget") || nameLower.includes("solaire") || nameLower.includes("smartphone") || nameLower.includes("moto") || tagLower.includes("tech") || tagLower.includes("smartphone");
       }
       if (selectedFilter === "BEAUTY") {
-        return (
-          st.name?.toLowerCase().includes("beauté") ||
-          st.name?.toLowerCase().includes("bio") ||
-          st.name?.toLowerCase().includes("sya") ||
-          st.tagline?.toLowerCase().includes("karité") ||
-          st.tagline?.toLowerCase().includes("soin")
-        );
+        return st.category === "BEAUTY" || nameLower.includes("beauté") || nameLower.includes("karité") || nameLower.includes("bio") || nameLower.includes("savon") || nameLower.includes("parfum") || tagLower.includes("karité") || tagLower.includes("soin");
+      }
+      if (selectedFilter === "FOOD") {
+        return st.category === "FOOD" || nameLower.includes("miel") || nameLower.includes("fonio") || nameLower.includes("épicerie") || nameLower.includes("saveurs") || nameLower.includes("nectar") || nameLower.includes("sirop") || tagLower.includes("miel") || tagLower.includes("épice");
       }
 
       return true;
@@ -141,36 +149,46 @@ export default function StoreExplorerPage({
         </div>
       </header>
 
-      {/* Hero Exploration Banner */}
+      {/* Hero Exploration Banner with Illustrative Background */}
       <section className="px-4 pt-6 pb-4 max-w-4xl mx-auto w-full">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-surface-container-high via-surface-container to-surface-container-lowest p-6 sm:p-8 border border-white/5 shadow-xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none -mr-16 -mt-16" />
+        <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl bg-slate-900">
+          {/* Illustrative Background Image with Subtle Dark Overlay */}
+          <div className="absolute inset-0 z-0 pointer-events-none">
+            <img
+              src="https://images.unsplash.com/photo-1544816155-12df9643f363?w=1600&auto=format&fit=crop&q=80"
+              alt="Boutiques d'Afrique et du Burkina"
+              className="w-full h-full object-cover opacity-35 scale-105 transition-transform duration-1000"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/85 to-slate-950/70" />
+            <div className="absolute top-0 right-0 w-80 h-80 bg-primary/20 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+          </div>
+
           <div className="relative z-10 space-y-3 max-w-xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/15 text-secondary text-xs font-bold border border-secondary/30">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/20 text-secondary text-xs font-bold border border-secondary/40 backdrop-blur-md">
               <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
               <span>Boutiques Ouvertes &amp; Vendeurs Disponibles</span>
             </div>
-            <h2 className="font-headline-sm text-2xl sm:text-3xl font-black text-on-surface tracking-tight leading-snug">
-              Découvrez les meilleures boutiques du Burkina Faso.
+            <h2 className="font-headline-sm text-2xl sm:text-3xl font-black text-white tracking-tight leading-snug drop-shadow-sm">
+              Découvrez les meilleures boutiques du Burkina Faso &amp; d'Afrique.
             </h2>
-            <p className="font-body-md text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+            <p className="font-body-md text-xs sm:text-sm text-slate-200 leading-relaxed drop-shadow-sm">
               Commandez directement sur WhatsApp ou Messenger avec paiement à la livraison. Votre compte client est unique et reconnu sur toutes les boutiques.
             </p>
           </div>
 
           {/* Platform Trust Highlights */}
-          <div className="grid grid-cols-3 gap-2 pt-6 mt-4 border-t border-white/5 text-center">
+          <div className="relative z-10 grid grid-cols-3 gap-2 pt-6 mt-4 border-t border-white/10 text-center">
             <div className="space-y-0.5">
-              <p className="font-bold text-sm sm:text-base text-primary">100% Direct</p>
-              <p className="text-[10px] sm:text-xs text-on-surface-variant">Zéro intermédiaire</p>
+              <p className="font-bold text-sm sm:text-base text-amber-400">100% Direct</p>
+              <p className="text-[10px] sm:text-xs text-slate-300">Zéro intermédiaire</p>
             </div>
             <div className="space-y-0.5 border-x border-white/10">
-              <p className="font-bold text-sm sm:text-base text-secondary">À la livraison</p>
-              <p className="text-[10px] sm:text-xs text-on-surface-variant">Paiement après vérification</p>
+              <p className="font-bold text-sm sm:text-base text-emerald-400">À la livraison</p>
+              <p className="text-[10px] sm:text-xs text-slate-300">Paiement après vérification</p>
             </div>
             <div className="space-y-0.5">
-              <p className="font-bold text-sm sm:text-base text-amber-400">1 Seul Compte</p>
-              <p className="text-[10px] sm:text-xs text-on-surface-variant">Reconnu partout</p>
+              <p className="font-bold text-sm sm:text-base text-amber-300">1 Seul Compte</p>
+              <p className="text-[10px] sm:text-xs text-slate-300">Reconnu partout</p>
             </div>
           </div>
         </div>

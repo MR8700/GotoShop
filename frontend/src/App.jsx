@@ -128,10 +128,7 @@ export default function App() {
       setProducts(prods);
       setChannels(chs);
 
-      const hero = prods.find((p) => p.is_hero_deal) || prods[0];
-      if (hero) {
-        setCart([{ id: hero.id, name: hero.name, price: hero.price, quantity: 1 }]);
-      }
+      // Cart remains empty until customer explicitly clicks to add a product
     } catch (e) {
       console.warn("Erreur de synchronisation des données serveur :", e);
     } finally {

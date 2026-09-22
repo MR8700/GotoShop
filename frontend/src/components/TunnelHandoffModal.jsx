@@ -23,6 +23,10 @@ export default function TunnelHandoffModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccessIntent, setOrderSuccessIntent] = useState(null);
 
+  // Editable social media message state
+  const [customMessage, setCustomMessage] = useState("");
+  const [isMessageEdited, setIsMessageEdited] = useState(false);
+
   // GPS Location state - EXCLUSIVELY sent if client explicitly wants it
   const [wantSendGps, setWantSendGps] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -95,20 +99,38 @@ export default function TunnelHandoffModal({
 
   const destinationStr = customLocality.trim() ? `${selectedCity} (${customLocality.trim()})` : selectedCity;
 
-  const getDynamicMessagePreview = () => {
+  const getDefaultMessage = () => {
     const colorStr = selectedColor ? ` (${selectedColor})` : "";
     const clientGreeting = customer ? `Je suis ${customer.name}. ` : "";
-    let msg = `"Bonjour ${store?.name || "Boutique"}, ${clientGreeting}je confirme l'achat de ${quantity}x ${product?.name}${colorStr} pour ${destinationStr}. Réf: ${referenceCode}`;
+    let msg = `Bonjour ${store?.name || "Boutique"}, ${clientGreeting}je confirme l'achat de ${quantity}x ${product?.name}${colorStr} pour ${destinationStr}. Réf: ${referenceCode}`;
     if (wantSendGps && customerLocationUrl) {
       msg += ` 📍 Ma localisation exacte : ${customerLocationUrl}`;
     }
-    msg += `"`;
     return msg;
   };
+
+  useEffect(() => {
+    if (!isMessageEdited) {
+      setCustomMessage(getDefaultMessage());
+    }
+  }, [
+    quantity,
+    selectedColor,
+    destinationStr,
+    wantSendGps,
+    customerLocationUrl,
+    customer,
+    store?.name,
+    product?.name,
+    referenceCode,
+    isMessageEdited,
+  ]);
 
   const handleLaunchHandshake = async () => {
     setIsSubmitting(true);
     showToast(`Création de l'intention ${referenceCode}...`);
+
+    const finalMessage = (customMessage.trim() || getDefaultMessage()).trim();
 
     try {
       const payload = {
@@ -124,6 +146,7 @@ export default function TunnelHandoffModal({
         customer_id: customer?.id || null,
         customer_location_url: wantSendGps ? customerLocationUrl : null,
         customer_coordinates: wantSendGps ? customerCoordinates : null,
+        custom_message: finalMessage,
       };
 
       const res = await createOrderIntent(payload);
@@ -150,9 +173,19 @@ export default function TunnelHandoffModal({
 
       if (onOrderCreated) onOrderCreated(res);
 
+      let finalRedirectUrl = res.redirect_url;
+      const rawWa = store?.contact_whatsapp || store?.channels?.find((c) => c.channel_type === "WHATSAPP")?.account_handle || "22670123456";
+      const cleanWa = rawWa.replace(/\D/g, "");
+
+      if (activeChannel === "WHATSAPP") {
+        finalRedirectUrl = `https://wa.me/${cleanWa || "22670123456"}?text=${encodeURIComponent(finalMessage)}`;
+      } else if (activeChannel === "SMS") {
+        finalRedirectUrl = `sms:${rawWa || "+22670123456"}?body=${encodeURIComponent(finalMessage)}`;
+      }
+
       showToast(`Redirection vers ${activeChannel}...`);
       setTimeout(() => {
-        window.open(res.redirect_url, "_blank");
+        window.open(finalRedirectUrl, "_blank");
         setIsSubmitting(false);
         if (!customer) {
           setOrderSuccessIntent(res);
@@ -615,7 +648,7 @@ export default function TunnelHandoffModal({
               <div className="p-2.5 rounded-xl bg-surface-container-lowest/80 text-on-surface-variant font-body-sm text-xs flex items-start gap-1.5">
                 <span className="material-symbols-outlined text-[15px] text-[#25D366] shrink-0 mt-0.5">sms</span>
                 <span className="italic text-on-surface-variant/90 line-clamp-2">
-                  {getDynamicMessagePreview()}
+                  "{customMessage}"
                 </span>
               </div>
             )}
@@ -756,6 +789,51 @@ export default function TunnelHandoffModal({
               <span className="material-symbols-outlined text-[13px]">check</span>
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Message Prérempli & Personnalisable */}
+      <div className="bg-surface-container rounded-2xl p-4 border border-white/5 shadow-sm space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-primary text-[18px]">edit_note</span>
+            <label className="font-headline-sm text-xs font-bold text-on-surface">
+              Message prérempli pour le vendeur
+            </label>
+          </div>
+          {isMessageEdited && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsMessageEdited(false);
+                setCustomMessage(getDefaultMessage());
+                showToast("Message réinitialisé");
+              }}
+              className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-0.5 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[13px]">refresh</span>
+              <span>Réinitialiser</span>
+            </button>
+          )}
+        </div>
+
+        <textarea
+          rows={3}
+          value={customMessage}
+          onChange={(e) => {
+            setIsMessageEdited(true);
+            setCustomMessage(e.target.value);
+          }}
+          placeholder="Personnalisez votre message ou vos consignes de livraison ici..."
+          className="w-full p-3 rounded-xl bg-surface-container-high/70 border border-white/10 text-on-surface placeholder:text-on-surface-variant/40 text-xs focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed resize-none transition-all"
+        />
+
+        <div className="flex items-center justify-between text-[10px] text-on-surface-variant px-1">
+          <span className="flex items-center gap-1">
+            <span className="material-symbols-outlined text-[12px] text-secondary">check_circle</span>
+            <span>Vous pourrez aussi éditer ce texte directement dans {activeChannel === "WHATSAPP" ? "WhatsApp" : activeChannel}</span>
+          </span>
+          <span className="font-mono text-[10px]">{customMessage.length} car.</span>
         </div>
       </div>
 

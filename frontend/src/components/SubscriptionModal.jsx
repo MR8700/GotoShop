@@ -192,7 +192,12 @@ export default function SubscriptionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto"
+    >
       <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
         {/* Header bar */}
         <div className="relative px-5 py-4 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-500 text-white flex items-center justify-between shadow-md flex-shrink-0">
