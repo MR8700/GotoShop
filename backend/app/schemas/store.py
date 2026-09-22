@@ -109,3 +109,38 @@ class StoreDetailSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
+class StoreRegisterRequest(BaseModel):
+    store_name: str
+    owner_name: str
+    owner_phone: str
+    owner_email: Optional[str] = None
+    password: Optional[str] = None
+    country: Optional[str] = "Burkina Faso"
+    city: Optional[str] = "Ouagadougou"
+    locality: Optional[str] = None
+    category_name: Optional[str] = "Mode & Accessoires"
+    tagline: Optional[str] = None
+    plan_code: Optional[str] = "STARTER"
+    operator_code: Optional[str] = "ORANGE"
+    payment_proof_data: Optional[str] = None
+    notes: Optional[str] = None
+
+class StoreOwnerBriefSchema(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    phone_number: str
+
+class StoreRegisterResponse(BaseModel):
+    success: bool
+    message: str
+    store_id: str
+    store_name: str
+    slug: str
+    store_url: str
+    access_token: str
+    owner: StoreOwnerBriefSchema
+    temporary_password: Optional[str] = None
+    subscription_status: str = "TRIAL"
+    trial_days: int = 14

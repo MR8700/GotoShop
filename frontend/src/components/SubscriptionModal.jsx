@@ -2,9 +2,22 @@ import React, { useState, useEffect } from "react";
 import {
   fetchSubscriptionPublicInfo,
   submitSubscriptionRequest,
+  registerMerchantStore,
   getMediaUrl,
 } from "../api/client";
 import { FALLBACK_SUBSCRIPTION_PUBLIC_INFO } from "../api/fallbackData";
+import { WEST_AFRICAN_COUNTRIES } from "../utils/locations";
+
+const POPULAR_CATEGORIES = [
+  "Mode & Tissus Danfani",
+  "Téléphones & High-Tech",
+  "Beauté & Cosmétiques Naturels",
+  "Chaussures & Maroquinerie",
+  "Bijoux, Parfums & Accessoires",
+  "Alimentation & Produits Locaux",
+  "Maison, Déco & Artisanat",
+  "Autre Commerce & Services",
+];
 
 export default function SubscriptionModal({
   isOpen,
@@ -18,25 +31,46 @@ export default function SubscriptionModal({
   const [plansWithUssd, setPlansWithUssd] = useState(FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans_with_ussd);
   const [loading, setLoading] = useState(false);
 
+  // Onboarding track for NEW_STORE: "TRIAL" (14-day free trial immediate) or "PAID" (Mobile Money USSD plan)
+  const [onboardingTrack, setOnboardingTrack] = useState("TRIAL");
+
   // Form State
-  const [selectedPlanCode, setSelectedPlanCode] = useState("STARTER");
-  const [selectedOperator, setSelectedOperator] = useState("ORANGE");
   const [storeName, setStoreName] = useState(initialStore?.name || "");
   const [ownerName, setOwnerName] = useState(initialStore?.owner?.full_name || "");
-  const [ownerPhone, setOwnerPhone] = useState(initialStore?.contact_whatsapp || initialStore?.owner?.phone_number || "+225 ");
-  const [ownerEmail, setOwnerEmail] = useState(initialStore?.contact_email || initialStore?.owner?.email || "");
+  const [selectedCountryCode, setSelectedCountryCode] = useState("BF");
+  const [city, setCity] = useState("Ouagadougou");
+  const [customCity, setCustomCity] = useState("");
+  const [locality, setLocality] = useState("");
+  const [ownerPhone, setOwnerPhone] = useState(
+    initialStore?.contact_whatsapp || initialStore?.owner?.phone_number || "+226 "
+  );
+  const [ownerEmail, setOwnerEmail] = useState(
+    initialStore?.contact_email || initialStore?.owner?.email || ""
+  );
+  const [password, setPassword] = useState("");
+  const [categoryName, setCategoryName] = useState("Mode & Tissus Danfani");
+  const [tagline, setTagline] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Payment Selection
+  const [selectedPlanCode, setSelectedPlanCode] = useState("STARTER");
+  const [selectedOperator, setSelectedOperator] = useState("ORANGE");
 
   // Payment Proof
   const [proofPreview, setProofPreview] = useState(null);
   const [proofData, setProofData] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submittedData, setSubmittedData] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const currentCountry =
+    WEST_AFRICAN_COUNTRIES.find((c) => c.code === selectedCountryCode) ||
+    WEST_AFRICAN_COUNTRIES[0];
 
   useEffect(() => {
     if (isOpen) {
@@ -45,17 +79,61 @@ export default function SubscriptionModal({
       setErrorMessage("");
       setProofPreview(null);
       setProofData(null);
+      setCopiedCode(false);
+      setCopiedUrl(false);
+
+      if (mode === "NEW_STORE") {
+        setOnboardingTrack("TRIAL");
+        if (!initialStore) {
+          setStoreName("");
+          setOwnerName("");
+          setSelectedCountryCode("BF");
+          setCity("Ouagadougou");
+          setCustomCity("");
+          setLocality("");
+          setOwnerPhone("+226 ");
+          setOwnerEmail("");
+          setPassword("");
+          setTagline("");
+        }
+      } else {
+        setOnboardingTrack("PAID");
+      }
+
       if (initialStore) {
         setStoreName(initialStore.name || "");
         setOwnerName(initialStore.owner?.full_name || "");
-        setOwnerPhone(initialStore.contact_whatsapp || initialStore.owner?.phone_number || "+225 ");
-        setOwnerEmail(initialStore.contact_email || initialStore.owner?.email || "");
+        setOwnerPhone(
+          initialStore.contact_whatsapp ||
+            initialStore.owner?.phone_number ||
+            "+226 "
+        );
+        setOwnerEmail(
+          initialStore.contact_email || initialStore.owner?.email || ""
+        );
         if (initialStore.subscription_plan) {
           setSelectedPlanCode(initialStore.subscription_plan);
         }
       }
     }
-  }, [isOpen, initialStore]);
+  }, [isOpen, initialStore, mode]);
+
+  const handleCountryChange = (code) => {
+    setSelectedCountryCode(code);
+    const country = WEST_AFRICAN_COUNTRIES.find((c) => c.code === code);
+    if (country) {
+      setCity(country.cities[0] || "Autre");
+      setCustomCity("");
+      // Update phone prefix if currently default or empty
+      const prevDials = WEST_AFRICAN_COUNTRIES.map((c) => c.dial);
+      const isJustDial =
+        !ownerPhone.trim() ||
+        prevDials.some((d) => ownerPhone.trim() === d || ownerPhone.trim() === d + " ");
+      if (isJustDial) {
+        setOwnerPhone(`${country.dial} `);
+      }
+    }
+  };
 
   const loadInfo = async () => {
     try {
@@ -64,7 +142,9 @@ export default function SubscriptionModal({
       if (data?.ussd_configs?.length) setUssdConfigs(data.ussd_configs);
       if (data?.plans_with_ussd?.length) setPlansWithUssd(data.plans_with_ussd);
 
-      const activePlans = data?.plans?.length ? data.plans : FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans;
+      const activePlans = data?.plans?.length
+        ? data.plans
+        : FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans;
       if (activePlans.length > 0 && !initialStore?.subscription_plan) {
         const pop = activePlans.find((p) => p.is_popular);
         setSelectedPlanCode(pop ? pop.code : activePlans[0].code);
@@ -79,15 +159,16 @@ export default function SubscriptionModal({
   if (!isOpen) return null;
 
   // Selected Plan Object
-  const currentPlanInfo = plansWithUssd.find(
-    (p) => p.plan.code === selectedPlanCode
-  ) || plansWithUssd[0];
+  const currentPlanInfo =
+    plansWithUssd.find((p) => p.plan.code === selectedPlanCode) ||
+    plansWithUssd[0];
   const activePlan = currentPlanInfo?.plan;
 
   // Current dial option for the selected operator
-  const currentDialOption = currentPlanInfo?.payment_options?.find(
-    (opt) => opt.operator_code === selectedOperator
-  ) || currentPlanInfo?.payment_options?.[0];
+  const currentDialOption =
+    currentPlanInfo?.payment_options?.find(
+      (opt) => opt.operator_code === selectedOperator
+    ) || currentPlanInfo?.payment_options?.[0];
 
   // Handle Screenshot compression and reading
   const handleFileChange = (e) => {
@@ -130,54 +211,95 @@ export default function SubscriptionModal({
     reader.readAsDataURL(file);
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2500);
+  const copyToClipboard = (text, type = "code") => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+    if (type === "code") {
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2500);
+    } else {
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2500);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
 
-    if (!storeName.trim() || !ownerName.trim()) {
-      setErrorMessage("Veuillez renseigner le nom de la boutique et votre nom.");
+    if (!storeName.trim()) {
+      setErrorMessage("Veuillez renseigner le nom de votre boutique.");
       return;
     }
-
-    if (!ownerPhone.trim() && !ownerEmail.trim()) {
-      setErrorMessage("Veuillez renseigner un Email ou un numéro WhatsApp fonctionnel.");
+    if (!ownerName.trim()) {
+      setErrorMessage("Veuillez renseigner le prénom et nom du gérant.");
       return;
     }
-
-    if (!proofData) {
-      setErrorMessage("Veuillez charger la capture d'écran du paiement USSD.");
+    if (!ownerPhone.trim() || ownerPhone.trim().length < 8) {
+      setErrorMessage("Veuillez renseigner un numéro WhatsApp fonctionnel.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const payload = {
-        request_type: mode,
-        store_id: initialStore?.id || null,
-        store_name: storeName.trim(),
-        owner_name: ownerName.trim(),
-        owner_email: ownerEmail.trim(),
-        owner_phone: ownerPhone.trim(),
-        plan_code: selectedPlanCode,
-        operator_code: selectedOperator,
-        payment_proof_data: proofData,
-        notes: notes.trim(),
-      };
+      const effectiveCity =
+        city === "Autre" ? customCity.trim() || "Autre ville" : city;
 
-      const result = await submitSubscriptionRequest(payload);
-      setSubmittedData(result);
-      setSubmitSuccess(true);
-      if (onSuccess) onSuccess(result);
+      if (mode === "NEW_STORE") {
+        // Direct Store Registration Flow
+        const payload = {
+          store_name: storeName.trim(),
+          owner_name: ownerName.trim(),
+          owner_phone: ownerPhone.trim(),
+          owner_email: ownerEmail.trim() || undefined,
+          password: password.trim() || undefined,
+          country: currentCountry.name,
+          city: effectiveCity,
+          locality: locality.trim() || undefined,
+          category_name: categoryName,
+          tagline: tagline.trim() || undefined,
+          plan_code: onboardingTrack === "TRIAL" ? "STARTER" : selectedPlanCode,
+          operator_code: selectedOperator,
+          payment_proof_data: proofData || undefined,
+          notes: notes.trim() || undefined,
+        };
+
+        const result = await registerMerchantStore(payload);
+        setSubmittedData(result);
+        setSubmitSuccess(true);
+      } else {
+        // Renewal / Upgrade Flow
+        const payload = {
+          request_type: mode,
+          store_id: initialStore?.id || null,
+          store_name: storeName.trim(),
+          owner_name: ownerName.trim(),
+          owner_email: ownerEmail.trim(),
+          owner_phone: ownerPhone.trim(),
+          plan_code: selectedPlanCode,
+          operator_code: selectedOperator,
+          payment_proof_data: proofData,
+          notes: notes.trim(),
+        };
+
+        const result = await submitSubscriptionRequest(payload);
+        setSubmittedData(result);
+        setSubmitSuccess(true);
+      }
     } catch (err) {
-      setErrorMessage(err.message || "Une erreur est survenue lors de l'envoi.");
+      setErrorMessage(
+        err.message || "Une erreur est survenue lors de l'enregistrement."
+      );
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleFinishAndEnterStore = (openAdmin = true) => {
+    onClose();
+    if (onSuccess) {
+      onSuccess(submittedData, openAdmin);
     }
   };
 
@@ -191,6 +313,11 @@ export default function SubscriptionModal({
     }
   };
 
+  const fullStorePublicUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/?store=${submittedData?.slug || "maboutique"}`
+      : `/?store=${submittedData?.slug || "maboutique"}`;
+
   return (
     <div
       onClick={(e) => {
@@ -203,18 +330,29 @@ export default function SubscriptionModal({
         <div className="px-5 py-4 bg-surface-secondary border-b border-subtle text-on-surface flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-[22px]">workspace_premium</span>
+              <span className="material-symbols-outlined text-[22px]">
+                {mode === "NEW_STORE" ? "add_business" : "workspace_premium"}
+              </span>
             </div>
             <div>
-              <h2 className="text-base font-semibold text-on-surface tracking-tight leading-snug">
-                {mode === "NEW_STORE"
-                  ? "Ouvrir ma Boutique en Ligne"
-                  : mode === "UPGRADE"
-                  ? "Changer de Formule"
-                  : "Renouveler mon Abonnement"}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-semibold text-on-surface tracking-tight leading-snug">
+                  {mode === "NEW_STORE"
+                    ? "Ouvrir ma Boutique en Ligne"
+                    : mode === "UPGRADE"
+                    ? "Changer de Formule"
+                    : "Renouveler mon Abonnement"}
+                </h2>
+                {mode === "NEW_STORE" && (
+                  <span className="hidden xs:inline-flex px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-semibold">
+                    14 Jours Gratuits
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-on-surface-variant font-normal">
-                Paiement Mobile Money par USSD & validation directe
+                {mode === "NEW_STORE"
+                  ? "Vitrine WhatsApp immédiate • Burkina Faso & Afrique de l'Ouest"
+                  : "Validation directe et prolongation automatique de votre vitrine"}
               </p>
             </div>
           </div>
@@ -233,169 +371,240 @@ export default function SubscriptionModal({
             <div className="py-16 text-center space-y-3">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
               <p className="text-xs text-on-surface-variant font-medium">
-                Chargement des formules et passerelles de paiement...
+                Initialisation des options d'ouverture...
               </p>
             </div>
           ) : submitSuccess ? (
             /* SUCCESS CONFIRMATION SCREEN */
-            <div className="text-center py-6 px-2 space-y-5 animate-fade-in">
-              <div className="w-14 h-14 rounded-2xl bg-secondary/15 border border-secondary/30 text-secondary flex items-center justify-center mx-auto shadow-md">
-                <span className="material-symbols-outlined text-[32px]">check_circle</span>
+            <div className="text-center py-4 px-2 space-y-5 animate-fade-in">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 flex items-center justify-center mx-auto shadow-md">
+                <span className="material-symbols-outlined text-[36px]">
+                  storefront
+                </span>
               </div>
+
               <div className="space-y-1.5">
-                <h3 className="text-lg font-bold text-on-surface tracking-tight">
-                  Demande transmise avec succès
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-semibold text-xs mb-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Boutique Officiellement Activée</span>
+                </div>
+                <h3 className="text-xl font-bold text-on-surface tracking-tight">
+                  Félicitations, votre boutique est en ligne !
                 </h3>
                 <p className="text-xs text-on-surface-variant max-w-md mx-auto leading-relaxed">
-                  Merci <strong className="text-on-surface">{ownerName}</strong>. Votre capture de paiement de{" "}
-                  <span className="text-primary font-bold">
-                    {submittedData?.amount || activePlan?.price} {submittedData?.currency || "FCFA"}
-                  </span>{" "}
-                  a bien été reçue par notre équipe d'administration.
+                  Bienvenue <strong className="text-on-surface">{ownerName}</strong>. Votre vitrine{" "}
+                  <strong className="text-primary font-bold">
+                    {submittedData?.store_name || storeName}
+                  </strong>{" "}
+                  est prête avec son tunnel WhatsApp direct.
                 </p>
               </div>
 
-              {/* Status card */}
-              <div className="bg-surface-secondary border border-subtle p-4 rounded-xl text-left space-y-3 max-w-md mx-auto">
-                <div className="flex justify-between items-center text-xs pb-2.5 border-b border-subtle">
-                  <span className="text-on-surface-variant font-medium">Statut de la demande :</span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 font-medium text-[11px]">
-                    <span className="material-symbols-outlined text-[13px]">schedule</span>
-                    En attente de vérification
-                  </span>
+              {/* Public Store Link Card */}
+              <div className="bg-surface-secondary border border-subtle p-4 rounded-xl text-left space-y-3 max-w-lg mx-auto">
+                <div>
+                  <label className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider block mb-1">
+                    Lien unique d'accès à votre boutique :
+                  </label>
+                  <div className="flex items-center gap-2 bg-surface-card p-2 rounded-xl border border-subtle">
+                    <span className="material-symbols-outlined text-primary text-[18px]">
+                      link
+                    </span>
+                    <input
+                      type="text"
+                      readOnly
+                      value={fullStorePublicUrl}
+                      className="bg-transparent text-xs text-on-surface font-mono flex-grow outline-none truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(fullStorePublicUrl, "url")}
+                      className="px-3 py-1.5 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-xs font-semibold text-on-surface border border-subtle flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">
+                        {copiedUrl ? "check" : "content_copy"}
+                      </span>
+                      <span>{copiedUrl ? "Copié !" : "Copier"}</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="text-xs space-y-1.5 text-on-surface-variant">
-                  <p>
-                    <span className="text-on-surface-variant/70">Boutique :</span> {submittedData?.store_name || storeName}
-                  </p>
-                  <p>
-                    <span className="text-on-surface-variant/70">Formule choisie :</span> {submittedData?.plan_name || activePlan?.name}
-                  </p>
-                  <p>
-                    <span className="text-on-surface-variant/70">Canal de contact :</span> {ownerPhone} {ownerEmail ? `• ${ownerEmail}` : ""}
-                  </p>
-                </div>
-                <div className="p-3 bg-surface-card rounded-lg border border-subtle text-xs text-on-surface-variant leading-relaxed flex items-start gap-2">
-                  <span className="material-symbols-outlined text-primary text-[18px] shrink-0 mt-0.5">verified</span>
-                  <div>
-                    <strong className="text-on-surface">Prochaine étape :</strong> L'administrateur valide votre reçu sous peu. Vos identifiants de connexion et le lien de votre vitrine vous seront automatiquement délivrés par WhatsApp et par Email.
+
+                {/* Login credentials notice */}
+                <div className="p-3 bg-surface-card/60 rounded-xl border border-subtle text-xs space-y-1.5">
+                  <div className="font-semibold text-on-surface flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-primary">
+                    <span className="material-symbols-outlined text-[16px]">
+                      vpn_key
+                    </span>
+                    <span>Vos accès commerçant :</span>
+                  </div>
+                  <div className="text-[11px] text-on-surface-variant flex flex-col gap-0.5">
+                    <div>
+                      <strong>Identifiant :</strong> {ownerPhone}{" "}
+                      {ownerEmail ? `(${ownerEmail})` : ""}
+                    </div>
+                    {submittedData?.temporary_password && (
+                      <div>
+                        <strong>Mot de passe :</strong>{" "}
+                        <code className="bg-surface-secondary px-1.5 py-0.5 rounded text-primary font-mono font-bold">
+                          {submittedData.temporary_password}
+                        </code>
+                      </div>
+                    )}
+                    <div className="text-[10px] text-on-surface-variant/70 mt-1">
+                      Vous êtes déjà automatiquement connecté sur cet appareil.
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Action buttons */}
-              <div className="flex flex-col sm:flex-row gap-2.5 justify-center pt-2">
-                <a
-                  href={`https://wa.me/22565711741?text=${encodeURIComponent(
-                    `Bonjour GotoShop, je viens de soumettre ma demande d'abonnement pour la boutique "${storeName}". Nom: ${ownerName}, Montant: ${activePlan?.price} FCFA.`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-5 py-2.5 rounded-xl bg-secondary hover:brightness-105 text-white font-semibold text-xs shadow-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[16px]">chat</span>
-                  <span>Contacter le Support WhatsApp</span>
-                </a>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2 max-w-lg mx-auto">
                 <button
-                  onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-elevated border border-subtle text-on-surface font-medium text-xs transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => handleFinishAndEnterStore(true)}
+                  className="px-5 py-3 rounded-xl bg-primary hover:brightness-105 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
                 >
-                  Fermer
+                  <span className="material-symbols-outlined text-[18px]">
+                    dashboard
+                  </span>
+                  <span>Ouvrir mon Espace Commerçant 🚀</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleFinishAndEnterStore(false)}
+                  className="px-4 py-3 rounded-xl bg-surface-secondary hover:bg-surface-elevated border border-subtle text-on-surface font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    storefront
+                  </span>
+                  <span>Voir la vitrine client</span>
                 </button>
               </div>
             </div>
           ) : (
-            /* MULTI-STEP SUBSCRIPTION FORM */
+            /* STORE ONBOARDING FORM */
             <form onSubmit={handleSubmit} className="space-y-6">
               {errorMessage && (
                 <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs font-medium text-rose-300 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px] text-rose-400">error</span>
+                  <span className="material-symbols-outlined text-[18px] text-rose-400">
+                    error
+                  </span>
                   <span>{errorMessage}</span>
                 </div>
               )}
 
-              {/* SECTION 1: CHOIX DU FORFAIT */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
+              {/* IF NEW_STORE: TRACK SELECTION (FREE TRIAL VS PAID) */}
+              {mode === "NEW_STORE" && (
+                <div className="space-y-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">1</span>
-                    <span>Choisissez votre Formule d'Abonnement</span>
+                    <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">
+                      1
+                    </span>
+                    <span>Formule d'Activation</span>
                   </label>
-                  <span className="text-[11px] text-on-surface-variant font-normal">
-                    Durée : 30 jours
-                  </span>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {plans.map((p) => {
-                    const isSelected = selectedPlanCode === p.code;
-                    const features = parseFeatures(p.features);
-                    return (
-                      <div
-                        key={p.id}
-                        onClick={() => setSelectedPlanCode(p.code)}
-                        className={`relative rounded-xl p-4 border transition-all cursor-pointer flex flex-col justify-between ${
-                          isSelected
-                            ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-sm"
-                            : "bg-surface-card border-subtle hover:border-strong"
-                        }`}
-                      >
-                        {p.is_popular && (
-                          <div className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-[10px] font-semibold text-primary uppercase tracking-wider">
-                            Recommandé
-                          </div>
-                        )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Track 1: Free Trial (Immediate) */}
+                    <div
+                      onClick={() => setOnboardingTrack("TRIAL")}
+                      className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                        onboardingTrack === "TRIAL"
+                          ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-sm"
+                          : "bg-surface-card border-subtle hover:border-strong opacity-80"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="font-semibold text-sm text-on-surface">
-                              {p.name.replace(/\(.*\)/, "").trim()}
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-xs text-on-surface">
+                              Essai Gratuit 14 Jours
                             </span>
-                            <div
-                              className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
-                                isSelected
-                                  ? "border-primary bg-primary"
-                                  : "border-subtle"
-                              }`}
-                            >
-                              {isSelected && (
-                                <div className="w-1.5 h-1.5 rounded-full bg-surface" />
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-lg font-bold text-on-surface my-1">
-                            {p.price.toLocaleString("fr-FR")}{" "}
-                            <span className="text-xs font-normal text-on-surface-variant">
-                              FCFA / mois
+                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 text-[10px] font-bold">
+                              Gratuit
                             </span>
                           </div>
-                          <p className="text-[11px] text-on-surface-variant leading-snug mb-3 font-normal">
-                            {p.description}
+                          <p className="text-[11px] text-on-surface-variant mt-1 leading-snug">
+                            Zéro carte, zéro paiement aujourd'hui. Boutique en ligne immédiatement active.
                           </p>
                         </div>
-
-                        {/* Features bullet list */}
-                        <ul className="space-y-1.5 text-[11px] text-on-surface-variant border-t border-subtle pt-3">
-                          {features.slice(0, 3).map((f, idx) => (
-                            <li key={idx} className="flex items-start gap-1.5">
-                              <span className="material-symbols-outlined text-[14px] text-primary shrink-0 mt-0.5">check</span>
-                              <span className="line-clamp-1">{f}</span>
-                            </li>
-                          ))}
-                        </ul>
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                            onboardingTrack === "TRIAL"
+                              ? "border-primary bg-primary"
+                              : "border-subtle"
+                          }`}
+                        >
+                          {onboardingTrack === "TRIAL" && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-surface" />
+                          )}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+                      <div className="text-[10px] text-primary font-semibold mt-2.5 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[13px]">
+                          bolt
+                        </span>
+                        <span>Activation en 1 clic</span>
+                      </div>
+                    </div>
 
-              {/* SECTION 2: COORDONNÉES DE LA BOUTIQUE */}
-              <div className="space-y-3 border-t border-subtle pt-5">
+                    {/* Track 2: Paid Subscription via USSD */}
+                    <div
+                      onClick={() => setOnboardingTrack("PAID")}
+                      className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                        onboardingTrack === "PAID"
+                          ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-sm"
+                          : "bg-surface-card border-subtle hover:border-strong opacity-80"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-xs text-on-surface">
+                              Forfait Mobile Money
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
+                              Pro / Starter
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-on-surface-variant mt-1 leading-snug">
+                            À partir de 1 000 FCFA/mois. Paiement Orange Money / Moov Money direct par code USSD.
+                          </p>
+                        </div>
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                            onboardingTrack === "PAID"
+                              ? "border-primary bg-primary"
+                              : "border-subtle"
+                          }`}
+                        >
+                          {onboardingTrack === "PAID" && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-surface" />
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-on-surface-variant font-medium mt-2.5 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[13px]">
+                          verified
+                        </span>
+                        <span>Badge Pro & Priorité</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION: BOUTIQUE & PROPRIÉTAIRE */}
+              <div className="space-y-4">
                 <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">2</span>
-                  <span>Informations de la Boutique & Gérant</span>
+                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">
+                    {mode === "NEW_STORE" ? "2" : "1"}
+                  </span>
+                  <span>Identité & Coordonnées de la Boutique</span>
                 </label>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Store Name */}
                   <div>
                     <label className="block text-xs font-medium text-on-surface-variant mb-1">
                       Nom de la boutique <span className="text-primary">*</span>
@@ -403,234 +612,369 @@ export default function SubscriptionModal({
                     <input
                       type="text"
                       required
-                      placeholder="Ex: Awa Chic Mode, Faso Tech..."
+                      placeholder="Ex: Faso Danfani & Élégance, Ouaga Tech..."
                       value={storeName}
                       onChange={(e) => setStoreName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                     />
                   </div>
 
+                  {/* Owner Full Name */}
                   <div>
                     <label className="block text-xs font-medium text-on-surface-variant mb-1">
-                      Votre nom complet <span className="text-primary">*</span>
+                      Nom complet du gérant <span className="text-primary">*</span>
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: Traoré Awa"
+                      placeholder="Ex: Aminata Traoré"
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                     />
                   </div>
 
+                  {/* Country Selector */}
                   <div>
                     <label className="block text-xs font-medium text-on-surface-variant mb-1">
-                      Numéro WhatsApp fonctionnel <span className="text-primary">*</span>
+                      Pays d'implantation <span className="text-primary">*</span>
+                    </label>
+                    <select
+                      value={selectedCountryCode}
+                      onChange={(e) => handleCountryChange(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+                    >
+                      {WEST_AFRICAN_COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.flag} {c.name} ({c.dial})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* City Selector */}
+                  <div>
+                    <label className="block text-xs font-medium text-on-surface-variant mb-1">
+                      Ville principale <span className="text-primary">*</span>
+                    </label>
+                    <select
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+                    >
+                      {currentCountry.cities.map((cty) => (
+                        <option key={cty} value={cty}>
+                          {cty}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Custom city input if "Autre" selected */}
+                  {city === "Autre" && (
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-on-surface-variant mb-1">
+                        Précisez votre ville :
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Koupéla, Dori, Fada..."
+                        value={customCity}
+                        onChange={(e) => setCustomCity(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                  )}
+
+                  {/* Locality / Quartier */}
+                  <div>
+                    <label className="block text-xs font-medium text-on-surface-variant mb-1">
+                      Quartier / Secteur / Rue :
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Ouaga 2000, Zogona, Belleville..."
+                      value={locality}
+                      onChange={(e) => setLocality(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  {/* WhatsApp Number */}
+                  <div>
+                    <label className="block text-xs font-medium text-on-surface-variant mb-1">
+                      Numéro WhatsApp professionnel <span className="text-primary">*</span>
                     </label>
                     <input
                       type="tel"
                       required
-                      placeholder="+226 70 00 00 00"
+                      placeholder={`${currentCountry.dial} 70 00 00 00`}
                       value={ownerPhone}
                       onChange={(e) => setOwnerPhone(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 font-mono"
                     />
-                    <p className="text-[10px] text-on-surface-variant/70 mt-1">
-                      Vos identifiants et alertes commandes y seront envoyés.
-                    </p>
                   </div>
 
+                  {/* Category */}
                   <div>
                     <label className="block text-xs font-medium text-on-surface-variant mb-1">
-                      Adresse Email <span className="text-on-surface-variant/60 font-normal">(Recommandé)</span>
+                      Secteur d'activité :
+                    </label>
+                    <select
+                      value={categoryName}
+                      onChange={(e) => setCategoryName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+                    >
+                      {POPULAR_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Email (Optional) */}
+                  <div>
+                    <label className="block text-xs font-medium text-on-surface-variant mb-1">
+                      Email de contact / connexion <span className="text-on-surface-variant/60 font-normal">(Optionnel)</span>
                     </label>
                     <input
                       type="email"
                       placeholder="vendeur@gmail.com"
                       value={ownerEmail}
                       onChange={(e) => setOwnerEmail(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary"
                     />
                   </div>
+
+                  {/* Password (Optional for Merchant) */}
+                  {mode === "NEW_STORE" && (
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-on-surface-variant mb-1">
+                        Mot de passe administrateur <span className="text-on-surface-variant/60 font-normal">(Optionnel - généré automatiquement si vide)</span>
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Ex: MonSuperMotDePasse2026!"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* SECTION 3: PAIEMENT USSD ORANGE / MOOV / WAVE */}
-              <div className="space-y-4 border-t border-subtle pt-5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">3</span>
-                    <span>Paiement Mobile Money par Code USSD</span>
-                  </label>
-                  <span className="text-xs font-semibold text-on-surface px-2.5 py-1 rounded-lg bg-surface-secondary border border-subtle">
-                    Montant : {activePlan?.price.toLocaleString("fr-FR")} FCFA
-                  </span>
-                </div>
+              {/* IF PAID TRACK OR RENEWAL/UPGRADE: PLAN & USSD DETAILS */}
+              {(onboardingTrack === "PAID" || mode !== "NEW_STORE") && (
+                <div className="space-y-4 border-t border-subtle pt-5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">
+                        {mode === "NEW_STORE" ? "3" : "2"}
+                      </span>
+                      <span>Formule d'Abonnement & Paiement USSD</span>
+                    </label>
+                    <span className="text-xs font-semibold text-on-surface px-2.5 py-1 rounded-lg bg-surface-secondary border border-subtle">
+                      Montant : {activePlan?.price.toLocaleString("fr-FR")} FCFA
+                    </span>
+                  </div>
 
-                {/* Operator Selector Buttons */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {currentPlanInfo?.payment_options?.map((opt) => {
-                    const isOpSelected = selectedOperator === opt.operator_code;
-                    const isOrange = opt.operator_code === "ORANGE";
-                    const isMoov = opt.operator_code === "MOOV";
-                    return (
-                      <button
-                        type="button"
-                        key={opt.operator_code}
-                        onClick={() => setSelectedOperator(opt.operator_code)}
-                        className={`p-3 rounded-xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
-                          isOpSelected
-                            ? "bg-surface-elevated border-primary ring-1 ring-primary/40 shadow-sm"
-                            : "bg-surface-card border-subtle hover:border-strong opacity-80 hover:opacity-100"
-                        }`}
-                      >
+                  {/* Plan Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {plans.map((p) => {
+                      const isSelected = selectedPlanCode === p.code;
+                      const features = parseFeatures(p.features);
+                      return (
                         <div
-                          className="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-sm text-white"
-                          style={{
-                            backgroundColor: isOrange
-                              ? "#FF7900"
-                              : isMoov
-                              ? "#005BAA"
-                              : "#0284c7",
-                          }}
+                          key={p.id}
+                          onClick={() => setSelectedPlanCode(p.code)}
+                          className={`relative rounded-xl p-3 border transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected
+                              ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-sm"
+                              : "bg-surface-card border-subtle hover:border-strong"
+                          }`}
                         >
-                          {isOrange ? "OM" : isMoov ? "MOOV" : "WAVE"}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-xs text-on-surface truncate">
-                            {opt.operator_name}
+                          {p.is_popular && (
+                            <div className="absolute -top-2.5 right-2 px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-[9px] font-semibold text-primary uppercase">
+                              Populaire
+                            </div>
+                          )}
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-semibold text-xs text-on-surface">
+                                {p.name.replace(/\(.*\)/, "").trim()}
+                              </span>
+                              <div
+                                className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                                  isSelected
+                                    ? "border-primary bg-primary"
+                                    : "border-subtle"
+                                }`}
+                              >
+                                {isSelected && (
+                                  <div className="w-1.5 h-1.5 rounded-full bg-surface" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-base font-bold text-on-surface my-0.5">
+                              {p.price.toLocaleString("fr-FR")}{" "}
+                              <span className="text-[10px] font-normal text-on-surface-variant">
+                                FCFA / mois
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-on-surface-variant leading-tight mb-2">
+                              {p.description}
+                            </p>
                           </div>
-                          <div className="text-[10px] text-on-surface-variant truncate">
-                            {opt.merchant_number}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
 
-                {/* Dynamic USSD Action Panel */}
-                {currentDialOption && (
-                  <div className="bg-surface-secondary border border-subtle p-4 rounded-xl space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <ul className="space-y-1 text-[10px] text-on-surface-variant border-t border-subtle pt-2">
+                            {features.slice(0, 2).map((f, idx) => (
+                              <li key={idx} className="flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[12px] text-primary shrink-0">
+                                  check
+                                </span>
+                                <span className="truncate">{f}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* USSD Dial Block */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {currentPlanInfo?.payment_options?.map((opt) => {
+                      const isOpSelected = selectedOperator === opt.operator_code;
+                      const isOrange = opt.operator_code === "ORANGE";
+                      const isMoov = opt.operator_code === "MOOV";
+                      return (
+                        <button
+                          type="button"
+                          key={opt.operator_code}
+                          onClick={() => setSelectedOperator(opt.operator_code)}
+                          className={`p-2.5 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                            isOpSelected
+                              ? "bg-surface-elevated border-primary ring-1 ring-primary/40 shadow-sm"
+                              : "bg-surface-card border-subtle hover:border-strong opacity-80"
+                          }`}
+                        >
+                          <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 text-white"
+                            style={{
+                              backgroundColor: isOrange
+                                ? "#FF7900"
+                                : isMoov
+                                ? "#005BAA"
+                                : "#0284c7",
+                            }}
+                          >
+                            {isOrange ? "OM" : isMoov ? "MOOV" : "WAVE"}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-[11px] text-on-surface truncate">
+                              {opt.operator_name}
+                            </div>
+                            <div className="text-[9px] text-on-surface-variant truncate">
+                              {opt.merchant_number}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Dial Code Display */}
+                  {currentDialOption && (
+                    <div className="bg-surface-secondary border border-subtle p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                       <div>
-                        <span className="text-[11px] font-medium text-on-surface-variant block">
-                          Code USSD généré pour {activePlan?.name} :
+                        <span className="text-[10px] font-medium text-on-surface-variant block">
+                          Code USSD pour {activePlan?.name} :
                         </span>
-                        <span className="font-mono text-base sm:text-lg font-bold tracking-wide text-primary select-all">
+                        <span className="font-mono text-sm font-bold text-primary select-all">
                           {currentDialOption.ussd_code}
                         </span>
                       </div>
-
-                      {/* Direct Dial & Copy buttons */}
                       <div className="flex items-center gap-2">
                         {currentDialOption.ussd_code.startsWith("*") && (
                           <a
                             href={currentDialOption.tel_link}
-                            className="px-3.5 py-2 rounded-xl bg-secondary hover:brightness-105 text-white text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
+                            className="px-3 py-1.5 rounded-lg bg-secondary hover:brightness-105 text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
                           >
-                            <span className="material-symbols-outlined text-[16px]">call</span>
-                            <span>Composer l'USSD</span>
+                            <span className="material-symbols-outlined text-[14px]">
+                              call
+                            </span>
+                            <span>Composer</span>
                           </a>
                         )}
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(currentDialOption.ussd_code)}
-                          className="px-3 py-2 rounded-xl bg-surface-card hover:bg-surface-elevated border border-subtle text-on-surface text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                          onClick={() => copyToClipboard(currentDialOption.ussd_code, "code")}
+                          className="px-3 py-1.5 rounded-lg bg-surface-card hover:bg-surface-elevated border border-subtle text-on-surface text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-[15px]">
+                          <span className="material-symbols-outlined text-[14px]">
                             {copiedCode ? "check" : "content_copy"}
                           </span>
                           <span>{copiedCode ? "Copié !" : "Copier"}</span>
                         </button>
                       </div>
                     </div>
+                  )}
 
-                    {/* Clear Notice Banner */}
-                    <div className="p-3 rounded-lg bg-surface-card border border-subtle text-xs text-on-surface-variant leading-relaxed flex items-start gap-2">
-                      <span className="material-symbols-outlined text-primary text-[18px] shrink-0 mt-0.5">info</span>
-                      <div>
-                        <span className="font-semibold text-on-surface">Instruction de validation : </span>
-                        <span className="text-on-surface-variant">
-                          {currentDialOption.instructions ||
-                            "Effectuez le paiement via le code USSD ci-dessus, puis chargez la capture d'écran du reçu SMS de confirmation ci-dessous."}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  {/* Optional Proof Upload */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
+                      Capture d'écran du reçu Mobile Money{" "}
+                      <span className="text-on-surface-variant/60 font-normal">
+                        (Optionnel - vous pouvez aussi l'envoyer plus tard)
+                      </span>
+                    </label>
 
-              {/* SECTION 4: CHARGER LA CAPTURE DU PAIEMENT */}
-              <div className="space-y-3 border-t border-subtle pt-5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">4</span>
-                  <span>Capture d'écran du Paiement (Preuve Obligatoire)</span>
-                </label>
-
-                <div className="border-2 border-dashed border-subtle hover:border-primary rounded-xl p-4 text-center transition-colors bg-surface-secondary/40">
-                  {proofPreview ? (
-                    <div className="space-y-3">
-                      <div className="relative inline-block max-w-[200px] max-h-[220px] rounded-xl overflow-hidden border border-subtle shadow-md">
+                    {proofPreview ? (
+                      <div className="relative rounded-xl overflow-hidden border border-subtle bg-surface-secondary p-2 flex items-center gap-3">
                         <img
                           src={proofPreview}
-                          alt="Capture Reçu de Paiement"
-                          className="w-full h-auto object-cover"
+                          alt="Preuve"
+                          className="w-12 h-12 object-cover rounded-lg border border-subtle"
                         />
+                        <div className="text-xs text-on-surface font-medium flex-grow">
+                          Capture reçue attachée
+                        </div>
                         <button
                           type="button"
                           onClick={() => {
                             setProofPreview(null);
                             setProofData(null);
                           }}
-                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow cursor-pointer"
-                          title="Supprimer cette capture"
+                          className="p-1 rounded-lg text-rose-400 hover:bg-rose-500/10 cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-[14px]">close</span>
+                          <span className="material-symbols-outlined text-[18px]">
+                            delete
+                          </span>
                         </button>
                       </div>
-                      <p className="text-xs font-medium text-secondary flex items-center justify-center gap-1">
-                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                        <span>Capture d'écran prête</span>
-                      </p>
-                    </div>
-                  ) : (
-                    <label className="cursor-pointer block space-y-2 py-3">
-                      <div className="w-11 h-11 rounded-xl bg-surface-secondary border border-subtle flex items-center justify-center text-on-surface-variant mx-auto">
-                        <span className="material-symbols-outlined text-[24px]">photo_camera</span>
-                      </div>
-                      <div className="text-xs font-medium text-on-surface">
-                        Cliquez ici pour charger la capture d'écran du reçu
-                      </div>
-                      <p className="text-[11px] text-on-surface-variant font-normal">
-                        Format photo PNG, JPG ou WEBP (SMS ou notification Mobile Money)
-                      </p>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
+                    ) : (
+                      <label className="border-2 border-dashed border-subtle hover:border-primary/50 rounded-xl p-3 text-center cursor-pointer block bg-surface-card hover:bg-surface-secondary/40 transition-colors">
+                        <span className="material-symbols-outlined text-[20px] text-on-surface-variant mx-auto block mb-1">
+                          photo_camera
+                        </span>
+                        <div className="text-[11px] font-medium text-on-surface">
+                          Cliquez pour charger la capture de confirmation Mobile Money
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
-                    Référence de transaction ou remarque (Optionnel) :
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: ID Tx BF2609..., Payé depuis le 70000000..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Submit Button */}
+              {/* Submit Button Bar */}
               <div className="border-t border-subtle pt-4 flex items-center justify-end gap-3">
                 <button
                   type="button"
@@ -639,24 +983,46 @@ export default function SubscriptionModal({
                 >
                   Annuler
                 </button>
+
                 <button
                   type="submit"
-                  disabled={isSubmitting || !proofData}
+                  disabled={
+                    isSubmitting ||
+                    !storeName.trim() ||
+                    !ownerName.trim() ||
+                    !ownerPhone.trim()
+                  }
                   className={`px-5 py-2.5 rounded-xl font-semibold text-xs shadow-md flex items-center gap-2 transition-all cursor-pointer ${
-                    isSubmitting || !proofData
+                    isSubmitting ||
+                    !storeName.trim() ||
+                    !ownerName.trim() ||
+                    !ownerPhone.trim()
                       ? "bg-surface-secondary text-on-surface-variant/40 border border-subtle cursor-not-allowed"
                       : "bg-primary hover:brightness-105 text-white active:scale-98"
                   }`}
                 >
                   {isSubmitting ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Envoi en cours...</span>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Création de votre boutique en cours...</span>
+                    </>
+                  ) : mode === "NEW_STORE" ? (
+                    <>
+                      <span>
+                        {onboardingTrack === "TRIAL"
+                          ? "Créer ma Boutique (14 Jours Gratuits) 🚀"
+                          : "Activer ma Boutique avec Formule"}
+                      </span>
+                      <span className="material-symbols-outlined text-[16px]">
+                        arrow_forward
+                      </span>
                     </>
                   ) : (
                     <>
-                      <span>Valider et Activer ma Boutique</span>
-                      <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                      <span>Confirmer le Renouvellement</span>
+                      <span className="material-symbols-outlined text-[16px]">
+                        check_circle
+                      </span>
                     </>
                   )}
                 </button>

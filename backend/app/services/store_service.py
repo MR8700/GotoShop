@@ -1,8 +1,36 @@
+import uuid
+import secrets
+import hashlib
+import re
+from datetime import datetime, timedelta
+from typing import Optional, List
 from sqlalchemy.orm import Session
-from app.models.store import Store, TrustBadge, DeliveryCity
-from app.schemas.store import StoreUpdateSchema
-from typing import Optional
+from app.models.store import Store, Owner, TrustBadge, DeliveryCity, LoyaltyTier
+from app.models.catalog import Category, Product
+from app.models.subscription import SubscriptionRequest
+from app.schemas.store import (
+    StoreUpdateSchema,
+    StoreRegisterRequest,
+    StoreRegisterResponse,
+    StoreOwnerBriefSchema,
+)
 from app.services.catalog_service import save_base64_media
+
+def slugify(text: str) -> str:
+    text = text.lower().strip()
+    text = re.sub(r'[àáâãäå]', 'a', text)
+    text = re.sub(r'[èéêë]', 'e', text)
+    text = re.sub(r'[ìíîï]', 'i', text)
+    text = re.sub(r'[òóôõö]', 'o', text)
+    text = re.sub(r'[ùúûü]', 'u', text)
+    text = re.sub(r'[ç]', 'c', text)
+    text = re.sub(r'[^a-z0-9\s-]', '', text)
+    text = re.sub(r'[\s_]+', '-', text)
+    text = re.sub(r'-+', '-', text)
+    return text.strip('-')
+
+def hash_pwd(password: str, salt: str) -> str:
+    return hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
 
 class StoreService:
     @staticmethod
@@ -149,3 +177,260 @@ class StoreService:
             db.commit()
             return True
         return False
+
+    @staticmethod
+    def register_store(db: Session, data: StoreRegisterRequest) -> StoreRegisterResponse:
+        # Validate inputs
+        if not data.store_name or not data.store_name.strip():
+            raise ValueError("Le nom de la boutique est obligatoire.")
+        if not data.owner_name or not data.owner_name.strip():
+            raise ValueError("Le nom du commerçant / gérant est obligatoire.")
+        if not data.owner_phone or not data.owner_phone.strip():
+            raise ValueError("Le numéro WhatsApp est obligatoire.")
+
+        # 1. Resolve unique slug
+        base_slug = slugify(data.store_name)
+        if not base_slug:
+            base_slug = "boutique-" + secrets.token_hex(3)
+        slug = base_slug
+        counter = 1
+        while db.query(Store).filter(Store.slug == slug).first() is not None:
+            counter += 1
+            slug = f"{base_slug}-{counter}"
+
+        # 2. Check or create Owner
+        owner_email = data.owner_email.strip().lower() if data.owner_email else ""
+        if not owner_email:
+            owner_email = f"{slug}@gotoshop.bf"
+
+        owner = db.query(Owner).filter(Owner.email == owner_email).first()
+        temp_pwd = None
+        must_change = False
+        salt = secrets.token_hex(16)
+        if data.password and len(data.password.strip()) >= 6:
+            pwd_to_use = data.password.strip()
+            hashed = hash_pwd(pwd_to_use, salt)
+            must_change = False
+        else:
+            temp_pwd = f"GotoShop!{secrets.token_hex(3)}"
+            pwd_to_use = temp_pwd
+            hashed = hash_pwd(pwd_to_use, salt)
+            must_change = True
+
+        session_token = secrets.token_hex(32)
+
+        if not owner:
+            owner = Owner(
+                id=str(uuid.uuid4()),
+                full_name=data.owner_name.strip(),
+                email=owner_email,
+                phone_number=data.owner_phone.strip(),
+                password_hash=hashed,
+                password_salt=salt,
+                must_change_password=must_change,
+                session_token=session_token,
+                last_login_at=datetime.utcnow()
+            )
+            db.add(owner)
+            db.flush()
+        else:
+            # Update phone & session token so the user is directly authenticated
+            owner.session_token = session_token
+            owner.phone_number = data.owner_phone.strip()
+            owner.last_login_at = datetime.utcnow()
+            if data.password and len(data.password.strip()) >= 6:
+                owner.password_hash = hashed
+                owner.password_salt = salt
+                owner.must_change_password = False
+            db.flush()
+
+        # 3. Location info
+        eff_city = data.city.strip() if data.city and data.city.strip() and data.city != "Autre" else "Ouagadougou"
+        eff_country = data.country.strip() if data.country and data.country.strip() else "Burkina Faso"
+        locality_str = data.locality.strip() if data.locality and data.locality.strip() else ""
+        city_display = f"{eff_city} ({locality_str})" if locality_str else eff_city
+
+        # 4. Create Store
+        trial_days = 14
+        expires_at = datetime.utcnow() + timedelta(days=trial_days)
+
+        tagline = data.tagline.strip() if data.tagline else f"Boutique officielle de {data.owner_name} • {city_display}"
+        cat_name = data.category_name.strip() if data.category_name else "Mode & Accessoires"
+
+        store = Store(
+            id=str(uuid.uuid4()),
+            owner_id=owner.id,
+            name=data.store_name.strip(),
+            slug=slug,
+            tagline=tagline,
+            description=f"Bienvenue chez {data.store_name} à {city_display}, {eff_country}. Spécialiste {cat_name}. Commandez directement par WhatsApp avec géolocalisation et paiement à la livraison.",
+            owner_bio=f"Gérant(e) et responsable chez {data.store_name}. Service client et qualité garantis.",
+            currency="FCFA",
+            logo_url="/media/store/logo.jpg",
+            avatar_url="/media/store/awa_portrait.jpg",
+            rating=5.0,
+            sales_count=0,
+            revenue=0,
+            is_verified=True,
+            social_tunnel_badge="WA/DIRECT",
+            social_tunnel_label="Tunnel Express Actif",
+            primary_color="#ec761e",
+            secondary_color="#4EBE9E",
+            theme_preset="kinetic_amber",
+            is_custom_theme_active=True,
+            is_loyalty_active=True,
+            loyalty_spend_per_point=1000,
+            subscription_status="TRIAL",
+            subscription_plan=data.plan_code or "STARTER",
+            subscription_expires_at=expires_at,
+            contact_whatsapp=data.owner_phone.strip(),
+            contact_email=owner.email
+        )
+        db.add(store)
+        db.flush()
+
+        # 5. Create default categories
+        cat_all = Category(
+            id=str(uuid.uuid4()),
+            store_id=store.id,
+            name="Tout",
+            slug=f"tout-{slug}",
+            display_order=0
+        )
+        cat_new = Category(
+            id=str(uuid.uuid4()),
+            store_id=store.id,
+            name="Nouveautés",
+            slug=f"nouveautes-{slug}",
+            display_order=1
+        )
+        categories_to_add = [cat_all, cat_new]
+
+        if cat_name not in ["Tout", "Nouveautés"]:
+            cat_custom = Category(
+                id=str(uuid.uuid4()),
+                store_id=store.id,
+                name=cat_name,
+                slug=f"{slugify(cat_name)}-{slug}",
+                display_order=2
+            )
+            categories_to_add.append(cat_custom)
+            target_cat_id = cat_custom.id
+        else:
+            target_cat_id = cat_new.id
+
+        db.add_all(categories_to_add)
+        db.flush()
+
+        # 6. Create default showcase product
+        welcome_prod = Product(
+            id=str(uuid.uuid4()),
+            store_id=store.id,
+            category_id=target_cat_id,
+            name=f"Collection Spéciale • {data.store_name}",
+            slug=f"collection-speciale-{slug}",
+            description=f"Article vedette sélectionné par {data.owner_name} pour le lancement de la boutique {data.store_name}. Finitions soignées, disponible immédiatement à {city_display}.",
+            short_description="Article sélectionné haute qualité.",
+            price=15000,
+            old_price=20000,
+            currency="FCFA",
+            stock=15,
+            stock_label="En stock (Livraison sous 2h)",
+            is_hero_deal=True,
+            badge_tag="Lancement",
+            views_count=32,
+            guarantee_text="Qualité Certifiée • Paiement à la Réception",
+            primary_image_url="/media/products/samsung_galaxy_a15.jpg"
+        )
+        db.add(welcome_prod)
+
+        # 7. Create default delivery cities
+        c1 = DeliveryCity(
+            id=str(uuid.uuid4()),
+            store_id=store.id,
+            name=city_display,
+            display_label=f"{city_display} (Livraison sous 2h)",
+            is_default=True
+        )
+        c2 = DeliveryCity(
+            id=str(uuid.uuid4()),
+            store_id=store.id,
+            name=f"Expédition Nationale ({eff_country})",
+            display_label=f"Toutes régions ({eff_country})",
+            is_default=False
+        )
+        db.add_all([c1, c2])
+
+        # 8. Create trust badges
+        b1 = TrustBadge(
+            id=str(uuid.uuid4()),
+            store_id=store.id,
+            icon_name="verified",
+            label="Commerçant Vérifié GotoShop",
+            badge_type="success",
+            display_order=1
+        )
+        b2 = TrustBadge(
+            id=str(uuid.uuid4()),
+            store_id=store.id,
+            icon_name="local_shipping",
+            label="Livraison Express & Suivi",
+            badge_type="info",
+            display_order=2
+        )
+        b3 = TrustBadge(
+            id=str(uuid.uuid4()),
+            store_id=store.id,
+            icon_name="security",
+            label="Paiement à la Livraison Garanti",
+            badge_type="warning",
+            display_order=3
+        )
+        db.add_all([b1, b2, b3])
+
+        # 9. Handle optional payment proof & audit record
+        if data.payment_proof_data:
+            proof_url = save_base64_media(data.payment_proof_data, prefix="proof") or data.payment_proof_data
+            sub_req = SubscriptionRequest(
+                id=str(uuid.uuid4()),
+                request_type="NEW_STORE",
+                store_id=store.id,
+                store_name=store.name,
+                owner_name=owner.full_name,
+                owner_email=owner.email,
+                owner_phone=owner.phone_number,
+                plan_code=data.plan_code or "STARTER",
+                plan_name=f"Formule {data.plan_code or 'STARTER'}",
+                amount=1000,
+                currency="FCFA",
+                duration_days=30,
+                operator_code=data.operator_code or "ORANGE",
+                payment_proof_url=proof_url,
+                status="PENDING",
+                notes=data.notes,
+                created_store_id=store.id
+            )
+            db.add(sub_req)
+
+        db.commit()
+        db.refresh(store)
+        db.refresh(owner)
+
+        return StoreRegisterResponse(
+            success=True,
+            message="Félicitations ! Votre boutique a été créée et activée avec succès.",
+            store_id=store.id,
+            store_name=store.name,
+            slug=store.slug,
+            store_url=f"?store={store.slug}",
+            access_token=session_token,
+            owner=StoreOwnerBriefSchema(
+                id=owner.id,
+                full_name=owner.full_name,
+                email=owner.email,
+                phone_number=owner.phone_number
+            ),
+            temporary_password=temp_pwd or (data.password if data.password else None),
+            subscription_status=store.subscription_status,
+            trial_days=trial_days
+        )

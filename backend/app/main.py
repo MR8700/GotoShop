@@ -39,6 +39,7 @@ def run_migrations():
                     ("custom_domain", "VARCHAR(150)"),
                     ("contact_whatsapp", "VARCHAR(30)"),
                     ("contact_email", "VARCHAR(100)"),
+                    ("voice_note_subtitle", "VARCHAR(200) DEFAULT 'Écouter les conseils taille & qualité'"),
                 ]
                 for col_name, col_type in cols_to_add:
                     if col_name not in store_cols:
@@ -76,6 +77,11 @@ def run_migrations():
                 for col_name, col_type in cols_to_add:
                     if col_name not in intent_cols:
                         conn.execute(text(f"ALTER TABLE order_intents ADD COLUMN {col_name} {col_type}"))
+
+            if "delivery_cities" in table_names:
+                city_cols = [c["name"] for c in inspector.get_columns("delivery_cities")]
+                if "display_order" not in city_cols:
+                    conn.execute(text("ALTER TABLE delivery_cities ADD COLUMN display_order INTEGER DEFAULT 0"))
 
         # 2. Seed default data if empty using ORM (pure Python/SQLAlchemy, 100% DB-agnostic)
         from app.database import SessionLocal

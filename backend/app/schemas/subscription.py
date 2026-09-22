@@ -107,7 +107,7 @@ class SubscriptionRequestSubmitSchema(BaseModel):
     owner_phone: str  # WhatsApp
     plan_code: str  # STARTER, PRO, VIP
     operator_code: str  # ORANGE, MOOV, etc.
-    payment_proof_data: str  # base64 data URI
+    payment_proof_data: Optional[str] = None  # base64 data URI
     notes: Optional[str] = None
 
 
@@ -133,7 +133,7 @@ class SubscriptionRequestItemSchema(BaseModel):
     duration_days: int
     operator_code: str
     ussd_code_used: Optional[str] = None
-    payment_proof_url: str
+    payment_proof_url: Optional[str] = None
     status: str
     rejection_reason: Optional[str] = None
     notes: Optional[str] = None

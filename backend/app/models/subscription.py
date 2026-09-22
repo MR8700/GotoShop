@@ -59,7 +59,7 @@ class SubscriptionRequest(Base):
     duration_days = Column(Integer, default=30)
     operator_code = Column(String(30), nullable=False) # ORANGE, MOOV, etc.
     ussd_code_used = Column(String(120), nullable=True) # The exact USSD dial string shown
-    payment_proof_url = Column(Text, nullable=False) # Path or base64
+    payment_proof_url = Column(Text, nullable=True) # Path or base64
     status = Column(String(30), default="PENDING") # PENDING, APPROVED, REJECTED
     rejection_reason = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)

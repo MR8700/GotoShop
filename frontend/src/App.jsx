@@ -435,6 +435,16 @@ export default function App() {
     loadPublicStores();
   };
 
+  const handleStoreRegistered = async (result, openAdmin = true) => {
+    if (result?.slug) {
+      await handleSwitchStore(result.slug, openAdmin);
+      await loadPublicStores();
+      showToast(`🎉 Félicitations ! Votre boutique "${result.store_name || result.slug}" est ouverte !`);
+    } else {
+      showToast("Demande d'abonnement transmise avec succès !");
+    }
+  };
+
   if (isSuperAdminOpen) {
     return (
       <SuperAdminDashboard
@@ -484,9 +494,7 @@ export default function App() {
           onClose={() => setIsSubscriptionModalOpen(false)}
           mode={subModalMode}
           initialStore={store}
-          onSuccess={() => {
-            showToast("Demande d'abonnement transmise ! Vos identifiants vous seront délivrés dès vérification.");
-          }}
+          onSuccess={handleStoreRegistered}
         />
 
         {/* Interactive Feedback Toast */}
@@ -725,9 +733,7 @@ export default function App() {
         onClose={() => setIsSubscriptionModalOpen(false)}
         mode={subModalMode}
         initialStore={store}
-        onSuccess={() => {
-          showToast("Demande d'abonnement transmise ! Vos identifiants vous seront délivrés dès vérification.");
-        }}
+        onSuccess={handleStoreRegistered}
       />
     </div>
   );

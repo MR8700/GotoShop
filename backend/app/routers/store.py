@@ -3,9 +3,27 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.store_service import StoreService
-from app.schemas.store import StoreDetailSchema, StoreUpdateSchema, LoyaltyTierSchema, LoyaltyTierCreateUpdate
+from app.schemas.store import (
+    StoreDetailSchema,
+    StoreUpdateSchema,
+    LoyaltyTierSchema,
+    LoyaltyTierCreateUpdate,
+    StoreRegisterRequest,
+    StoreRegisterResponse,
+)
 
 router = APIRouter(prefix="/store", tags=["Store"])
+
+@router.post("/register", response_model=StoreRegisterResponse)
+def register_store(data: StoreRegisterRequest, db: Session = Depends(get_db)):
+    """Creates and activates a new merchant store immediately with trial and owner session."""
+    try:
+        return StoreService.register_store(db, data)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la création de la boutique: {str(e)}")
+
 
 @router.get("", response_model=StoreDetailSchema)
 def get_current_store(

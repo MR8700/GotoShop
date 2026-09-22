@@ -210,9 +210,6 @@ class SubscriptionService:
         if not req_data.owner_email and not req_data.owner_phone:
             raise ValueError("Veuillez renseigner un Email ou un numéro WhatsApp fonctionnel.")
 
-        if not req_data.payment_proof_data:
-            raise ValueError("La capture d'écran du paiement est obligatoire.")
-
         # Find plan
         plan = db.query(SubscriptionPlan).filter(SubscriptionPlan.code == req_data.plan_code).first()
         if not plan:
@@ -225,10 +222,12 @@ class SubscriptionService:
             amount_val = 1010 if (plan.price == 1000 and ussd_cfg.operator_code in ["ORANGE", "MOOV"]) else plan.price
             ussd_code_used = SubscriptionService.compute_ussd_code(ussd_cfg.ussd_template, ussd_cfg.merchant_number, amount_val)
 
-        # Save proof image
-        proof_url = save_base64_media(req_data.payment_proof_data, prefix="proof")
-        if not proof_url:
-            proof_url = req_data.payment_proof_data
+        # Save proof image if provided
+        proof_url = None
+        if req_data.payment_proof_data:
+            proof_url = save_base64_media(req_data.payment_proof_data, prefix="proof")
+            if not proof_url:
+                proof_url = req_data.payment_proof_data
 
         sub_req = SubscriptionRequest(
             id=str(uuid.uuid4()),

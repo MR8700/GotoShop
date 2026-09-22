@@ -48,6 +48,7 @@ class Store(Base):
     flash_subtitle = Column(String(200), default="Ouaga & Abidjan • Envoi sous 2h chrono")
     flash_remaining_seconds = Column(Integer, default=15502)
     voice_note_title = Column(String(150), default="Besoin d'une taille sur mesure ?")
+    voice_note_subtitle = Column(String(200), default="Écouter les conseils taille & qualité")
     # Theme & Color Customization (Configurable by Store Owner)
     primary_color = Column(String(20), default="#ec761e")
     secondary_color = Column(String(20), default="#4EBE9E")
@@ -100,6 +101,7 @@ class DeliveryCity(Base):
     name = Column(String(100), nullable=False)
     display_label = Column(String(100), nullable=False)
     is_default = Column(Boolean, default=False)
+    display_order = Column(Integer, default=0)
     store = relationship("Store", back_populates="delivery_cities")
 
 
