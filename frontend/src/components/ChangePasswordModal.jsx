@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from "react";
 import { changePassword } from "../api/client";
 
-export default function ChangePasswordModal({ isMandatory = true, onClose, onSuccess, showToast }) {
+export default function ChangePasswordModal({ isMandatory = true, onClose, onSuccess, onLogout, showToast }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
@@ -70,6 +71,7 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
     e.preventDefault();
     if (!canSubmit) return;
 
+    setErrorMessage("");
     setIsSubmitting(true);
     showToast("Sécurisation du compte en cours...");
 
@@ -78,6 +80,7 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
       showToast(res.message || "Mot de passe fort validé !");
       if (onSuccess) onSuccess();
     } catch (err) {
+      setErrorMessage(err.message || "Erreur de changement de mot de passe");
       showToast(err.message || "Erreur de changement de mot de passe");
     } finally {
       setIsSubmitting(false);
@@ -100,10 +103,11 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
               </p>
             </div>
           </div>
-          {!isMandatory && onClose && (
+          {onClose && (
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center"
+              className="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors cursor-pointer"
+              title="Fermer"
             >
               <span className="material-symbols-outlined text-[18px]">close</span>
             </button>
@@ -119,6 +123,13 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
             Pour protéger votre chiffre d'affaires et votre boutique, la personnalisation avec un mot de passe fort est <span className="text-on-surface font-bold">obligatoire</span> avant d'accéder à l'administration.
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="mb-3.5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px] shrink-0 text-rose-400">error</span>
+            <span className="flex-1">{errorMessage}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Mot de passe actuel */}
@@ -146,7 +157,7 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
               </button>
             </div>
             <span className="text-[10px] text-on-surface-variant/80 mt-0.5 block">
-              Mot de passe temporaire fourni : <code className="text-primary font-mono font-bold">AwaChic2026!</code>
+              Entrez le mot de passe actuel de votre compte ou le mot de passe temporaire fourni.
             </span>
           </div>
 
@@ -273,6 +284,17 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
             <span className="material-symbols-outlined text-[18px]">lock_reset</span>
             <span>{isSubmitting ? "Enregistrement sécurisé..." : "Valider et Déverrouiller la Boutique"}</span>
           </button>
+
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="w-full h-9 rounded-xl text-on-surface-variant hover:text-red-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[15px]">logout</span>
+              <span>Se déconnecter / Quitter</span>
+            </button>
+          )}
         </form>
       </div>
     </div>

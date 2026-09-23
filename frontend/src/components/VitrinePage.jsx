@@ -19,6 +19,8 @@ export default function VitrinePage({
   onOpenCustomerAuth,
   onProductUpdated,
   onProductDeleted,
+  onOpenConversationalOrder,
+  onOpenChat,
 }) {
   const [selectedHeroColor, setSelectedHeroColor] = useState("Bleu Nuit");
   const [countdownSeconds, setCountdownSeconds] = useState(store?.flash_remaining_seconds || 15502);
@@ -194,14 +196,14 @@ export default function VitrinePage({
             </div>
           </div>
 
-          {/* Quick Direct WhatsApp Icon */}
+          {/* Quick Direct Chat Icon */}
           <button
-            onClick={() => onOpenTunnel(heroProduct, "WHATSAPP")}
-            aria-label="Contacter sur WhatsApp"
-            className="w-10 h-10 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/20 flex items-center justify-center transition-colors shrink-0"
-            title="Ouvrir WhatsApp direct"
+            onClick={() => onOpenChat ? onOpenChat() : onOpenTunnel(heroProduct, "WHATSAPP")}
+            aria-label="Discuter avec le vendeur"
+            className="w-10 h-10 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 flex items-center justify-center transition-colors shrink-0"
+            title="Discuter en direct avec le commerçant"
           >
-            <span className="material-symbols-outlined text-[20px]">chat</span>
+            <span className="material-symbols-outlined text-[20px]">forum</span>
           </button>
         </div>
 
@@ -359,13 +361,43 @@ export default function VitrinePage({
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => onOpenTunnel(heroProduct, "WHATSAPP", selectedHeroColor)}
-              className="w-full h-12 rounded-xl bg-primary hover:brightness-105 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99] cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
-              <span>Commander en direct sur WhatsApp</span>
-            </button>
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                onClick={() =>
+                  onOpenConversationalOrder
+                    ? onOpenConversationalOrder(heroProduct)
+                    : onOpenTunnel(heroProduct, "WHATSAPP", selectedHeroColor)
+                }
+                className="w-full h-12 rounded-xl bg-primary hover:brightness-105 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  {heroProduct.is_customizable ? "tune" : "shopping_bag"}
+                </span>
+                <span>
+                  {heroProduct.is_customizable
+                    ? "Personnaliser & Commander en direct"
+                    : "Commander en direct (Chat intégré)"}
+                </span>
+              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenChat?.()}
+                  className="h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-semibold border border-subtle flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px] text-secondary">forum</span>
+                  <span>Discuter en direct</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenTunnel(heroProduct, "WHATSAPP", selectedHeroColor)}
+                  className="h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-green-600 text-xs font-semibold border border-subtle flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">chat</span>
+                  <span>WhatsApp</span>
+                </button>
+              </div>
+            </div>
           )}
         </section>
       )}
@@ -494,13 +526,43 @@ export default function VitrinePage({
                     </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => onOpenTunnel(p, "WHATSAPP")}
-                    className="w-full h-10 rounded-xl bg-surface-secondary hover:bg-primary hover:text-white text-on-surface text-xs font-semibold border border-subtle transition-all flex items-center justify-center gap-1.5 active:scale-[0.99] cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">chat</span>
-                    <span>Commander sur WhatsApp</span>
-                  </button>
+                  <div className="flex flex-col gap-1.5 pt-1">
+                    <button
+                      onClick={() =>
+                        onOpenConversationalOrder
+                          ? onOpenConversationalOrder(p)
+                          : onOpenTunnel(p, "WHATSAPP")
+                      }
+                      className="w-full h-10 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 active:scale-[0.99] cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">
+                        {p.is_customizable ? "tune" : "shopping_bag"}
+                      </span>
+                      <span>
+                        {p.is_customizable
+                          ? "Personnaliser & Commander"
+                          : "Commander en direct"}
+                      </span>
+                    </button>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onOpenChat?.()}
+                        className="h-8 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-on-surface text-[11px] font-medium border border-subtle flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[14px] text-secondary">forum</span>
+                        <span>Discuter</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onOpenTunnel(p, "WHATSAPP")}
+                        className="h-8 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-green-600 text-[11px] font-medium border border-subtle flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">chat</span>
+                        <span>WhatsApp</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </article>
@@ -526,14 +588,18 @@ export default function VitrinePage({
 
         <button
           onClick={() => {
-            showToast("Ouverture de la discussion avec le commerçant...");
-            const msg = "Bonjour ! J'aimerais des conseils personnalisés pour ma commande.";
-            const waNumber = store?.contact_whatsapp?.replace(/\D/g, "") || "22670123456";
-            window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
+            if (onOpenChat) {
+              onOpenChat();
+            } else {
+              showToast("Ouverture de la discussion avec le commerçant...");
+              const msg = "Bonjour ! J'aimerais des conseils personnalisés pour ma commande.";
+              const waNumber = store?.contact_whatsapp?.replace(/\D/g, "") || "22670123456";
+              window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
+            }
           }}
-          className="w-full sm:w-auto h-10 px-4 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-semibold border border-subtle transition-colors flex items-center justify-center gap-2 shrink-0 active:scale-95 cursor-pointer"
+          className="w-full sm:w-auto h-10 px-4 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95 cursor-pointer"
         >
-          <span className="material-symbols-outlined text-[16px] text-secondary">mic</span>
+          <span className="material-symbols-outlined text-[16px]">forum</span>
           <span>Poser une question en direct</span>
         </button>
       </section>

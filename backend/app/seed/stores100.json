@@ -1,5 +1,4 @@
-// 100 Authentic West African & International Stores for GotoShop Platform
-export const FALLBACK_PUBLIC_STORES = [
+[
   {
     "id": "store-garbadrome-kossodo-00",
     "name": "Garbadrome Kossodo",
@@ -2323,4 +2322,4 @@ export const FALLBACK_PUBLIC_STORES = [
     "social_tunnel_badge": "WA/FB",
     "social_tunnel_label": "Tunnel Social Actif"
   }
-];
+]

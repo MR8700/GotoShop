@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { loginOwner, resetOwnerCredentials } from "../api/client";
 
-export default function LoginModal({ isOpen, onClose, onLoginSuccess, showToast }) {
+export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegisterStore, showToast }) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   if (!isOpen) return null;
@@ -17,15 +18,37 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, showToast 
 
     try {
       const data = await loginOwner(identifier.trim(), password);
-      showToast(data.message || "Connexion réussie !");
+      if (showToast) showToast(data.message || "Connexion réussie !");
       if (onLoginSuccess) {
         onLoginSuccess(data);
       }
     } catch (err) {
-      setErrorMessage(err.message || "Erreur de connexion");
-      showToast(err.message || "Identifiants invalides");
+      setErrorMessage(err.message || "Identifiants invalides");
+      if (showToast) showToast(err.message || "Identifiants invalides");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleQuickFill = (email, pwd) => {
+    setIdentifier(email);
+    setPassword(pwd);
+    setErrorMessage("");
+  };
+
+  const handleResetDemo = async () => {
+    setIsResetting(true);
+    setErrorMessage("");
+    try {
+      const res = await resetOwnerCredentials();
+      setIdentifier(res.email || "awa@chictech.bf");
+      setPassword(res.default_password || "AwaChic2026!");
+      if (showToast) showToast(res.message || "Identifiants démo réinitialisés avec succès !");
+    } catch (err) {
+      setErrorMessage(err.message || "Erreur lors de la réinitialisation");
+      if (showToast) showToast(err.message || "Erreur de réinitialisation");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -34,11 +57,12 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, showToast 
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-[85] flex items-center justify-center p-3 bg-black/60 backdrop-blur-md animate-fadeIn"
+      className="fixed inset-0 z-[85] flex items-center justify-center p-3 bg-black/60 backdrop-blur-md animate-fadeIn overflow-y-auto"
     >
-      <div className="bg-surface-card rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-subtle relative">
+      <div className="bg-surface-card rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-subtle relative my-auto">
         {/* Close Button */}
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-surface-secondary hover:bg-surface-elevated border border-subtle text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors cursor-pointer"
         >
@@ -46,13 +70,13 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, showToast 
         </button>
 
         {/* Top Header */}
-        <div className="flex flex-col items-center text-center pt-2 pb-4">
+        <div className="flex flex-col items-center text-center pt-1 pb-4">
           <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mb-3 shadow-sm">
-            <span className="material-symbols-outlined text-[24px]">admin_panel_settings</span>
+            <span className="material-symbols-outlined text-[24px]">storefront</span>
           </div>
           <h2 className="text-base font-bold text-on-surface tracking-tight">Espace Commerçant</h2>
           <p className="text-xs text-on-surface-variant font-normal mt-0.5">
-            Accès sécurisé pour la gestion de votre boutique
+            Gérez votre vitrine, commandes et discussions
           </p>
         </div>
 
@@ -66,7 +90,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, showToast 
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
             <label className="text-[11px] text-on-surface-variant uppercase font-semibold block mb-1">
-              Email ou Identifiant
+              Email ou Téléphone
             </label>
             <div className="relative flex items-center">
               <span className="material-symbols-outlined absolute left-3 text-on-surface-variant/60 text-[18px]">
@@ -76,7 +100,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, showToast 
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="vendeur@boutique.com"
+                placeholder="Ex: awa@chictech.bf"
                 className="w-full h-11 pl-9 pr-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface placeholder:text-on-surface-variant/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
                 required
               />
@@ -117,9 +141,73 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, showToast 
             className="w-full h-11 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer mt-2"
           >
             <span className="material-symbols-outlined text-[18px]">login</span>
-            <span>{isLoading ? "Authentification..." : "Se Connecter"}</span>
+            <span>{isLoading ? "Connexion en cours..." : "Accéder à ma Boutique"}</span>
           </button>
         </form>
+
+        {/* Demo Fast Access */}
+        <div className="mt-4 pt-3 border-t border-subtle/60">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider">
+              Accès rapide démo
+            </span>
+            <button
+              type="button"
+              onClick={handleResetDemo}
+              disabled={isResetting}
+              className="text-[10px] text-primary hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+              title="Réinitialiser l'accès démo par défaut"
+            >
+              <span className="material-symbols-outlined text-[12px]">refresh</span>
+              <span>{isResetting ? "Réinit..." : "Réinitialiser"}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => handleQuickFill("awa@chictech.bf", "AwaChic2026!")}
+              className="p-2 rounded-lg bg-surface-secondary hover:bg-surface-elevated border border-subtle text-left transition-all cursor-pointer group"
+            >
+              <span className="text-xs font-bold text-on-surface group-hover:text-primary block truncate">
+                Awa Chic Tech
+              </span>
+              <span className="text-[10px] text-on-surface-variant font-mono block truncate">
+                awa@chictech.bf
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleQuickFill("moussa.traore@garbadrome-kossodo.bf", "GotoShop!2026")}
+              className="p-2 rounded-lg bg-surface-secondary hover:bg-surface-elevated border border-subtle text-left transition-all cursor-pointer group"
+            >
+              <span className="text-xs font-bold text-on-surface group-hover:text-primary block truncate">
+                Garbadrome
+              </span>
+              <span className="text-[10px] text-on-surface-variant font-mono block truncate">
+                moussa.traore@...
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Register CTA */}
+        {onOpenRegisterStore && (
+          <div className="mt-4 pt-3 border-t border-subtle/60 text-center">
+            <p className="text-xs text-on-surface-variant mb-2">
+              Pas encore de boutique enregistrée ?
+            </p>
+            <button
+              type="button"
+              onClick={onOpenRegisterStore}
+              className="w-full py-2.5 px-3 rounded-xl bg-secondary/15 hover:bg-secondary/25 border border-secondary/30 text-secondary text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">add_business</span>
+              <span>Ouvrir ma boutique (14 jours gratuits)</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

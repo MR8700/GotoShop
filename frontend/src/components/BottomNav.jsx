@@ -1,18 +1,20 @@
 import React from "react";
 
-export default function BottomNav({ activeTab, onSelectTab, pendingCount = 0, mode = "client", clientOrdersCount = 0 }) {
+export default function BottomNav({ activeTab, onSelectTab, pendingCount = 0, mode = "client", clientOrdersCount = 0, unreadChatCount = 0 }) {
   const isClient = mode === "client";
 
   const tabs = isClient
     ? [
         { id: "boutique", label: "Vitrine", icon: "storefront" },
         { id: "commandes", label: "Commandes", icon: "receipt_long", badge: clientOrdersCount },
+        { id: "chat", label: "Chat", icon: "forum", badge: unreadChatCount },
         { id: "stats", label: "Avantages", icon: "stars" },
-        { id: "reglages", label: "Mon Compte", icon: "person" },
+        { id: "reglages", label: "Profil", icon: "person" },
       ]
     : [
         { id: "boutique", label: "Vitrine", icon: "storefront" },
         { id: "commandes", label: "Arbitrage", icon: "receipt_long", badge: pendingCount },
+        { id: "chat", label: "Messages", icon: "forum", badge: unreadChatCount },
         { id: "stats", label: "Stats", icon: "monitoring" },
         { id: "reglages", label: "Paramètres", icon: "tune" },
       ];

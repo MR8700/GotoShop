@@ -15,7 +15,7 @@ import {
 import NewProductModal from "./NewProductModal";
 import ShareSocialModal from "./ShareSocialModal";
 
-export default function CommandesPage({ store, categories, showToast, onSaleConfirmed, onProductCreated }) {
+export default function CommandesPage({ store, categories, showToast, onSaleConfirmed, onProductCreated, onOpenChat }) {
   const [pendingList, setPendingList] = useState([]);
   const [feedList, setFeedList] = useState([]);
   const [discrepanciesList, setDiscrepanciesList] = useState([]);
@@ -834,6 +834,19 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                         </a>
                       )}
 
+                      {/* Direct Chat Button */}
+                      {onOpenChat && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenChat(item.conversation_id)}
+                          className="px-2 py-1 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                          title="Ouvrir la messagerie directe"
+                        >
+                          <span className="material-symbols-outlined text-[13px]">forum</span>
+                          <span>Chat</span>
+                        </button>
+                      )}
+
                       {/* Detail Modal button */}
                       <button
                         type="button"
@@ -982,10 +995,24 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                 </span>
                 <span>{selectedIntentDetail.is_archived ? "Désarchiver" : "Archiver"}</span>
               </button>
+              {onOpenChat && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const convId = selectedIntentDetail.conversation_id;
+                    setSelectedIntentDetail(null);
+                    onOpenChat(convId);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-primary text-surface text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[14px]">forum</span>
+                  <span>Ouvrir le Chat</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setSelectedIntentDetail(null)}
-                className="px-4 py-1.5 rounded-xl bg-primary text-surface text-xs font-bold transition-all"
+                className="px-4 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all"
               >
                 Fermer
               </button>

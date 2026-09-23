@@ -31,6 +31,8 @@ export default function Header({
       switch (activeTab) {
         case "commandes":
           return "Commandes";
+        case "chat":
+          return "Chat Vendeur";
         case "stats":
           return "Avantages";
         case "reglages":
@@ -42,6 +44,8 @@ export default function Header({
       switch (activeTab) {
         case "commandes":
           return "Arbitrage";
+        case "chat":
+          return "Messagerie Client";
         case "stats":
           return "Statistiques";
         case "reglages":

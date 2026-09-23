@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import engine, Base
-from app.routers import store, catalog, channels, commerce, analytics, auth, customer, notifications, super_admin, subscription
+from app.routers import store, catalog, channels, commerce, analytics, auth, customer, notifications, super_admin, subscription, orders, chat, calls, media
+import app.models  # Ensures all models (Order, Chat, Payment, Media, Call, etc.) are registered
 from app.seed.seeder import seed_database
 import os
 
@@ -82,6 +83,17 @@ def run_migrations():
                 city_cols = [c["name"] for c in inspector.get_columns("delivery_cities")]
                 if "display_order" not in city_cols:
                     conn.execute(text("ALTER TABLE delivery_cities ADD COLUMN display_order INTEGER DEFAULT 0"))
+
+            if "products" in table_names:
+                prod_cols = [c["name"] for c in inspector.get_columns("products")]
+                cols_to_add = [
+                    ("is_customizable", "BOOLEAN DEFAULT FALSE"),
+                    ("customization_prompt", "VARCHAR(150) DEFAULT 'Décris ton plat'"),
+                    ("customization_options", "TEXT"),
+                ]
+                for col_name, col_type in cols_to_add:
+                    if col_name not in prod_cols:
+                        conn.execute(text(f"ALTER TABLE products ADD COLUMN {col_name} {col_type}"))
 
         # 2. Seed default data if empty using ORM (pure Python/SQLAlchemy, 100% DB-agnostic)
         from app.database import SessionLocal
@@ -202,6 +214,10 @@ all_routers = [
     notifications.router,
     super_admin.router,
     subscription.router,
+    orders.router,
+    chat.router,
+    calls.router,
+    media.router,
 ]
 for r in all_routers:
     app.include_router(r, prefix=settings.API_V1_STR)

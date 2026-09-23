@@ -13,6 +13,7 @@ export default function ClientCommandesPage({
   onOpenAuth,
   onNavigateToShop,
   showToast,
+  onOpenChat,
 }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -428,16 +429,28 @@ export default function ClientCommandesPage({
                   </div>
                 )}
 
-                {/* Contact button */}
-                <a
-                  href={order.redirect_url || `https://wa.me/2250700000000?text=Bonjour%20Awa,%20suivi%20de%20ma%20commande%20${order.reference_code}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full h-10 rounded-xl bg-secondary/15 hover:bg-secondary/25 text-secondary font-label-md font-bold flex items-center justify-center gap-2 transition-colors active:scale-98"
-                >
-                  <span className="material-symbols-outlined text-[18px]">chat</span>
-                  <span>Relancer Awa sur WhatsApp</span>
-                </a>
+                {/* Contact buttons */}
+                <div className="flex flex-col gap-2 pt-1">
+                  {onOpenChat && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenChat(order.conversation_id)}
+                      className="w-full h-10 rounded-xl bg-primary hover:brightness-105 text-white font-label-md font-bold flex items-center justify-center gap-2 transition-all active:scale-98 shadow-sm cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">forum</span>
+                      <span>Ouvrir la discussion en direct</span>
+                    </button>
+                  )}
+                  <a
+                    href={order.redirect_url || `https://wa.me/2250700000000?text=Bonjour%20Awa,%20suivi%20de%20ma%20commande%20${order.reference_code}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-on-surface border border-subtle font-label-sm font-semibold flex items-center justify-center gap-2 transition-colors active:scale-98"
+                  >
+                    <span className="material-symbols-outlined text-[16px] text-green-600">chat</span>
+                    <span>Relancer sur WhatsApp</span>
+                  </a>
+                </div>
               </div>
             );
           })}

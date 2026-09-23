@@ -758,9 +758,15 @@ def seed_database():
                     preferred_channel="WHATSAPP",
                     session_token="token_" + secrets.token_hex(16)
                 )
-                db.add(c_obj)
-
         db.commit()
+
+        # Seed reference store Garbadrome Kossodo with conversational commerce scenario
+        try:
+            from app.seed.seed_garbadrome import seed_garbadrome_kossodo
+            seed_garbadrome_kossodo(db)
+        except Exception as e_garba:
+            print(f"Notice on Garbadrome Kossodo seeder: {e_garba}")
+
         print("Database fully seeded with real Burkinabè boutiques, authentic products, customers and SuperAdmin!")
 
     except Exception as e:

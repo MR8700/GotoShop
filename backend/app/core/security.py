@@ -19,11 +19,17 @@ def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:
     return key.hex(), salt
 
 def verify_password(password: str, password_hash: str, salt: str) -> bool:
-    """Verifies a password against the stored hash in constant time."""
+    """Verifies a password against the stored hash in constant time, supporting PBKDF2 and legacy SHA-256."""
     if not password or not password_hash or not salt:
         return False
     computed_hash, _ = hash_password(password, salt)
-    return hmac.compare_digest(computed_hash, password_hash)
+    if hmac.compare_digest(computed_hash, password_hash):
+        return True
+    # Backward compatibility fallback for legacy SHA-256 salted hashes
+    legacy_hash = hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
+    if hmac.compare_digest(legacy_hash, password_hash):
+        return True
+    return False
 
 def validate_strong_password(password: str) -> Tuple[bool, List[str]]:
     """

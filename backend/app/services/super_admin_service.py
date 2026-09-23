@@ -149,9 +149,9 @@ class SuperAdminService:
         # 2. Check or create Owner
         owner = db.query(Owner).filter(Owner.email == data.owner_email.strip().lower()).first()
         if not owner:
-            salt = secrets.token_hex(16)
+            from app.core.security import hash_password
             pwd = data.password or "Marchand2026!"
-            hashed = SuperAdminService.hash_password(pwd, salt)
+            hashed, salt = hash_password(pwd)
             owner = Owner(
                 id=str(uuid.uuid4()),
                 full_name=data.owner_name.strip(),

@@ -44,6 +44,9 @@ class Product(Base):
     video_url = Column(String(255), nullable=True)
     pdf_catalog_url = Column(String(255), nullable=True)
     is_published = Column(Boolean, default=True, index=True)
+    is_customizable = Column(Boolean, default=False)
+    customization_prompt = Column(String(150), default="Décris ton plat")
+    customization_options = Column(Text, nullable=True) # JSON array of option groups
     display_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

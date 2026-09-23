@@ -142,5 +142,6 @@ class StoreRegisterResponse(BaseModel):
     access_token: str
     owner: StoreOwnerBriefSchema
     temporary_password: Optional[str] = None
+    must_change_password: bool = False
     subscription_status: str = "TRIAL"
     trial_days: int = 14

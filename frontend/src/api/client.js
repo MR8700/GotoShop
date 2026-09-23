@@ -57,15 +57,17 @@ export const getActiveStoreSlug = () => {
   if (typeof window === "undefined") return "faso-danfani";
   const params = new URLSearchParams(window.location.search);
   const storeParam = params.get("store") || params.get("slug") || params.get("s");
-  if (storeParam) {
-    localStorage.setItem("conversastore_active_slug", storeParam);
-    return storeParam;
+  if (storeParam && storeParam.trim()) {
+    const clean = storeParam.trim();
+    localStorage.setItem("conversastore_active_slug", clean);
+    return clean;
   }
   const pathname = window.location.pathname;
   const storePathMatch = pathname.match(/^\/(?:store|boutique|s)\/([a-zA-Z0-9_-]+)/);
   if (storePathMatch && storePathMatch[1]) {
-    localStorage.setItem("conversastore_active_slug", storePathMatch[1]);
-    return storePathMatch[1];
+    const clean = storePathMatch[1].trim();
+    localStorage.setItem("conversastore_active_slug", clean);
+    return clean;
   }
   const sub = detectSubdomainSlug();
   if (sub) {
@@ -73,19 +75,20 @@ export const getActiveStoreSlug = () => {
     return sub;
   }
   const saved = localStorage.getItem("conversastore_active_slug");
-  if (saved && !["defaut", "default", "awa-chic-tech", "awa-chic"].includes(saved)) {
-    return saved;
+  if (saved && saved.trim() && !["defaut", "default", "null", "undefined"].includes(saved.trim().toLowerCase())) {
+    return saved.trim();
   }
   return "faso-danfani";
 };
 
 export const setActiveStoreSlug = (slug) => {
-  if (slug) {
-    localStorage.setItem("conversastore_active_slug", slug);
+  if (slug && slug.trim()) {
+    const clean = slug.trim();
+    localStorage.setItem("conversastore_active_slug", clean);
     if (typeof window !== "undefined" && window.history && window.history.pushState) {
       try {
         const url = new URL(window.location.href);
-        url.searchParams.set("store", slug);
+        url.searchParams.set("store", clean);
         window.history.pushState({}, "", url.toString());
       } catch (e) {}
     }
@@ -94,13 +97,20 @@ export const setActiveStoreSlug = (slug) => {
   }
 };
 
-export const fetchWithStore = (url, options = {}) => {
-  const slug = getActiveStoreSlug();
+export const fetchWithStore = (url, options = {}, explicitSlug = null) => {
+  const slug = explicitSlug || getActiveStoreSlug();
   const headers = new Headers(options.headers || {});
   if (slug && !headers.has("X-Store-Slug")) {
     headers.set("X-Store-Slug", slug);
   }
-  return fetch(url, { ...options, headers });
+  let targetUrl = url;
+  if (slug) {
+    const separator = targetUrl.includes("?") ? "&" : "?";
+    if (!targetUrl.includes("store=") && !targetUrl.includes("slug=")) {
+      targetUrl = `${targetUrl}${separator}store=${encodeURIComponent(slug)}`;
+    }
+  }
+  return fetch(targetUrl, { ...options, headers });
 };
 
 export async function safeParseJson(res) {
@@ -116,22 +126,41 @@ export async function safeParseJson(res) {
   }
 }
 
+export function formatErrorMessage(data, defaultMsg = "Une erreur est survenue") {
+  if (!data) return defaultMsg;
+  if (typeof data === "string") return data;
+  if (typeof data.detail === "string") return data.detail;
+  if (Array.isArray(data.detail)) {
+    return data.detail
+      .map((d) => {
+        const field = d.loc ? d.loc[d.loc.length - 1] : "";
+        return field ? `${field}: ${d.msg}` : d.msg;
+      })
+      .join(", ");
+  }
+  if (data.message && typeof data.message === "string") return data.message;
+  return defaultMsg;
+}
+
 export const getMediaUrl = (path) => {
   if (!path) return "";
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
   return `${MEDIA_BASE}${path}`;
 };
 
-export async function fetchStore() {
-  const slug = getActiveStoreSlug();
+export async function fetchStore(explicitSlug = null) {
+  const slug = explicitSlug || getActiveStoreSlug();
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const res = await fetchWithStore(`${API_BASE}/store`, { signal: controller.signal });
+    const res = await fetchWithStore(`${API_BASE}/store`, { signal: controller.signal }, slug);
     clearTimeout(timeoutId);
     if (res.ok) {
-      const data = await res.json();
-      if (data && data.name) return data;
+      const data = await safeParseJson(res);
+      // Strictly verify that the returned store matches the requested slug
+      if (data && data.name && (!slug || data.slug?.toLowerCase() === slug.toLowerCase())) {
+        return data;
+      }
     }
   } catch (e) {
     console.warn("fetchStore fallback used for slug:", slug, e);
@@ -140,13 +169,17 @@ export async function fetchStore() {
 }
 
 export async function updateStore(storeId, data) {
+  const token = getAuthToken();
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/store/${storeId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Erreur lors de la mise à jour de la boutique");
-  return res.json();
+  const resData = await safeParseJson(res);
+  if (!res.ok) throw new Error(formatErrorMessage(resData, "Erreur lors de la mise à jour de la boutique"));
+  return resData;
 }
 
 export async function registerMerchantStore(payload) {
@@ -160,8 +193,8 @@ export async function registerMerchantStore(payload) {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
+    const data = await safeParseJson(res);
     if (res.ok) {
-      const data = await res.json();
       if (data.access_token) {
         setAuthToken(data.access_token);
       }
@@ -170,8 +203,7 @@ export async function registerMerchantStore(payload) {
       }
       return data;
     }
-    const err = await res.json().catch(() => ({}));
-    if (err.detail) throw new Error(err.detail);
+    throw new Error(formatErrorMessage(data, "Erreur lors de la création de la boutique"));
   } catch (e) {
     if (e.message && !e.message.includes("fetch") && !e.message.includes("abort")) {
       throw e;
@@ -212,12 +244,12 @@ export async function registerMerchantStore(payload) {
   };
 }
 
-export async function fetchCategories() {
-  const slug = getActiveStoreSlug();
+export async function fetchCategories(explicitSlug = null) {
+  const slug = explicitSlug || getActiveStoreSlug();
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const res = await fetchWithStore(`${API_BASE}/catalog/categories`, { signal: controller.signal });
+    const res = await fetchWithStore(`${API_BASE}/catalog/categories`, { signal: controller.signal }, slug);
     clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
@@ -229,15 +261,15 @@ export async function fetchCategories() {
   return getFallbackCategories(slug);
 }
 
-export async function fetchProducts(categoryId = null) {
-  const slug = getActiveStoreSlug();
+export async function fetchProducts(categoryId = null, explicitSlug = null) {
+  const slug = explicitSlug || getActiveStoreSlug();
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
     const url = categoryId
       ? `${API_BASE}/catalog/products?category_id=${categoryId}`
       : `${API_BASE}/catalog/products`;
-    const res = await fetchWithStore(url, { signal: controller.signal });
+    const res = await fetchWithStore(url, { signal: controller.signal }, slug);
     clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
@@ -249,12 +281,12 @@ export async function fetchProducts(categoryId = null) {
   return getFallbackProducts(slug, categoryId);
 }
 
-export async function fetchHeroProduct() {
-  const slug = getActiveStoreSlug();
+export async function fetchHeroProduct(explicitSlug = null) {
+  const slug = explicitSlug || getActiveStoreSlug();
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const res = await fetchWithStore(`${API_BASE}/catalog/products/hero`, { signal: controller.signal });
+    const res = await fetchWithStore(`${API_BASE}/catalog/products/hero`, { signal: controller.signal }, slug);
     clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
@@ -268,38 +300,49 @@ export async function fetchHeroProduct() {
 }
 
 export async function createProduct(payload) {
+  const token = getAuthToken();
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetchWithStore(`${API_BASE}/catalog/products`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(payload),
   });
+  const data = await safeParseJson(res);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Erreur de création de produit");
+    throw new Error(formatErrorMessage(data, "Erreur de création de produit"));
   }
-  return res.json();
+  return data;
 }
 
 export async function updateProduct(productId, payload) {
+  const token = getAuthToken();
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetchWithStore(`${API_BASE}/catalog/products/${productId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(payload),
   });
+  const data = await safeParseJson(res);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Erreur de mise à jour du produit");
+    throw new Error(formatErrorMessage(data, "Erreur de mise à jour du produit"));
   }
-  return res.json();
+  return data;
 }
 
 export async function deleteProduct(productId, hard = false) {
+  const token = getAuthToken();
+  const headers = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const url = hard ? `${API_BASE}/catalog/products/${productId}?hard=true` : `${API_BASE}/catalog/products/${productId}`;
   const res = await fetchWithStore(url, {
     method: "DELETE",
+    headers,
   });
-  if (!res.ok) throw new Error("Erreur de suppression du produit");
-  return res.json();
+  const data = await safeParseJson(res);
+  if (!res.ok) throw new Error(formatErrorMessage(data, "Erreur de suppression du produit"));
+  return data;
 }
 
 export async function trackVisit(source = "direct") {
@@ -312,12 +355,12 @@ export async function trackVisit(source = "direct") {
   }
 }
 
-export async function fetchChannels() {
-  const slug = getActiveStoreSlug();
+export async function fetchChannels(explicitSlug = null) {
+  const slug = explicitSlug || getActiveStoreSlug();
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const res = await fetchWithStore(`${API_BASE}/channels`, { signal: controller.signal });
+    const res = await fetchWithStore(`${API_BASE}/channels`, { signal: controller.signal }, slug);
     clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
@@ -464,9 +507,9 @@ export async function resetOwnerCredentials() {
   const res = await fetch(`${API_BASE}/auth/reset-credentials`, {
     method: "POST",
   });
-  const data = await res.json();
+  const data = await safeParseJson(res);
   if (!res.ok) {
-    throw new Error(data.detail || "Erreur de réinitialisation");
+    throw new Error(formatErrorMessage(data, "Erreur de réinitialisation"));
   }
   return data;
 }
@@ -477,11 +520,13 @@ export async function loginOwner(identifier, password) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ identifier, password }),
   });
-  const data = await res.json();
+  const data = await safeParseJson(res);
   if (!res.ok) {
-    throw new Error(data.detail || "Identifiants incorrects");
+    throw new Error(formatErrorMessage(data, "Identifiants incorrects ou compte verrouillé"));
   }
-  setAuthToken(data.access_token);
+  if (data.access_token) {
+    setAuthToken(data.access_token);
+  }
   return data;
 }
 
@@ -499,9 +544,9 @@ export async function changePassword(currentPassword, newPassword, confirmPasswo
       confirm_password: confirmPassword,
     }),
   });
-  const data = await res.json();
+  const data = await safeParseJson(res);
   if (!res.ok) {
-    throw new Error(data.detail || "Erreur de changement de mot de passe");
+    throw new Error(formatErrorMessage(data, "Erreur de changement de mot de passe"));
   }
   if (data.access_token) {
     setAuthToken(data.access_token);
@@ -516,7 +561,7 @@ export async function validatePasswordOnline(password) {
     body: JSON.stringify({ password }),
   });
   if (!res.ok) return { is_valid: false, errors: [], checks: [] };
-  return res.json();
+  return await safeParseJson(res);
 }
 
 export async function fetchAuthStatus() {
@@ -532,7 +577,7 @@ export async function fetchAuthStatus() {
       clearAuthToken();
       return { is_authenticated: false, must_change_password: true, owner_name: null };
     }
-    return res.json();
+    return await safeParseJson(res);
   } catch (e) {
     return { is_authenticated: false, must_change_password: true, owner_name: null };
   }
@@ -1226,6 +1271,265 @@ export async function updateSuperAdminUssdConfig(configId, payload) {
   }
   return res.json();
 }
+
+// ============================================================================
+// CONVERSATIONAL COMMERCE & REAL-TIME CHAT API
+// ============================================================================
+
+export function getChatWebSocketUrl(conversationId, params = {}) {
+  let wsBase = API_BASE.replace(/^http/, "ws");
+  const query = new URLSearchParams(params).toString();
+  return `${wsBase}/ws/chat/${conversationId}${query ? "?" + query : ""}`;
+}
+
+export async function fetchConversations({ store_id, customer_id, customer_token, context_filter, search } = {}) {
+  const query = new URLSearchParams();
+  if (store_id) query.set("store_id", store_id);
+  if (customer_id) query.set("customer_id", customer_id);
+  if (customer_token) query.set("customer_token", customer_token);
+  if (context_filter) query.set("context_filter", context_filter);
+  if (search) query.set("search", search);
+
+  const res = await fetch(`${API_BASE}/conversations?${query.toString()}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function createOrGetConversation(payload) {
+  const res = await fetch(`${API_BASE}/conversations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur ouverture conversation");
+  }
+  return res.json();
+}
+
+export async function fetchConversationDetail(conversationId) {
+  const res = await fetch(`${API_BASE}/conversations/${conversationId}`);
+  if (!res.ok) throw new Error("Conversation introuvable");
+  return res.json();
+}
+
+export async function fetchConversationMessages(conversationId, limit = 100, offset = 0) {
+  const res = await fetch(`${API_BASE}/conversations/${conversationId}/messages?limit=${limit}&offset=${offset}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function sendChatMessage(conversationId, messageData) {
+  const res = await fetch(`${API_BASE}/conversations/${conversationId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(messageData),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors de l'envoi du message");
+  }
+  return res.json();
+}
+
+export async function uploadChatMedia(conversationId, formData) {
+  const res = await fetch(`${API_BASE}/conversations/${conversationId}/media`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors du téléversement du média");
+  }
+  return res.json();
+}
+
+export async function markConversationRead(conversationId, userType = "CUSTOMER", userId = null) {
+  try {
+    await fetch(`${API_BASE}/conversations/${conversationId}/read`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_type: userType, user_id: userId }),
+    });
+  } catch (e) {}
+}
+
+// ============================================================================
+// CONVERSATIONAL ORDERS & PAYMENT PROOFS
+// ============================================================================
+
+export async function createConversationalOrder(orderData) {
+  const res = await fetch(`${API_BASE}/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(orderData),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors de la création de la commande");
+  }
+  return res.json();
+}
+
+export async function fetchConversationalOrders({ store_id, customer_id, customer_token, status } = {}) {
+  const query = new URLSearchParams();
+  if (store_id) query.set("store_id", store_id);
+  if (customer_id) query.set("customer_id", customer_id);
+  if (customer_token) query.set("customer_token", customer_token);
+  if (status) query.set("status", status);
+
+  const res = await fetch(`${API_BASE}/orders?${query.toString()}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function fetchOrderDetail(orderId) {
+  const res = await fetch(`${API_BASE}/orders/${orderId}`);
+  if (!res.ok) throw new Error("Commande introuvable");
+  return res.json();
+}
+
+export async function acceptOrder(orderId, sellerName = "Commerçant") {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ seller_name: sellerName }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur acceptation commande");
+  }
+  return res.json();
+}
+
+export async function rejectOrder(orderId, reason = "Indisponible", sellerName = "Commerçant") {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason, seller_name: sellerName }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur refus commande");
+  }
+  return res.json();
+}
+
+export async function submitPaymentProof(orderId, proofData) {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/payment-proof`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(proofData),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur soumission de la preuve");
+  }
+  return res.json();
+}
+
+export async function uploadPaymentProof(orderId, formData) {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/payment-proof-upload`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur upload preuve de paiement");
+  }
+  return res.json();
+}
+
+export async function confirmOrderPayment(orderId, verifiedBy = "Commerçant", verificationNote = null) {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/confirm-payment`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ verified_by: verifiedBy, verification_note: verificationNote }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur confirmation paiement");
+  }
+  return res.json();
+}
+
+export async function rejectOrderPayment(orderId, reason = "Montant incorrect", verifiedBy = "Commerçant") {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/reject-payment`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason, verified_by: verifiedBy }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur rejet paiement");
+  }
+  return res.json();
+}
+
+export async function updateOrderStatus(orderId, status, notes = null, actorName = "Commerçant") {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status, notes, actor_name: actorName }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur mise à jour statut");
+  }
+  return res.json();
+}
+
+// ============================================================================
+// NATIVE WEBRTC CALLS API
+// ============================================================================
+
+export async function startCallSession({ conversation_id, caller_type = "CUSTOMER", caller_name, call_type = "AUDIO", caller_id = null }) {
+  const res = await fetch(`${API_BASE}/calls`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ conversation_id, caller_type, caller_name, call_type, caller_id }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur démarrage appel");
+  }
+  return res.json();
+}
+
+export async function answerCallSession(callId) {
+  const res = await fetch(`${API_BASE}/calls/${callId}/answer`, { method: "POST" });
+  if (!res.ok) throw new Error("Erreur acceptation appel");
+  return res.json();
+}
+
+export async function rejectCallSession(callId, reason = "DECLINED") {
+  const res = await fetch(`${API_BASE}/calls/${callId}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new Error("Erreur refus appel");
+  return res.json();
+}
+
+export async function endCallSession(callId) {
+  const res = await fetch(`${API_BASE}/calls/${callId}/end`, { method: "POST" });
+  if (!res.ok) throw new Error("Erreur fin d'appel");
+  return res.json();
+}
+
+export async function fetchCallHistory({ conversation_id, store_id, limit = 50 } = {}) {
+  const query = new URLSearchParams();
+  if (conversation_id) query.set("conversation_id", conversation_id);
+  if (store_id) query.set("store_id", store_id);
+  query.set("limit", limit);
+
+  const res = await fetch(`${API_BASE}/calls/history?${query.toString()}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 
 
 

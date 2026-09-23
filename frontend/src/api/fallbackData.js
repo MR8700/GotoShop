@@ -164,6 +164,59 @@ export const FALLBACK_DETAILED_STORES = {
       { id: "lt9", name: "Princesse Guimbi", min_points: 150, badge_label: "Élite", perk_title: "10% de remise permanente & Cadeaux saisonniers", perk_description: "Cadeaux de fête exclusifs et remises VIP toute l'année.", discount_percent: 10 },
     ],
   },
+  "garbadrome-kossodo": {
+    id: "store-garbadrome-kossodo-00",
+    name: "Garbadrome Kossodo",
+    slug: "garbadrome-kossodo",
+    tagline: "Le Garba authentique de la cité universitaire de Kossodo",
+    description: "Spécialités de Garba ivoiro-burkinabè chaud et croustillant en direct de la cité universitaire de Kossodo. Poisson thon frit à la minute, attiéké frais de première qualité, oignons et piments dosés selon vos envies. Commandez et suivez votre plat en direct dans le chat !",
+    owner_bio: "Moussa Traoré, garbatier passionné depuis 8 ans à Kossodo. Je sers les étudiants, résidents et professionnels du campus avec des portions généreuses et le vrai goût du garba au thon frais.",
+    owner_name: "Moussa Traoré",
+    currency: "FCFA",
+    logo_url: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80",
+    avatar_url: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&auto=format&fit=crop&q=80",
+    rating: 4.96,
+    sales_count: 520,
+    revenue: 4250000,
+    is_verified: true,
+    social_tunnel_badge: "CHAT ACTIF",
+    social_tunnel_label: "Commerce Conversationnel Natif",
+    is_flash_active: true,
+    flash_title: "Offre Spéciale Étudiant Kossodo",
+    flash_subtitle: "Livraison directe en chambre ou amphi en moins de 15 min chrono",
+    flash_remaining_seconds: 7200,
+    voice_note_title: "Une envie de Garba bien dosé ?",
+    voice_note_subtitle: "Moussa est aux fourneaux. Discutez directement dans le chat pour personnaliser votre plat !",
+    primary_color: "#ea580c",
+    secondary_color: "#16a34a",
+    theme_preset: "kinetic_orange",
+    is_custom_theme_active: true,
+    is_loyalty_active: true,
+    loyalty_spend_per_point: 500,
+    subscription_status: "ACTIVE",
+    subscription_plan: "PRO",
+    contact_whatsapp: "+22676001045",
+    contact_email: "moussa.traore@garbadrome-kossodo.bf",
+    trust_badges: [
+      { id: "tb-gk-1", icon_name: "restaurant", label: "Thon Frit Minute", badge_type: "primary" },
+      { id: "tb-gk-2", icon_name: "local_shipping", label: "Livraison Cité Kossodo", badge_type: "secondary" },
+      { id: "tb-gk-3", icon_name: "tune", label: "Plats Personnalisables", badge_type: "secondary-fixed" },
+    ],
+    delivery_cities: [
+      { id: "dc-gk-1", name: "Cité Universitaire Kossodo (Pavillons A, B, C, D)", display_label: "📍 Cité Kossodo", is_default: true },
+      { id: "dc-gk-2", name: "Kossodo Zone Industrielle & Écoles", display_label: "Zone Kossodo", is_default: false },
+      { id: "dc-gk-3", name: "Somgandé & Nioko 1", display_label: "Somgandé", is_default: false },
+    ],
+    channels: [
+      { id: "ch-gk-1", channel_type: "WHATSAPP", display_title: "WhatsApp Direct", badge_text: "RECOMMANDÉ", badge_style: "primary", account_handle: "22676001045", subtitle: "Commande en direct", icon_name: "chat", theme_color: "#25D366", is_active: true, is_recommended: true },
+      { id: "ch-gk-2", channel_type: "CALL", display_title: "Appel Direct Cuisine", badge_text: "Kossodo", badge_style: "secondary", account_handle: "+226 76 00 10 45", subtitle: "Ligne directe Moussa Traoré", icon_name: "phone_in_talk", theme_color: "#ea580c", is_active: true, is_recommended: false },
+    ],
+    loyalty_tiers: [
+      { id: "lt-gk-1", name: "Étudiant Gourmet", min_points: 0, badge_label: "Membre Kossodo", perk_title: "Piment & Oignons Supplémentaires", perk_description: "Garniture généreuse offerte à chaque commande.", discount_percent: 0 },
+      { id: "lt-gk-2", name: "Fidèle Garbatier", min_points: 30, badge_label: "Habitué VIP", perk_title: "Boisson Offerte le Vendredi", perk_description: "Un jus de Bissap maison offert pour toute commande de Garba complet.", discount_percent: 5 },
+      { id: "lt-gk-3", name: "Roi du Garba", min_points: 80, badge_label: "Club Élite", perk_title: "Livraison Gratuite Permanente", perk_description: "Toutes vos livraisons offertes sur tout le campus de Kossodo.", discount_percent: 10 },
+    ],
+  },
 };
 
 export const FALLBACK_CATEGORIES = {
@@ -187,6 +240,13 @@ export const FALLBACK_CATEGORIES = {
     { id: "cat-sb-2", name: "Soins Capillaires", slug: "cheveux", display_order: 2 },
     { id: "cat-sb-3", name: "Savons Bio du Sahel", slug: "savons", display_order: 3 },
     { id: "cat-sb-4", name: "Huiles Végétales Pures", slug: "huiles", display_order: 4 },
+  ],
+  "garbadrome-kossodo": [
+    { id: "cat-gk-all", name: "Tout", slug: "all", display_order: 0 },
+    { id: "cat-gk-1", name: "Garba & Spécialités", slug: "garba-specialites", display_order: 1 },
+    { id: "cat-gk-2", name: "Portions Personnalisées", slug: "portions-personnalisees", display_order: 2 },
+    { id: "cat-gk-3", name: "Accompagnements", slug: "accompagnements", display_order: 3 },
+    { id: "cat-gk-4", name: "Boissons Fraîches", slug: "boissons", display_order: 4 },
   ],
 };
 
@@ -480,25 +540,345 @@ export const FALLBACK_PRODUCTS = {
       display_order: 3,
     },
   ],
+  "garbadrome-kossodo": [
+    {
+      id: "prod-gk-01",
+      category_id: "cat-gk-1",
+      name: "Garba + Poisson Thon Frit Croustillant",
+      slug: "garba-poisson-thon-frit-croustillant",
+      description: "Le plat culte de la cité universitaire de Kossodo ! Pavé de thon frais frit à la minute, attiéké de première qualité assaisonné aux oignons émincés, tomates et piments frais selon votre goût.",
+      short_description: "Attiéké frais de qualité supérieure avec gros pavé de thon frit à la minute.",
+      price: 1500,
+      old_price: 1750,
+      currency: "FCFA",
+      stock: 40,
+      stock_label: "Disponible en continu",
+      is_hero_deal: true,
+      badge_tag: "Le Roi du Campus ★",
+      active_discussions_count: 38,
+      views_count: 1540,
+      sales_count: 142,
+      revenue: 213000,
+      guarantee_text: "Thon Frais Garanti",
+      primary_image_url: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80",
+      is_customizable: true,
+      customization_prompt: "Personnalise ton piment, oignons et cuisson",
+      display_order: 0,
+    },
+    {
+      id: "prod-gk-02",
+      category_id: "cat-gk-1",
+      name: "Garba Spécial Kossodo - Portion Royale",
+      slug: "garba-special-kossodo-portion-royale",
+      description: "Double portion d'attiéké frais, 2 gros morceaux de thon croustillant, tomates, oignons frits, piment pilé et un jus naturel de Bissap frais 50cl offert.",
+      short_description: "Portion géante 2 thons + attiéké double + boisson Bissap offerte.",
+      price: 3500,
+      old_price: 4000,
+      currency: "FCFA",
+      stock: 25,
+      stock_label: "En stock cuisine",
+      is_hero_deal: false,
+      badge_tag: "Festin Royal",
+      active_discussions_count: 24,
+      views_count: 920,
+      sales_count: 85,
+      revenue: 297500,
+      guarantee_text: "Repas Complet",
+      primary_image_url: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80",
+      is_customizable: true,
+      customization_prompt: "Niveau de piment et accompagnement",
+      display_order: 1,
+    },
+    {
+      id: "prod-gk-03",
+      category_id: "cat-gk-2",
+      name: "Pavé de Poisson Thon Frit Doré (Unité)",
+      slug: "pave-de-poisson-thon-frit-dore",
+      description: "Gros morceau de thon frais mariné aux épices locales et frit à la minute. Croustillant à l'extérieur, fondant à l'intérieur.",
+      short_description: "Pavé de thon frais frit à la demande.",
+      price: 1000,
+      currency: "FCFA",
+      stock: 35,
+      stock_label: "Frit à la commande",
+      is_hero_deal: false,
+      badge_tag: "Extra Protéine",
+      active_discussions_count: 14,
+      views_count: 480,
+      sales_count: 65,
+      revenue: 65000,
+      guarantee_text: "Friture Minute",
+      primary_image_url: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80",
+      display_order: 2,
+    },
+    {
+      id: "prod-gk-04",
+      category_id: "cat-gk-4",
+      name: "Jus de Bissap Maison Menthe & Gingembre (50cl)",
+      slug: "jus-de-bissap-maison-menthe-gingembre",
+      description: "Boisson artisanale fraîche à base de fleurs d'hibiscus rouge, infusée à la menthe fraîche du jardin et relevée d'une touche de gingembre naturel.",
+      short_description: "Bissap glacé artisanal 50cl.",
+      price: 500,
+      currency: "FCFA",
+      stock: 50,
+      stock_label: "Bien frais",
+      is_hero_deal: false,
+      badge_tag: "Glacé",
+      active_discussions_count: 19,
+      views_count: 620,
+      sales_count: 110,
+      revenue: 55000,
+      guarantee_text: "100% Naturel",
+      primary_image_url: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop&q=80",
+      display_order: 3,
+    },
+  ],
 };
 
 export function getFallbackStore(slug) {
-  if (slug && FALLBACK_DETAILED_STORES[slug]) {
-    return FALLBACK_DETAILED_STORES[slug];
+  if (!slug) return FALLBACK_DETAILED_STORES["faso-danfani"];
+  const clean = slug.toLowerCase().trim();
+  if (FALLBACK_DETAILED_STORES[clean]) {
+    return FALLBACK_DETAILED_STORES[clean];
   }
+  if (clean === "awa-chic" || clean === "awa-chic-tech") {
+    return FALLBACK_DETAILED_STORES["faso-danfani"];
+  }
+
+  // Search in 100 authentic public stores list
+  const basic = FALLBACK_PUBLIC_STORES.find(
+    (s) => s.slug?.toLowerCase() === clean || s.id?.toLowerCase() === clean
+  );
+  if (basic) {
+    const cityName = basic.delivery_city?.split("(")[0]?.trim() || "Burkina Faso";
+    const phone = "+22670000000";
+    return {
+      id: basic.id,
+      name: basic.name,
+      slug: basic.slug,
+      tagline: basic.tagline,
+      description: basic.description,
+      owner_bio: basic.owner_bio || `Responsable et gérant(e) chez ${basic.name}. Produits certifiés authentiques.`,
+      owner_name: basic.owner_name || "Gérant(e)",
+      currency: basic.currency || "FCFA",
+      logo_url: basic.logo_url || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80",
+      avatar_url: basic.avatar_url || "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&auto=format&fit=crop&q=80",
+      rating: basic.rating || 4.9,
+      sales_count: basic.sales_count || 120,
+      revenue: (basic.sales_count || 120) * 12500,
+      is_verified: basic.is_verified !== false,
+      social_tunnel_badge: basic.social_tunnel_badge || "WA/DIRECT",
+      social_tunnel_label: basic.social_tunnel_label || "Tunnel Direct Actif",
+      is_flash_active: true,
+      flash_title: `Offre Spéciale ${basic.name}`,
+      flash_subtitle: `${cityName} • Livraison express avec paiement à la livraison`,
+      flash_remaining_seconds: 14400,
+      voice_note_title: `Besoin d'un renseignement ou d'un conseil ?`,
+      voice_note_subtitle: `${basic.owner_name || "Le vendeur"} vous répond directement sur WhatsApp.`,
+      primary_color: basic.primary_color || "#ec761e",
+      secondary_color: basic.secondary_color || "#10b981",
+      theme_preset: "custom",
+      is_custom_theme_active: true,
+      is_loyalty_active: true,
+      loyalty_spend_per_point: 1000,
+      subscription_status: "ACTIVE",
+      subscription_plan: "PRO",
+      contact_whatsapp: phone,
+      contact_email: `${basic.slug}@gotoshop.bf`,
+      trust_badges: [
+        { id: `tb-${basic.slug}-1`, icon_name: "verified", label: "Commerçant Vérifié", badge_type: "primary" },
+        { id: `tb-${basic.slug}-2`, icon_name: "local_shipping", label: "Paiement à la Livraison", badge_type: "secondary" },
+        { id: `tb-${basic.slug}-3`, icon_name: "chat", label: "Commande Directe WhatsApp", badge_type: "secondary-fixed" },
+      ],
+      delivery_cities: [
+        { id: `dc-${basic.slug}-1`, name: basic.delivery_city || "Ouagadougou", display_label: `📍 ${cityName}`, is_default: true },
+        { id: `dc-${basic.slug}-2`, name: "Bobo-Dioulasso", display_label: "Bobo", is_default: false },
+        { id: `dc-${basic.slug}-3`, name: "Expédition Sous-Régionale", display_label: "Sous-Région", is_default: false },
+      ],
+      channels: [
+        { id: `ch-${basic.slug}-1`, channel_type: "WHATSAPP", display_title: "WhatsApp Direct", badge_text: "RECOMMANDÉ", badge_style: "primary", account_handle: phone.replace(/[^0-9]/g, ""), subtitle: "Réponse en moins de 5 min", icon_name: "chat", theme_color: "#25D366", is_active: true, is_recommended: true },
+        { id: `ch-${basic.slug}-2`, channel_type: "CALL", display_title: "Appel Direct Vendeur", badge_text: cityName, badge_style: "secondary", account_handle: phone, subtitle: basic.owner_name || "Ligne directe commerçant", icon_name: "phone_in_talk", theme_color: basic.primary_color || "#ec761e", is_active: true, is_recommended: false },
+      ],
+      loyalty_tiers: [
+        { id: `lt-${basic.slug}-1`, name: "Niveau Découverte", min_points: 0, badge_label: "Client Bienvenue", perk_title: "Conseils directs WhatsApp", perk_description: "Assistance et suivi direct de votre commande.", discount_percent: 0 },
+        { id: `lt-${basic.slug}-2`, name: "Privilège Fidèle", min_points: 50, badge_label: "Client Privilège", perk_title: "5% de remise permanente", perk_description: "Remise appliquée automatiquement sur chaque achat.", discount_percent: 5 },
+        { id: `lt-${basic.slug}-3`, name: "Club VIP Élite", min_points: 150, badge_label: "Client VIP", perk_title: "10% de remise & Cadeau surprise", perk_description: "Traitement prioritaire et cadeau sur mesure.", discount_percent: 10 },
+      ]
+    };
+  }
+
   return FALLBACK_DETAILED_STORES["faso-danfani"];
 }
 
 export function getFallbackCategories(slug) {
-  if (slug && FALLBACK_CATEGORIES[slug]) {
-    return FALLBACK_CATEGORIES[slug];
+  if (!slug) return FALLBACK_CATEGORIES["faso-danfani"];
+  const clean = slug.toLowerCase().trim();
+  if (FALLBACK_CATEGORIES[clean]) {
+    return FALLBACK_CATEGORIES[clean];
   }
-  return FALLBACK_CATEGORIES["faso-danfani"];
+  const basic = FALLBACK_PUBLIC_STORES.find(
+    (s) => s.slug?.toLowerCase() === clean || s.id?.toLowerCase() === clean
+  );
+  const catType = (basic?.category || "GENERAL").toUpperCase();
+  if (catType === "FOOD") {
+    return [
+      { id: `cat-${clean}-all`, name: "Tout", slug: "all", display_order: 0 },
+      { id: `cat-${clean}-1`, name: "Plats Chauds & Spécialités", slug: "plats-chauds", display_order: 1 },
+      { id: `cat-${clean}-2`, name: "Accompagnements & Sauces", slug: "accompagnements", display_order: 2 },
+      { id: `cat-${clean}-3`, name: "Boissons Fraîches Locales", slug: "boissons", display_order: 3 },
+    ];
+  } else if (catType === "FASHION") {
+    return [
+      { id: `cat-${clean}-all`, name: "Tout", slug: "all", display_order: 0 },
+      { id: `cat-${clean}-1`, name: "Créations & Tenues Nobles", slug: "creations", display_order: 1 },
+      { id: `cat-${clean}-2`, name: "Pagnes & Étoffes Rares", slug: "pagnes", display_order: 2 },
+      { id: `cat-${clean}-3`, name: "Accessoires & Finitions", slug: "accessoires", display_order: 3 },
+    ];
+  } else if (catType === "TECH") {
+    return [
+      { id: `cat-${clean}-all`, name: "Tout", slug: "all", display_order: 0 },
+      { id: `cat-${clean}-1`, name: "Appareils Neufs Garantis", slug: "appareils", display_order: 1 },
+      { id: `cat-${clean}-2`, name: "Audio & Écouteurs Pro", slug: "audio", display_order: 2 },
+      { id: `cat-${clean}-3`, name: "Accessoires & Connectique", slug: "accessoires", display_order: 3 },
+    ];
+  } else if (catType === "BEAUTY") {
+    return [
+      { id: `cat-${clean}-all`, name: "Tout", slug: "all", display_order: 0 },
+      { id: `cat-${clean}-1`, name: "Soins Visage & Corps", slug: "soins", display_order: 1 },
+      { id: `cat-${clean}-2`, name: "Beurres & Huiles Bio", slug: "huiles", display_order: 2 },
+      { id: `cat-${clean}-3`, name: "Savons Artisanaux", slug: "savons", display_order: 3 },
+    ];
+  }
+  return [
+    { id: `cat-${clean}-all`, name: "Tout", slug: "all", display_order: 0 },
+    { id: `cat-${clean}-1`, name: "Nouveautés & Arrivages", slug: "nouveautes", display_order: 1 },
+    { id: `cat-${clean}-2`, name: "Meilleures Ventes", slug: "meilleures-ventes", display_order: 2 },
+    { id: `cat-${clean}-3`, name: "Offres Vedettes", slug: "offres", display_order: 3 },
+  ];
 }
 
 export function getFallbackProducts(slug, categoryId = null) {
-  const products = (slug && FALLBACK_PRODUCTS[slug]) ? FALLBACK_PRODUCTS[slug] : FALLBACK_PRODUCTS["faso-danfani"];
-  if (!categoryId || categoryId === "all" || categoryId === "cat-fd-all" || categoryId === "cat-ot-all" || categoryId === "cat-sb-all") {
+  if (!slug) return FALLBACK_PRODUCTS["faso-danfani"];
+  const clean = slug.toLowerCase().trim();
+  let products = FALLBACK_PRODUCTS[clean];
+
+  if (!products) {
+    const basic = FALLBACK_PUBLIC_STORES.find(
+      (s) => s.slug?.toLowerCase() === clean || s.id?.toLowerCase() === clean
+    );
+    const storeName = basic?.name || "Boutique";
+    const catType = (basic?.category || "GENERAL").toUpperCase();
+    const curr = basic?.currency || "FCFA";
+    const img1 = basic?.logo_url || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80";
+    const img2 = "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&auto=format&fit=crop&q=80";
+
+    let p1_name = `Spécialité Vedette ${storeName}`;
+    let p1_price = 15000;
+    let p2_name = `Pack Sélection ${storeName}`;
+    let p2_price = 8500;
+    let p3_name = `Offre Découverte Exclusive`;
+    let p3_price = 5000;
+
+    if (catType === "FOOD") {
+      p1_name = `Plat Signature Dégustation - ${storeName}`;
+      p1_price = 3500;
+      p2_name = `Portion Duo Gourmande avec Boisson Fraîche`;
+      p2_price = 6000;
+      p3_name = `Accompagnement & Sauce Maison Authentique`;
+      p3_price = 1000;
+    } else if (catType === "FASHION") {
+      p1_name = `Création Prestige Sur-Mesure - ${storeName}`;
+      p1_price = 32000;
+      p2_name = `Ensemble Élégance Sahélienne`;
+      p2_price = 22000;
+      p3_name = `Parure ou Étoffe d'Apparat`;
+      p3_price = 12000;
+    } else if (catType === "TECH") {
+      p1_name = `Pack High-Tech Ultra Garanti - ${storeName}`;
+      p1_price = 65000;
+      p2_name = `Écouteurs Pro Haute Définition Sans Fil`;
+      p2_price = 16000;
+      p3_name = `Batterie Externe Rapide & Câble Renforcé`;
+      p3_price = 9000;
+    } else if (catType === "BEAUTY") {
+      p1_name = `Coffret Soin Éclat & Beauté Bio - ${storeName}`;
+      p1_price = 9500;
+      p2_name = `Pot Familial Beurre Pur Récolte Sauvage (500g)`;
+      p2_price = 5500;
+      p3_name = `Savon Surgras Purifiant au Miel Sahélien`;
+      p3_price = 2500;
+    }
+
+    products = [
+      {
+        id: `prod-${clean}-01`,
+        category_id: `cat-${clean}-1`,
+        name: p1_name,
+        slug: `hero-${clean}`,
+        description: `Produit d'excellence sélectionné par ${storeName}. Confection soignée, authenticité certifiée et livraison rapide garantie avec paiement à la réception.`,
+        short_description: `Offre vedette authentique chez ${storeName}, livraison directe.`,
+        price: p1_price,
+        old_price: Math.round(p1_price * 1.25),
+        currency: curr,
+        stock: 12,
+        stock_label: "Disponible en stock",
+        is_hero_deal: true,
+        badge_tag: "Offre Vedette ★",
+        active_discussions_count: 24,
+        views_count: 780,
+        sales_count: 42,
+        revenue: 42 * p1_price,
+        guarantee_text: "100% Authentique",
+        primary_image_url: img1,
+        display_order: 0,
+      },
+      {
+        id: `prod-${clean}-02`,
+        category_id: `cat-${clean}-2`,
+        name: p2_name,
+        slug: `pack-${clean}`,
+        description: `Sélection premium appréciée des clients habitués de ${storeName}. Rapport qualité-prix imbattable.`,
+        short_description: `Sélection premium ${storeName}, satisfaction client garantie.`,
+        price: p2_price,
+        old_price: Math.round(p2_price * 1.2),
+        currency: curr,
+        stock: 20,
+        stock_label: "En stock",
+        is_hero_deal: false,
+        badge_tag: "Meilleure Vente",
+        active_discussions_count: 15,
+        views_count: 490,
+        sales_count: 28,
+        revenue: 28 * p2_price,
+        guarantee_text: "Qualité Certifiée",
+        primary_image_url: img2,
+        display_order: 1,
+      },
+      {
+        id: `prod-${clean}-03`,
+        category_id: `cat-${clean}-3`,
+        name: p3_name,
+        slug: `decouverte-${clean}`,
+        description: `Idéal pour découvrir les produits de ${storeName} à prix doux avec commande directe sur WhatsApp.`,
+        short_description: `Offre découverte accessible avec commande directe et rapide.`,
+        price: p3_price,
+        old_price: Math.round(p3_price * 1.15),
+        currency: curr,
+        stock: 25,
+        stock_label: "En stock",
+        is_hero_deal: false,
+        badge_tag: "Prix Spécial",
+        active_discussions_count: 11,
+        views_count: 320,
+        sales_count: 19,
+        revenue: 19 * p3_price,
+        guarantee_text: "Paiement Livraison",
+        primary_image_url: img1,
+        display_order: 2,
+      },
+    ];
+  }
+
+  if (!categoryId || categoryId === "all" || categoryId.endsWith("-all")) {
     return products;
   }
   return products.filter((p) => p.category_id === categoryId);

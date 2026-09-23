@@ -15,6 +15,7 @@ from app.schemas.store import (
     StoreOwnerBriefSchema,
 )
 from app.services.catalog_service import save_base64_media
+from app.core.security import hash_password
 
 def slugify(text: str) -> str:
     text = text.lower().strip()
@@ -28,9 +29,6 @@ def slugify(text: str) -> str:
     text = re.sub(r'[\s_]+', '-', text)
     text = re.sub(r'-+', '-', text)
     return text.strip('-')
-
-def hash_pwd(password: str, salt: str) -> str:
-    return hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
 
 class StoreService:
     @staticmethod
@@ -71,6 +69,18 @@ class StoreService:
                 store = db.query(Store).filter(Store.slug == "awa-chic").first()
                 if store:
                     return store
+            
+            # Check authentic stores catalog and auto-seed if requested
+            try:
+                from app.seed.stores_data import seed_single_store_by_slug
+                store = seed_single_store_by_slug(db, clean_slug)
+                if store:
+                    return store
+            except Exception as e_seed:
+                print(f"Notice on auto-seeding store {clean_slug}: {e_seed}")
+
+            # An explicit slug was requested but does not exist -> return None (404)
+            return None
 
         if host:
             hostname = host.split(":")[0].strip().lower()
@@ -87,16 +97,20 @@ class StoreService:
                 store = db.query(Store).filter(Store.slug == "awa-chic-tech").first()
                 if store:
                     return store
+            return None
 
+        # Return default store only if no specific slug or host was requested
         return StoreService.get_default_store(db)
 
     @staticmethod
     def get_public_stores(db: Session):
         stores = db.query(Store).filter(Store.subscription_status != "SUSPENDED").all()
         result = []
+        existing_slugs = set()
         for s in stores:
             city_name = s.delivery_cities[0].name if s.delivery_cities else "Burkina Faso"
             prods_count = len(s.products) if s.products else 0
+            existing_slugs.add(s.slug)
             result.append({
                 "id": s.id,
                 "name": s.name,
@@ -119,6 +133,17 @@ class StoreService:
                 "social_tunnel_badge": s.social_tunnel_badge or "WA/FB",
                 "social_tunnel_label": s.social_tunnel_label or "Tunnel Social Actif",
             })
+
+        try:
+            from app.seed.stores_data import get_predefined_stores
+            for st in get_predefined_stores():
+                slug = st.get("slug")
+                if slug and slug not in existing_slugs:
+                    existing_slugs.add(slug)
+                    result.append(st)
+        except Exception as e_cat:
+            print(f"Notice on public stores catalog: {e_cat}")
+
         return result
 
     @staticmethod
@@ -206,15 +231,14 @@ class StoreService:
         owner = db.query(Owner).filter(Owner.email == owner_email).first()
         temp_pwd = None
         must_change = False
-        salt = secrets.token_hex(16)
         if data.password and len(data.password.strip()) >= 6:
             pwd_to_use = data.password.strip()
-            hashed = hash_pwd(pwd_to_use, salt)
+            hashed, salt = hash_password(pwd_to_use)
             must_change = False
         else:
             temp_pwd = f"GotoShop!{secrets.token_hex(3)}"
             pwd_to_use = temp_pwd
-            hashed = hash_pwd(pwd_to_use, salt)
+            hashed, salt = hash_password(pwd_to_use)
             must_change = True
 
         session_token = secrets.token_hex(32)
@@ -431,6 +455,7 @@ class StoreService:
                 phone_number=owner.phone_number
             ),
             temporary_password=temp_pwd or (data.password if data.password else None),
+            must_change_password=must_change,
             subscription_status=store.subscription_status,
             trial_days=trial_days
         )

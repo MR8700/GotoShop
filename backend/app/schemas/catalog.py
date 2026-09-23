@@ -45,6 +45,9 @@ class ProductSchema(BaseModel):
     video_url: Optional[str] = None
     pdf_catalog_url: Optional[str] = None
     is_published: bool
+    is_customizable: bool = False
+    customization_prompt: Optional[str] = "Décris ton plat"
+    customization_options: Optional[str] = None
     display_order: int
     variants: List[VariantSchema] = []
     images: List[ProductImageSchema] = []
@@ -53,7 +56,7 @@ class ProductSchema(BaseModel):
         from_attributes = True
 
 class ProductCreateSchema(BaseModel):
-    store_id: str
+    store_id: Optional[str] = None
     name: str
     category_id: Optional[str] = None
     price: int
@@ -65,6 +68,9 @@ class ProductCreateSchema(BaseModel):
     image_data: Optional[str] = None # base64 data url or path
     video_data: Optional[str] = None
     pdf_data: Optional[str] = None
+    is_customizable: Optional[bool] = False
+    customization_prompt: Optional[str] = "Décris ton plat"
+    customization_options: Optional[str] = None
 
 class ProductUpdateSchema(BaseModel):
     name: Optional[str] = None
@@ -75,10 +81,14 @@ class ProductUpdateSchema(BaseModel):
     description: Optional[str] = None
     short_description: Optional[str] = None
     badge_tag: Optional[str] = None
+    is_hero_deal: Optional[bool] = None
     is_published: Optional[bool] = None
     image_data: Optional[str] = None
     video_data: Optional[str] = None
     pdf_data: Optional[str] = None
+    is_customizable: Optional[bool] = None
+    customization_prompt: Optional[str] = None
+    customization_options: Optional[str] = None
 
 class CategorySchema(BaseModel):
     id: str

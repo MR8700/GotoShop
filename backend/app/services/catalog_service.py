@@ -107,8 +107,14 @@ class CatalogService:
 
         slug = slugify(req.name) + "-" + uuid.uuid4().hex[:4]
 
+        store_id = req.store_id
+        if not store_id:
+            from app.models.store import Store
+            default_st = db.query(Store).first()
+            store_id = default_st.id if default_st else "default-store"
+
         product = Product(
-            store_id=req.store_id,
+            store_id=store_id,
             category_id=req.category_id,
             name=req.name,
             slug=slug,
@@ -124,6 +130,9 @@ class CatalogService:
             pdf_catalog_url=pdf_url,
             is_hero_deal=False,
             is_published=True,
+            is_customizable=bool(req.is_customizable),
+            customization_prompt=req.customization_prompt or "Décris ton plat",
+            customization_options=req.customization_options,
             display_order=0,
         )
         db.add(product)
@@ -138,6 +147,8 @@ class CatalogService:
             return None
 
         update_data = req.model_dump(exclude_unset=True)
+        if update_data.get("is_hero_deal") is True:
+            db.query(Product).filter(Product.store_id == product.store_id, Product.id != product.id).update({"is_hero_deal": False})
 
         if "image_data" in update_data and update_data["image_data"]:
             product.primary_image_url = save_base64_media(update_data["image_data"], prefix="img")

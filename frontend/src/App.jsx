@@ -6,6 +6,7 @@ import {
   fetchChannels,
   trackVisit,
   fetchAuthStatus,
+  setAuthToken,
   logoutOwner,
   fetchCustomerProfile,
   fetchCustomerOrders,
@@ -16,6 +17,7 @@ import {
   deleteProduct,
   fetchPublicStores,
   FALLBACK_PUBLIC_STORES,
+  fetchConversations,
 } from "./api/client";
 import Header from "./components/Header";
 import BottomNav from "./components/BottomNav";
@@ -36,6 +38,8 @@ import SuperAdminDashboard from "./components/SuperAdminDashboard";
 import StoreSwitcherModal from "./components/StoreSwitcherModal";
 import SubscriptionModal from "./components/SubscriptionModal";
 import StoreExplorerPage from "./components/StoreExplorerPage";
+import ChatPage from "./components/ChatPage";
+import ConversationalOrderModal from "./components/ConversationalOrderModal";
 import { getActiveStoreSlug, setActiveStoreSlug } from "./api/client";
 
 export default function App() {
@@ -50,6 +54,11 @@ export default function App() {
   const [tunnelInitialColor, setTunnelInitialColor] = useState("Bleu Nuit");
   const [confirmToken, setConfirmToken] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Conversational Commerce State
+  const [conversationalOrderProduct, setConversationalOrderProduct] = useState(null);
+  const [activeConversationId, setActiveConversationId] = useState(null);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   // Multi-Store & Super-Admin state
   const [isSuperAdminOpen, setIsSuperAdminOpen] = useState(() => {
@@ -114,14 +123,15 @@ export default function App() {
     }, 2500);
   };
 
-  const loadAllData = async () => {
+  const loadAllData = async (targetSlug = null) => {
     try {
       setLoading(true);
+      const activeSlug = targetSlug || getActiveStoreSlug();
       const [s, cats, prods, chs] = await Promise.all([
-        fetchStore(),
-        fetchCategories(),
-        fetchProducts(),
-        fetchChannels(),
+        fetchStore(activeSlug),
+        fetchCategories(activeSlug),
+        fetchProducts(null, activeSlug),
+        fetchChannels(activeSlug),
       ]);
       setStore(s);
       setCategories(cats);
@@ -233,6 +243,22 @@ export default function App() {
     }
   }, [store?.is_custom_theme_active, store?.primary_color, store?.secondary_color]);
 
+  const loadUnreadChatCount = async () => {
+    try {
+      const res = await fetchConversations(store?.id || 1, appMode === "owner" ? "owner" : "client");
+      if (res && res.conversations) {
+        const total = res.conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
+        setUnreadChatCount(total);
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    loadUnreadChatCount();
+    const interval = setInterval(loadUnreadChatCount, 15000);
+    return () => clearInterval(interval);
+  }, [store?.id, appMode]);
+
   const handleSelectTab = (tab) => {
     // When in owner mode, protect admin screens
     if (appMode === "owner" && (tab === "commandes" || tab === "stats" || tab === "reglages")) {
@@ -247,6 +273,9 @@ export default function App() {
         showToast("Modification obligatoire du mot de passe requise");
         return;
       }
+    }
+    if (tab === "chat") {
+      loadUnreadChatCount();
     }
     setActiveTab(tab);
   };
@@ -371,6 +400,17 @@ export default function App() {
     }
   };
 
+  const handleOpenConversationalOrder = (product) => {
+    setConversationalOrderProduct(product);
+  };
+
+  const handleOpenChat = (conversationId = null) => {
+    if (conversationId) {
+      setActiveConversationId(conversationId);
+    }
+    setActiveTab("chat");
+  };
+
   const handleProductUpdated = (updated) => {
     setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     loadAllData();
@@ -401,7 +441,7 @@ export default function App() {
       window.history.pushState({}, "", url);
     } catch (e) {}
 
-    await loadAllData();
+    await loadAllData(slug);
     if (openAdmin) {
       setAppMode("owner");
       setActiveTab("commandes");
@@ -420,7 +460,7 @@ export default function App() {
       url.searchParams.set("store", slug);
       window.history.pushState({}, "", url);
     } catch (e) {}
-    await loadAllData();
+    await loadAllData(slug);
     setActiveTab("boutique");
     showToast("Boutique chargée avec succès !");
   };
@@ -437,9 +477,21 @@ export default function App() {
 
   const handleStoreRegistered = async (result, openAdmin = true) => {
     if (result?.slug) {
+      if (result.access_token) {
+        setAuthToken(result.access_token);
+        setAuthStatus({
+          is_authenticated: true,
+          must_change_password: Boolean(result.must_change_password),
+          owner_name: result.owner?.full_name || result.store_name,
+          email: result.owner?.email,
+        });
+      }
       await handleSwitchStore(result.slug, openAdmin);
       await loadPublicStores();
       showToast(`🎉 Félicitations ! Votre boutique "${result.store_name || result.slug}" est ouverte !`);
+      if (result.must_change_password && openAdmin) {
+        setIsChangePasswordOpen(true);
+      }
     } else {
       showToast("Demande d'abonnement transmise avec succès !");
     }
@@ -545,7 +597,7 @@ export default function App() {
       />
 
       {/* Main Screen Container */}
-      <main className="flex flex-col relative w-full pt-16 px-margin bg-surface flex-grow max-w-lg mx-auto">
+      <main className={`flex flex-col relative w-full pt-16 bg-surface flex-grow ${activeTab === "chat" ? "max-w-4xl px-2 sm:px-4" : "max-w-lg px-margin"} mx-auto`}>
         {activeTab === "boutique" && (
           <VitrinePage
             store={store}
@@ -563,6 +615,8 @@ export default function App() {
             onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
             onProductUpdated={handleProductUpdated}
             onProductDeleted={handleProductDeleted}
+            onOpenConversationalOrder={handleOpenConversationalOrder}
+            onOpenChat={handleOpenChat}
           />
         )}
 
@@ -593,6 +647,7 @@ export default function App() {
               showToast={showToast}
               onSaleConfirmed={() => loadAllData()}
               onProductCreated={() => loadAllData()}
+              onOpenChat={handleOpenChat}
             />
           ) : (
             <ClientCommandesPage
@@ -600,8 +655,24 @@ export default function App() {
               onOpenAuth={() => setIsCustomerAuthOpen(true)}
               onNavigateToShop={() => setActiveTab("boutique")}
               showToast={showToast}
+              onOpenChat={handleOpenChat}
             />
           )
+        )}
+
+        {/* Tab: Chat & Messagerie */}
+        {activeTab === "chat" && (
+          <ChatPage
+            store={store}
+            customer={customer}
+            initialConversationId={activeConversationId}
+            appMode={appMode}
+            onClose={() => setActiveTab("boutique")}
+            showToast={showToast}
+            onNavigateToOrder={() => {
+              setActiveTab("commandes");
+            }}
+          />
         )}
 
         {/* Tab 3: Stats / Avantages */}
@@ -683,6 +754,30 @@ export default function App() {
           mode={appMode}
           pendingCount={3}
           clientOrdersCount={clientOrdersCount}
+          unreadChatCount={unreadChatCount}
+        />
+      )}
+
+      {/* Conversational Order & Customization Modal */}
+      {conversationalOrderProduct && (
+        <ConversationalOrderModal
+          store={store}
+          product={conversationalOrderProduct}
+          customer={customer}
+          onClose={() => setConversationalOrderProduct(null)}
+          showToast={showToast}
+          onOrderCreated={(order) => {
+            setConversationalOrderProduct(null);
+            setClientOrdersCount((prev) => prev + 1);
+            loadUnreadChatCount();
+            if (order.conversation_id) {
+              handleOpenChat(order.conversation_id);
+            }
+          }}
+          onOpenChat={(convId) => {
+            setConversationalOrderProduct(null);
+            handleOpenChat(convId);
+          }}
         />
       )}
 
@@ -691,6 +786,11 @@ export default function App() {
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
         onLoginSuccess={handleLoginSuccess}
+        onOpenRegisterStore={() => {
+          setIsLoginOpen(false);
+          setSubModalMode("NEW_STORE");
+          setIsSubscriptionModalOpen(true);
+        }}
         showToast={showToast}
       />
 
@@ -700,6 +800,7 @@ export default function App() {
           isMandatory={authStatus.must_change_password}
           onClose={() => setIsChangePasswordOpen(false)}
           onSuccess={handleChangePasswordSuccess}
+          onLogout={handleLogout}
           showToast={showToast}
         />
       )}

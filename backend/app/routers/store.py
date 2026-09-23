@@ -29,10 +29,11 @@ def register_store(data: StoreRegisterRequest, db: Session = Depends(get_db)):
 def get_current_store(
     request: Request,
     store_slug: Optional[str] = Query(None, alias="store"),
+    slug_param: Optional[str] = Query(None, alias="slug"),
     x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
     db: Session = Depends(get_db)
 ):
-    slug = x_store_slug or store_slug
+    slug = x_store_slug or store_slug or slug_param
     host = request.headers.get("host") if request else None
     store = StoreService.resolve_store(db, slug=slug, host=host)
     if not store:

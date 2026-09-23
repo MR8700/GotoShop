@@ -11,11 +11,15 @@ router = APIRouter(prefix="/catalog", tags=["Catalog"])
 @router.get("/categories", response_model=List[CategorySchema])
 def list_categories(
     request: Request,
+    store_id: Optional[str] = Query(None),
     store_slug: Optional[str] = Query(None, alias="store"),
+    slug_param: Optional[str] = Query(None, alias="slug"),
     x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
     db: Session = Depends(get_db)
 ):
-    slug = x_store_slug or store_slug
+    if store_id:
+        return CatalogService.get_categories(db, store_id)
+    slug = x_store_slug or store_slug or slug_param
     host = request.headers.get("host") if request else None
     store = StoreService.resolve_store(db, slug=slug, host=host)
     if not store:
@@ -26,11 +30,15 @@ def list_categories(
 def list_products(
     request: Request,
     category_id: Optional[str] = Query(None),
+    store_id: Optional[str] = Query(None),
     store_slug: Optional[str] = Query(None, alias="store"),
+    slug_param: Optional[str] = Query(None, alias="slug"),
     x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
     db: Session = Depends(get_db)
 ):
-    slug = x_store_slug or store_slug
+    if store_id:
+        return CatalogService.get_products(db, store_id, category_id)
+    slug = x_store_slug or store_slug or slug_param
     host = request.headers.get("host") if request else None
     store = StoreService.resolve_store(db, slug=slug, host=host)
     if not store:
