@@ -1365,11 +1365,11 @@ export async function createConversationalOrder(orderData) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(orderData),
   });
+  const data = await safeParseJson(res);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Erreur lors de la création de la commande");
+    throw new Error(formatErrorMessage(data, "Erreur lors de la création de la commande"));
   }
-  return res.json();
+  return data;
 }
 
 export async function fetchConversationalOrders({ store_id, customer_id, customer_token, status } = {}) {

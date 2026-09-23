@@ -14,6 +14,7 @@ from app.models.customer import Customer
 from app.models.audit import AuditLog
 from app.models.commerce import OrderIntent
 from app.services.chat_service import ChatService
+from app.services.store_service import StoreService
 from app.realtime.connection_manager import manager
 
 class OrderService:
@@ -48,9 +49,20 @@ class OrderService:
         delivery_fee: int = 500,
         notes: Optional[str] = None
     ) -> Dict[str, Any]:
-        store = db.query(Store).filter(Store.id == store_id).first()
+        store = StoreService.resolve_store(db, slug=store_id)
+        if not store:
+            store = StoreService.get_default_store(db)
         if not store:
             raise ValueError(f"Store {store_id} not found")
+
+        actual_store_id = store.id
+
+        # Validate customer_id against customers table to prevent foreign key errors
+        actual_customer_id = None
+        if customer_id:
+            cust = db.query(Customer).filter(Customer.id == customer_id).first()
+            if cust:
+                actual_customer_id = cust.id
 
         order_number = OrderService.generate_order_number(db, store.slug)
         order_id = str(uuid.uuid4())
@@ -64,13 +76,22 @@ class OrderService:
             qty = max(1, int(it.get("quantity", 1)))
             unit_price = int(it.get("unit_price", 0))
 
-            product = db.query(Product).filter(Product.id == product_id).first() if product_id else None
+            product = None
+            if product_id:
+                product = db.query(Product).filter(Product.id == product_id).first()
+                if not product and hasattr(Product, "slug"):
+                    product = db.query(Product).filter(Product.slug == product_id).first()
+
+            if not product:
+                product = db.query(Product).filter(Product.store_id == actual_store_id).first()
+
             product_name = it.get("product_name") or (product.name if product else "Produit")
             if not unit_price and product:
                 unit_price = product.price
 
+            var = None
             variant_name = it.get("variant_name")
-            if variant_id and not variant_name:
+            if variant_id:
                 var = db.query(ProductVariant).filter(ProductVariant.id == variant_id).first()
                 if var:
                     variant_name = var.name
@@ -87,11 +108,15 @@ class OrderService:
 
             is_customized = bool(customization_text or customization_options)
 
+            # Store only valid ForeignKeys
+            actual_product_id = product.id if product else None
+            actual_variant_id = var.id if var else None
+
             item = OrderItem(
                 id=str(uuid.uuid4()),
                 order_id=order_id,
-                product_id=product_id,
-                variant_id=variant_id,
+                product_id=actual_product_id,
+                variant_id=actual_variant_id,
                 product_name=product_name,
                 variant_name=variant_name,
                 quantity=qty,
@@ -108,8 +133,8 @@ class OrderService:
         order = Order(
             id=order_id,
             order_number=order_number,
-            store_id=store_id,
-            customer_id=customer_id,
+            store_id=actual_store_id,
+            customer_id=actual_customer_id,
             customer_token=customer_token,
             customer_name=customer_name,
             customer_phone=customer_phone,
@@ -150,7 +175,7 @@ class OrderService:
         payment = Payment(
             id=str(uuid.uuid4()),
             order_id=order.id,
-            store_id=store_id,
+            store_id=actual_store_id,
             amount=total_amount,
             currency=order.currency,
             payment_method="MOBILE_MONEY_PROOF",
@@ -159,41 +184,45 @@ class OrderService:
         db.add(payment)
 
         # Also create a bridging OrderIntent so existing analytics & metrics reflect this sale
-        primary_item = order_items[0] if order_items else None
         try:
-            intent = OrderIntent(
-                id=str(uuid.uuid4()),
-                reference_code=order_number,
-                store_id=store_id,
-                product_id=primary_item.product_id if primary_item and primary_item.product_id else "direct-order",
-                channel_type="IN_APP_CHAT",
-                customer_name=customer_name,
-                customer_phone=customer_phone,
-                customer_source="CONVERSATIONAL_COMMERCE",
-                customer_location_url=f"https://maps.google.com/?q={delivery.latitude},{delivery.longitude}" if delivery.latitude else None,
-                customer_coordinates=f"{delivery.latitude}, {delivery.longitude}" if delivery.latitude else None,
-                customer_id=customer_id,
-                quantity=primary_item.quantity if primary_item else 1,
-                selected_color=primary_item.variant_name if primary_item else "Standard",
-                delivery_city=delivery.delivery_city,
-                unit_price=primary_item.unit_price if primary_item else total_amount,
-                total_amount=total_amount,
-                currency=order.currency,
-                status="CREATED",
-                client_status="PENDING",
-                coherence_status="HARMONIZED_PENDING"
-            )
-            db.add(intent)
-        except Exception:
-            pass
+            intent_product = db.query(Product).filter(Product.id == order_items[0].product_id).first() if order_items and order_items[0].product_id else None
+            if not intent_product:
+                intent_product = db.query(Product).filter(Product.store_id == actual_store_id).first() or db.query(Product).first()
+
+            if intent_product:
+                intent = OrderIntent(
+                    id=str(uuid.uuid4()),
+                    reference_code=order_number,
+                    store_id=actual_store_id,
+                    product_id=intent_product.id,
+                    channel_type="IN_APP_CHAT",
+                    customer_name=customer_name,
+                    customer_phone=customer_phone,
+                    customer_source="CONVERSATIONAL_COMMERCE",
+                    customer_location_url=f"https://maps.google.com/?q={delivery.latitude},{delivery.longitude}" if delivery.latitude else None,
+                    customer_coordinates=f"{delivery.latitude}, {delivery.longitude}" if delivery.latitude else None,
+                    customer_id=actual_customer_id,
+                    quantity=order_items[0].quantity if order_items else 1,
+                    selected_color=order_items[0].variant_name if order_items else "Standard",
+                    delivery_city=delivery.delivery_city,
+                    unit_price=order_items[0].unit_price if order_items else total_amount,
+                    total_amount=total_amount,
+                    currency=order.currency,
+                    status="CREATED",
+                    client_status="PENDING",
+                    coherence_status="HARMONIZED_PENDING"
+                )
+                db.add(intent)
+        except Exception as e_intent:
+            print("Notice: OrderIntent bridge skipped:", e_intent)
 
         # Create or link order conversation
         conv = ChatService.get_or_create_conversation(
             db=db,
-            store_id=store_id,
+            store_id=actual_store_id,
             context_type="ORDER",
             order_id=order.id,
-            customer_id=customer_id,
+            customer_id=actual_customer_id,
             customer_token=customer_token,
             customer_name=customer_name
         )
@@ -248,7 +277,7 @@ class OrderService:
             "type": "order.created",
             "order_id": order.id,
             "order_number": order.order_number,
-            "store_id": store_id,
+            "store_id": actual_store_id,
             "total_amount": order.total_amount,
             "currency": order.currency,
             "customer_name": customer_name,

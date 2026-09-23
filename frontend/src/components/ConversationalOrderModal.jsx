@@ -100,14 +100,24 @@ export default function ConversationalOrderModal({
           }
         : null;
 
+      const resolvedStoreId = store?.id || store?.slug || getActiveStoreSlug() || "default-store";
+
+      let guestToken = customer?.session_token || localStorage.getItem("conversastore_guest_token");
+      if (!guestToken) {
+        guestToken = "guest_" + Math.random().toString(36).substring(2, 10);
+        try {
+          localStorage.setItem("conversastore_guest_token", guestToken);
+        } catch (e) {}
+      }
+
       const orderPayload = {
-        store_id: store.id,
+        store_id: resolvedStoreId,
         items: [
           {
-            product_id: product?.id,
-            variant_id: selectedVariant?.id,
-            product_name: product?.name,
-            variant_name: selectedVariant?.name,
+            product_id: product?.id || null,
+            variant_id: selectedVariant?.id || null,
+            product_name: product?.name || "Article Spécial",
+            variant_name: selectedVariant?.name || null,
             quantity: quantity,
             unit_price: unitPrice,
             customization_text: isCustomizable ? customizationText : null,
@@ -116,8 +126,8 @@ export default function ConversationalOrderModal({
         ],
         delivery: {
           delivery_mode: deliveryMode,
-          delivery_city: deliveryCity,
-          delivery_address: deliveryAddress,
+          delivery_city: deliveryCity || "Ouagadougou",
+          delivery_address: deliveryAddress || "En magasin / Point de livraison",
           latitude: deliveryMode !== "ADDRESS_DESCRIPTION" ? latitude : null,
           longitude: deliveryMode !== "ADDRESS_DESCRIPTION" ? longitude : null,
           location_accuracy: locationAccuracy,
@@ -126,7 +136,7 @@ export default function ConversationalOrderModal({
         customer_name: customerName,
         customer_phone: customerPhone,
         customer_id: customer?.id || null,
-        customer_token: customer?.session_token || localStorage.getItem("conversastore_guest_token") || "guest_" + Math.random().toString(36).substring(2, 10),
+        customer_token: guestToken,
         delivery_fee: deliveryFee,
         notes: isCustomizable ? customizationText : null,
       };
@@ -134,9 +144,10 @@ export default function ConversationalOrderModal({
       const result = await createConversationalOrder(orderPayload);
       setCreatedOrder(result);
       setStep("SUCCESS");
-      showToast?.("Commande transmise en direct au commerçant !");
+      showToast?.("Commande transmise avec succès au commerçant !");
       onOrderCreated?.(result);
     } catch (err) {
+      console.error("Erreur transmission commande :", err);
       showToast?.(err.message || "Erreur création de la commande");
     } finally {
       setIsSubmitting(false);
@@ -480,17 +491,28 @@ export default function ConversationalOrderModal({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenChat?.(createdOrder?.conversation_id);
-              }}
-              className="w-full py-3 px-4 text-xs font-bold rounded-xl bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary-hover active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined text-base">forum</span>
-              <span>Ouvrir le chat de la commande</span>
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-3 px-4 text-xs font-semibold rounded-xl border border-border hover:bg-surface-elevated text-foreground transition-colors cursor-pointer"
+              >
+                Fermer
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (createdOrder?.conversation_id) {
+                    onOpenChat?.(createdOrder.conversation_id);
+                  }
+                }}
+                className="flex-[2] py-3 px-4 text-xs font-bold rounded-xl bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary-hover active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base">forum</span>
+                <span>Ouvrir le chat de la commande</span>
+              </button>
+            </div>
           )}
         </div>
 

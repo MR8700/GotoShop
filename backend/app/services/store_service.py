@@ -57,20 +57,43 @@ class StoreService:
     @staticmethod
     def resolve_store(db: Session, slug: Optional[str] = None, host: Optional[str] = None) -> Optional[Store]:
         if slug:
-            clean_slug = slug.strip().lower()
+            raw_val = str(slug).strip()
+            clean_slug = raw_val.lower()
+
+            # 1. Direct ID match (UUID or stored string ID)
+            store = db.query(Store).filter(Store.id == raw_val).first()
+            if store:
+                return store
+
+            # 2. Direct slug match
             store = db.query(Store).filter(Store.slug == clean_slug).first()
             if store:
                 return store
-            if clean_slug == "awa-chic":
-                store = db.query(Store).filter(Store.slug == "awa-chic-tech").first()
+
+            # 3. Known aliases
+            if clean_slug in ["awa-chic", "chic-tech", "awa-chic-tech"]:
+                store = db.query(Store).filter(Store.slug.in_(["awa-chic-tech", "awa-chic"])).first()
                 if store:
                     return store
-            if clean_slug == "awa-chic-tech":
-                store = db.query(Store).filter(Store.slug == "awa-chic").first()
+
+            # 4. Fallback ID normalization (e.g. 'store-faso-danfani-01' -> 'faso-danfani')
+            if clean_slug.startswith("store-"):
+                candidate = clean_slug[6:] # strip 'store-'
+                parts = candidate.rsplit("-", 1)
+                if len(parts) == 2 and parts[1].isdigit():
+                    candidate = parts[0]
+                store = db.query(Store).filter(Store.slug == candidate).first()
                 if store:
                     return store
+                try:
+                    from app.seed.stores_data import seed_single_store_by_slug
+                    store = seed_single_store_by_slug(db, candidate)
+                    if store:
+                        return store
+                except Exception:
+                    pass
             
-            # Check authentic stores catalog and auto-seed if requested
+            # 5. Check authentic stores catalog and auto-seed if requested
             try:
                 from app.seed.stores_data import seed_single_store_by_slug
                 store = seed_single_store_by_slug(db, clean_slug)

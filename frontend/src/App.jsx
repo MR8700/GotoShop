@@ -767,12 +767,8 @@ export default function App() {
           onClose={() => setConversationalOrderProduct(null)}
           showToast={showToast}
           onOrderCreated={(order) => {
-            setConversationalOrderProduct(null);
             setClientOrdersCount((prev) => prev + 1);
             loadUnreadChatCount();
-            if (order.conversation_id) {
-              handleOpenChat(order.conversation_id);
-            }
           }}
           onOpenChat={(convId) => {
             setConversationalOrderProduct(null);

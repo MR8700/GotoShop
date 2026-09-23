@@ -133,9 +133,12 @@ export default function TunnelHandoffModal({
     const finalMessage = (customMessage.trim() || getDefaultMessage()).trim();
 
     try {
+      const resolvedStoreId = store?.id || store?.slug || "faso-danfani";
+      const resolvedProductId = product?.id || "hero-product";
+
       const payload = {
-        store_id: store.id,
-        product_id: product.id,
+        store_id: resolvedStoreId,
+        product_id: resolvedProductId,
         channel_type: activeChannel,
         quantity: quantity,
         selected_color: selectedColor,

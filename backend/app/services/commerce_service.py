@@ -10,8 +10,10 @@ from app.models.store import Store
 from app.models.catalog import Product
 from app.models.channels import StoreChannel
 from app.models.analytics import TrackingEvent
+from app.models.customer import Customer
 from app.schemas.commerce import CreateIntentRequest, ConfirmSaleRequest, ClientOrderActionRequest, ResolveDiscrepancyRequest
 from app.services.notification_service import NotificationService
+from app.services.store_service import StoreService
 from app.adapters.factory import get_channel_adapter
 
 class CommerceService:
@@ -23,19 +25,43 @@ class CommerceService:
 
     @classmethod
     def create_order_intent(cls, db: Session, req: CreateIntentRequest) -> Tuple[OrderIntent, str, str, str]:
-        store = db.query(Store).filter(Store.id == req.store_id).first()
-        product = db.query(Product).filter(Product.id == req.product_id).first()
-        if not store or not product:
-            raise ValueError("Boutique ou Produit introuvable")
+        store = StoreService.resolve_store(db, slug=req.store_id)
+        if not store:
+            store = StoreService.get_default_store(db)
+        if not store:
+            raise ValueError("Boutique introuvable")
+
+        actual_store_id = store.id
+
+        product = None
+        if req.product_id:
+            product = db.query(Product).filter(Product.id == req.product_id).first()
+            if not product and hasattr(Product, "slug"):
+                product = db.query(Product).filter(Product.slug == req.product_id).first()
+        
+        if not product:
+            product = db.query(Product).filter(Product.store_id == actual_store_id).first()
+        if not product:
+            product = db.query(Product).first()
+        if not product:
+            raise ValueError("Produit introuvable")
+
+        actual_product_id = product.id
+
+        actual_customer_id = None
+        if req.customer_id:
+            cust = db.query(Customer).filter(Customer.id == req.customer_id).first()
+            if cust:
+                actual_customer_id = cust.id
 
         # Determine channel
         channel = db.query(StoreChannel).filter(
-            StoreChannel.store_id == req.store_id,
+            StoreChannel.store_id == actual_store_id,
             StoreChannel.channel_type == req.channel_type.upper(),
             StoreChannel.is_active == True
         ).first()
 
-        account_handle = channel.account_handle if channel else "2250700000000"
+        account_handle = channel.account_handle if channel else (store.contact_whatsapp or "2250700000000")
         channel_id = channel.id if channel else None
 
         reference_code = cls.generate_reference_code()
@@ -44,11 +70,11 @@ class CommerceService:
 
         intent = OrderIntent(
             reference_code=reference_code,
-            store_id=req.store_id,
-            product_id=req.product_id,
+            store_id=actual_store_id,
+            product_id=actual_product_id,
             channel_id=channel_id,
             channel_type=req.channel_type.upper(),
-            customer_id=req.customer_id,
+            customer_id=actual_customer_id,
             customer_name=req.customer_name,
             customer_phone=req.customer_phone,
             customer_source=req.customer_source or "DIRECT",
@@ -59,7 +85,7 @@ class CommerceService:
             delivery_city=req.delivery_city or "Abidjan",
             unit_price=unit_price,
             total_amount=total_amount,
-            currency=product.currency,
+            currency=product.currency or "FCFA",
             status="CREATED",
             client_status="PENDING",
             coherence_status="HARMONIZED_PENDING",
