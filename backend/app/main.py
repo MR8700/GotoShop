@@ -174,10 +174,3 @@ if not os.getenv("VERCEL"):
         except Exception as e_front:
             print("Notice: frontend dist mount skipped:", e_front)
 
-@app.on_event("startup")
-def startup_event():
-    try:
-        ensure_database_initialized()
-    except Exception as e_start:
-        print("[Startup] Safe startup notice:", e_start)
-

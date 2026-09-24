@@ -22,6 +22,36 @@ for p in candidates:
 try:
     from app.main import app
     handler = app
+
+    @app.get("/api/health")
+    @app.get("/health")
+    def direct_health():
+        import time
+        from app.database import ACTIVE_DATABASE_URL
+        return {
+            "status": "ok",
+            "timestamp": time.time(),
+            "active_db": ACTIVE_DATABASE_URL.split("@")[-1] if "@" in ACTIVE_DATABASE_URL else "sqlite",
+            "is_vercel": bool(os.getenv("VERCEL")),
+        }
+
+    @app.get("/api/db-check")
+    def db_check():
+        import time
+        from sqlalchemy import text
+        from app.database import engine, ACTIVE_DATABASE_URL
+        result = {"active_url": ACTIVE_DATABASE_URL.split("@")[-1] if "@" in ACTIVE_DATABASE_URL else "sqlite"}
+        t0 = time.time()
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            result["connection"] = "SUCCESS"
+            result["latency_ms"] = round((time.time() - t0) * 1000, 2)
+        except Exception as ex:
+            result["connection"] = "FAILED"
+            result["error"] = str(ex)
+            result["latency_ms"] = round((time.time() - t0) * 1000, 2)
+        return result
 except Exception as e:
     err_type = type(e).__name__
     err_msg = str(e)
