@@ -1,3 +1,4 @@
+import Icon from "./components/Icon";
 import React, { useState, useEffect } from "react";
 import {
   fetchStore,
@@ -551,11 +552,11 @@ export default function App() {
 
         {/* Interactive Feedback Toast */}
         <div
-          className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 rounded-full bg-secondary-container px-4 py-2 text-on-secondary font-label-md text-label-md shadow-2xl flex items-center gap-2 pointer-events-none transition-all duration-300 ${
-            toastVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"
+          className={`fixed top-5 left-1/2 -translate-x-1/2 z-[99999] rounded-full bg-slate-900/95 dark:bg-white/95 text-white dark:text-slate-900 px-4 py-2 text-xs font-semibold shadow-2xl flex items-center gap-2 pointer-events-none transition-all duration-300 border border-white/20 dark:border-black/20 ${
+            toastVisible ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2"
           }`}
         >
-          <span className="material-symbols-outlined text-[18px]">check_circle</span>
+          <Icon name="check_circle" className="text-[18px] text-secondary" />
           <span>{toastMessage}</span>
         </div>
       </div>
@@ -738,11 +739,11 @@ export default function App() {
 
       {/* Interactive Feedback Toast */}
       <div
-        className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 rounded-full bg-secondary-container px-4 py-2 text-on-secondary font-label-md text-label-md shadow-2xl flex items-center gap-2 pointer-events-none transition-all duration-300 ${
-          toastVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"
+        className={`fixed top-5 left-1/2 -translate-x-1/2 z-[99999] rounded-full bg-slate-900/95 dark:bg-white/95 text-white dark:text-slate-900 px-4 py-2 text-xs font-semibold shadow-2xl flex items-center gap-2 pointer-events-none transition-all duration-300 border border-white/20 dark:border-black/20 ${
+          toastVisible ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2"
         }`}
       >
-        <span className="material-symbols-outlined text-[18px]">check_circle</span>
+        <Icon name="check_circle" className="text-[18px] text-secondary" />
         <span>{toastMessage}</span>
       </div>
 

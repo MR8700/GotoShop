@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
 import {
   fetchSuperAdminMe,
@@ -364,7 +365,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
           <div className="absolute -top-12 -right-12 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl"></div>
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mb-3 shadow-inner">
-              <span className="material-symbols-outlined text-3xl">hub</span>
+              <Icon name="hub" className="text-3xl" />
             </div>
             <h1 className="text-2xl font-black tracking-tight text-white">ConversaStore Platform</h1>
             <p className="text-xs text-slate-400 mt-1">Super-Admin Console & Gestion Multi-Boutiques</p>
@@ -372,7 +373,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
 
           {loginError && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2">
-              <span className="material-symbols-outlined text-base">error</span>
+              <Icon name="error" className="text-base" />
               <span>{loginError}</span>
             </div>
           )}
@@ -407,7 +408,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                 <span>Connexion en cours...</span>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-lg">lock_open</span>
+                  <Icon name="lock_open" className="text-lg" />
                   <span>Accéder à la Console Platform</span>
                 </>
               )}
@@ -432,7 +433,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-4 right-4 z-50 bg-amber-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-2xl text-xs flex items-center gap-2 animate-bounce">
-          <span className="material-symbols-outlined text-lg">verified</span>
+          <Icon name="verified" className="text-lg" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -442,7 +443,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center font-black shadow-inner">
-              <span className="material-symbols-outlined text-2xl">hub</span>
+              <Icon name="hub" className="text-2xl" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -460,14 +461,14 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
               onClick={onClose}
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition border border-slate-700"
             >
-              <span className="material-symbols-outlined text-sm">store</span>
+              <Icon name="store" className="text-sm" />
               <span>Boutique Vitrine</span>
             </button>
             <button
               onClick={handleLogout}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-xs font-semibold text-red-400 transition border border-red-500/20"
             >
-              <span className="material-symbols-outlined text-sm">logout</span>
+              <Icon name="logout" className="text-sm" />
               <span className="hidden sm:inline">Déconnexion</span>
             </button>
           </div>
@@ -482,7 +483,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-slate-400">Total Boutiques</span>
-                <span className="material-symbols-outlined text-amber-400 text-xl">storefront</span>
+                <Icon name="storefront" className="text-amber-400 text-xl" />
               </div>
               <div className="text-2xl font-extrabold text-white">{overview.total_stores_count}</div>
               <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
@@ -494,7 +495,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-slate-400">Volume Global (GMV)</span>
-                <span className="material-symbols-outlined text-emerald-400 text-xl">payments</span>
+                <Icon name="payments" className="text-emerald-400 text-xl" />
               </div>
               <div className="text-2xl font-extrabold text-emerald-400">
                 {overview.total_gmv_network?.toLocaleString()} <span className="text-xs text-emerald-300">FCFA</span>
@@ -505,7 +506,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-slate-400">Commandes Totales</span>
-                <span className="material-symbols-outlined text-blue-400 text-xl">shopping_cart</span>
+                <Icon name="shopping_cart" className="text-blue-400 text-xl" />
               </div>
               <div className="text-2xl font-extrabold text-white">{overview.total_orders_network}</div>
               <p className="text-[11px] text-slate-400 mt-1">Flux WhatsApp & direct générés</p>
@@ -514,7 +515,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-slate-400">Catalogue Réseau</span>
-                <span className="material-symbols-outlined text-purple-400 text-xl">inventory_2</span>
+                <Icon name="inventory_2" className="text-purple-400 text-xl" />
               </div>
               <div className="text-2xl font-extrabold text-white">{overview.total_products_network}</div>
               <p className="text-[11px] text-slate-400 mt-1">Articles en vente actifs</p>
@@ -532,7 +533,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                 : "bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800"
             }`}
           >
-            <span className="material-symbols-outlined text-base">storefront</span>
+            <Icon name="storefront" className="text-base" />
             <span>Boutiques & Réseau ({stores.length})</span>
           </button>
 
@@ -544,7 +545,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                 : "bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800"
             }`}
           >
-            <span className="material-symbols-outlined text-base">receipt_long</span>
+            <Icon name="receipt_long" className="text-base" />
             <span>Demandes d'Abonnement & Reçus</span>
             {pendingRequestsCount > 0 && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
@@ -561,7 +562,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                 : "bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800"
             }`}
           >
-            <span className="material-symbols-outlined text-base">tune</span>
+            <Icon name="tune" className="text-base" />
             <span>Configuration USSD & Forfaits</span>
           </button>
         </div>
@@ -573,7 +574,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
             <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/30 border border-amber-500/20 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-start gap-3.5">
                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-2xl">dns</span>
+                  <Icon name="dns" className="text-2xl" />
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-sm">Routage Multi-Boutiques & Multi-Tenancy</h3>
@@ -588,7 +589,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                 onClick={() => setIsCreateOpen(true)}
                 className="w-full md:w-auto px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 shrink-0"
               >
-                <span className="material-symbols-outlined text-base">add_business</span>
+                <Icon name="add_business" className="text-base" />
                 <span>+ Inscrire un Commerçant</span>
               </button>
             </div>
@@ -596,7 +597,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
         {/* Search & Filters */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="relative flex-1">
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-base">search</span>
+            <Icon name="search" className="absolute left-3 top-2.5 text-slate-400 text-base" />
             <input
               type="text"
               placeholder="Rechercher une boutique, commerçant, slug, email, téléphone..."
@@ -686,15 +687,15 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                   {/* Middle: Owner Details */}
                   <div className="text-xs space-y-0.5 min-w-[200px]">
                     <div className="text-slate-300 font-semibold flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-slate-400 text-sm">person</span>
+                      <Icon name="person" className="text-slate-400 text-sm" />
                       <span>{st.owner_name}</span>
                     </div>
                     <div className="text-slate-400 flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-slate-500 text-sm">mail</span>
+                      <Icon name="mail" className="text-slate-500 text-sm" />
                       <span>{st.owner_email}</span>
                     </div>
                     <div className="text-slate-400 flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-emerald-400 text-sm">call</span>
+                      <Icon name="call" className="text-emerald-400 text-sm" />
                       <span>{st.owner_phone}</span>
                     </div>
                   </div>
@@ -726,7 +727,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                       title="Ouvrir la vitrine client"
                       className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition border border-slate-700 flex items-center gap-1"
                     >
-                      <span className="material-symbols-outlined text-sm">visibility</span>
+                      <Icon name="visibility" className="text-sm" />
                       <span>Vitrine</span>
                     </button>
 
@@ -735,7 +736,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                       title="Se connecter directement dans l'espace commerçant"
                       className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-xs font-semibold text-amber-400 transition border border-amber-500/30 flex items-center gap-1"
                     >
-                      <span className="material-symbols-outlined text-sm">key</span>
+                      <Icon name="key" className="text-sm" />
                       <span>Gérer</span>
                     </button>
 
@@ -744,7 +745,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                       title="Gérer l'abonnement et la durée"
                       className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition border border-slate-700 flex items-center gap-1"
                     >
-                      <span className="material-symbols-outlined text-sm">tune</span>
+                      <Icon name="tune" className="text-sm" />
                       <span>Forfait</span>
                     </button>
 
@@ -754,7 +755,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                         title="Supprimer la boutique"
                         className="p-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-xs text-red-400 transition border border-red-500/20"
                       >
-                        <span className="material-symbols-outlined text-sm">delete</span>
+                        <Icon name="delete" className="text-sm" />
                       </button>
                     )}
                   </div>
@@ -989,7 +990,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                 Configurez les numéros marchands et codes USSD pour Orange Money et Moov Money.
               </p>
             </div>
-            <span className="material-symbols-outlined text-amber-400 text-2xl">dialpad</span>
+            <Icon name="dialpad" className="text-amber-400 text-2xl" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1092,7 +1093,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                 Ajustez le tarif mensuel en FCFA pour chaque type d'abonnement.
               </p>
             </div>
-            <span className="material-symbols-outlined text-amber-400 text-2xl">loyalty</span>
+            <Icon name="loyalty" className="text-amber-400 text-2xl" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1156,7 +1157,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                 onClick={() => setIsCreateOpen(false)}
                 className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
               >
-                <span className="material-symbols-outlined text-base">close</span>
+                <Icon name="close" className="text-base" />
               </button>
             </div>
 
@@ -1327,7 +1328,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                   disabled={actionLoading}
                   className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold transition shadow-lg shadow-amber-500/20 disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  <span className="material-symbols-outlined text-base">check</span>
+                  <Icon name="check" className="text-base" />
                   <span>Créer la Boutique</span>
                 </button>
               </div>
@@ -1349,7 +1350,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                 onClick={() => setIsSubModalOpen(false)}
                 className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
               >
-                <span className="material-symbols-outlined text-base">close</span>
+                <Icon name="close" className="text-base" />
               </button>
             </div>
 

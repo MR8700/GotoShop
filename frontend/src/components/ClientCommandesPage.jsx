@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
 import {
   fetchCustomerOrders,
@@ -7,6 +8,7 @@ import {
   fetchBatchOrders,
   recordClientOrderAction,
 } from "../api/client";
+import Footer from "./Footer";
 
 export default function ClientCommandesPage({
   customer,
@@ -179,7 +181,7 @@ export default function ClientCommandesPage({
       <div className="flex items-center justify-between px-space-xs pt-1">
         <div>
           <h2 className="font-headline-sm text-headline-sm text-on-surface">
-            {isGuest ? "Mes Commandes (Mode Invité)" : "Mes Commandes"}
+            Mes Commandes
           </h2>
           <p className="text-xs text-on-surface-variant">
             {isGuest ? (
@@ -191,24 +193,24 @@ export default function ClientCommandesPage({
         </div>
         <button
           onClick={loadOrders}
-          className="w-9 h-9 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center transition-transform active:scale-95"
+          className="w-9 h-9 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center transition-transform active:scale-95 border border-slate-300 dark:border-slate-700"
           title="Actualiser"
         >
-          <span className="material-symbols-outlined text-[18px]">refresh</span>
+          <Icon name="refresh" className="text-[18px]" />
         </button>
       </div>
 
       {/* Guest Smart Nudge Banner */}
       {isGuest && (
-        <div className="rounded-2xl bg-surface-container p-4 border border-primary/25 shadow-sm flex flex-col gap-3">
+        <div className="rounded-2xl bg-surface-container p-4 border-2 border-primary/30 shadow-sm flex flex-col gap-3">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-[22px]">stars</span>
+              <Icon name="stars" className="text-[22px]" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-headline-sm text-sm font-bold text-on-surface">
                 {orders.length > 0
-                  ? `⭐ ${orders.length} commande(s) en mode invité`
+                  ? `⭐ ${orders.length} commande(s) enregistrée(s)`
                   : "Débloquez vos privilèges Awa Club"}
               </h3>
               <p className="text-xs text-on-surface-variant mt-0.5 leading-relaxed">
@@ -220,7 +222,7 @@ export default function ClientCommandesPage({
             onClick={onOpenAuth}
             className="w-full h-11 rounded-xl bg-primary text-on-primary font-label-md text-xs font-bold flex items-center justify-center gap-2 shadow hover:brightness-105 tap-scale transition-all cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[18px]">bolt</span>
+            <Icon name="bolt" className="text-[18px]" />
             <span>Activer mon compte fidélité</span>
           </button>
         </div>
@@ -228,18 +230,18 @@ export default function ClientCommandesPage({
 
       {/* Summary KPI Badges */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="p-3.5 rounded-xl bg-surface-card shadow-sm border border-subtle flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[22px]">shopping_bag</span>
+        <div className="p-3.5 rounded-xl bg-surface-container shadow-sm border-2 border-slate-200 dark:border-slate-800 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0 border border-secondary/20">
+            <Icon name="shopping_bag" className="text-[22px]" />
           </div>
           <div>
             <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider">Total Passées</p>
             <p className="text-lg font-bold text-on-surface tabular-nums">{orders.length}</p>
           </div>
         </div>
-        <div className="p-3.5 rounded-xl bg-surface-card shadow-sm border border-subtle flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[22px]">verified</span>
+        <div className="p-3.5 rounded-xl bg-surface-container shadow-sm border-2 border-slate-200 dark:border-slate-800 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0 border border-emerald-500/20">
+            <Icon name="verified" className="text-[22px]" />
           </div>
           <div>
             <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider">Livrées / Satisfaites</p>
@@ -253,23 +255,23 @@ export default function ClientCommandesPage({
       {/* Orders List */}
       {loading ? (
         <div className="p-8 text-center text-on-surface-variant text-sm">
-          <span className="material-symbols-outlined animate-spin text-primary text-[28px] mb-2">sync</span>
+          <Icon name="sync" className="animate-spin text-primary text-[28px] mb-2" />
           <p>Chargement de vos commandes...</p>
         </div>
       ) : orders.length === 0 ? (
-        <div className="rounded-2xl bg-surface-card p-8 text-center space-y-4 shadow-sm border border-subtle">
-          <div className="w-14 h-14 rounded-full bg-surface-secondary text-on-surface-variant flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-[28px]">production_quantity_limits</span>
+        <div className="rounded-2xl bg-surface-container p-8 text-center space-y-4 shadow-card border-2 border-slate-200 dark:border-slate-800">
+          <div className="w-14 h-14 rounded-full bg-surface-secondary text-on-surface-variant flex items-center justify-center mx-auto border border-slate-300 dark:border-slate-700">
+            <Icon name="production_quantity_limits" className="text-[28px]" />
           </div>
           <div className="space-y-1">
             <h3 className="font-headline-sm text-headline-sm text-on-surface">Aucune commande pour l'instant</h3>
             <p className="text-xs text-on-surface-variant leading-relaxed">
-              Merci pour votre fidélité ! ✨ Découvrez les créations et produits vérifiés d'Awa dans notre vitrine pour passer votre première commande.
+              Merci pour votre fidélité ! ✨ Découvrez les créations et produits vérifiés dans notre vitrine pour passer votre première commande.
             </p>
           </div>
           <button
             onClick={onNavigateToShop}
-            className="px-5 py-2.5 rounded-xl bg-primary text-white font-label-md font-bold hover:brightness-105 active:scale-98 transition-all cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-primary text-white font-label-md font-bold hover:brightness-105 active:scale-98 transition-all cursor-pointer shadow-md"
           >
             Explorer le Catalogue
           </button>
@@ -286,20 +288,20 @@ export default function ClientCommandesPage({
             return (
               <div
                 key={order.id}
-                className={`rounded-2xl bg-surface-card p-4 shadow-md border space-y-3 transition-all ${
+                className={`rounded-2xl bg-surface-container p-4 sm:p-5 shadow-card border-2 space-y-3.5 transition-all ${
                   hasConflict
-                    ? "border-amber-500/50 bg-amber-500/5"
+                    ? "border-amber-500/60 bg-amber-500/5"
                     : isMutualSale
-                    ? "border-emerald-500/40"
-                    : "border-subtle hover:border-primary/40"
+                    ? "border-emerald-500/50"
+                    : "border-slate-200 dark:border-slate-800 hover:border-primary/50"
                 }`}
               >
                 {/* Order Top Bar */}
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-secondary bg-secondary/15 px-2.5 py-0.5 rounded-full">
+                  <span className="font-mono text-xs font-bold text-secondary bg-secondary/15 border border-secondary/30 px-2.5 py-0.5 rounded-full">
                     #{order.reference_code}
                   </span>
-                  <span className="text-[11px] text-on-surface-variant">
+                  <span className="text-[11px] text-on-surface-variant font-medium">
                     {formatDate(order.created_at)}
                   </span>
                 </div>
@@ -307,7 +309,7 @@ export default function ClientCommandesPage({
                 {/* Conflict Alert Banner if discrepancy exists */}
                 {hasConflict && (
                   <div className="rounded-xl bg-amber-500/15 p-2.5 border border-amber-500/30 flex items-start gap-2 text-xs text-amber-500">
-                    <span className="material-symbols-outlined text-[18px] text-amber-500 shrink-0">warning</span>
+                    <Icon name="warning" className="text-[18px] text-amber-500 shrink-0" />
                     <div>
                       <strong className="block font-semibold">Litige en cours de conciliation</strong>
                       <span>
@@ -317,12 +319,12 @@ export default function ClientCommandesPage({
                   </div>
                 )}
 
-                {/* Product details */}
-                <div className="flex items-center gap-3">
+                {/* Product details in layered inner card */}
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-secondary/80 border border-slate-200 dark:border-slate-700/80 shadow-xs">
                   <img
                     src={order.product_image_url ? getMediaUrl(order.product_image_url) : "/media/products/samsung_galaxy_a15.jpg"}
                     alt={order.product_name}
-                    className="w-16 h-16 rounded-xl object-cover bg-surface-secondary shrink-0 border border-subtle"
+                    className="w-16 h-16 rounded-xl object-cover bg-surface shrink-0 border border-slate-300 dark:border-slate-700"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = "/media/products/samsung_galaxy_a15.jpg";
@@ -348,17 +350,17 @@ export default function ClientCommandesPage({
                     <span className="text-on-surface-variant">État client :</span>
                     {isClientSatisfied ? (
                       <span className="flex items-center gap-1 text-emerald-500 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
-                        <span className="material-symbols-outlined text-[14px]">thumb_up</span>
+                        <Icon name="thumb_up" className="text-[14px]" />
                         Satisfait(e) ({order.client_satisfaction_rating || 5}★)
                       </span>
                     ) : isClientCancelled ? (
                       <span className="flex items-center gap-1 text-rose-500 font-bold bg-rose-500/15 px-2 py-0.5 rounded-full text-[11px]">
-                        <span className="material-symbols-outlined text-[14px]">cancel</span>
+                        <Icon name="cancel" className="text-[14px]" />
                         Annulée par vous
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-amber-500 font-semibold bg-amber-500/15 px-2 py-0.5 rounded-full text-[11px]">
-                        <span className="material-symbols-outlined text-[14px]">schedule</span>
+                        <Icon name="schedule" className="text-[14px]" />
                         En attente de votre retour
                       </span>
                     )}
@@ -368,17 +370,17 @@ export default function ClientCommandesPage({
                     <span className="text-on-surface-variant">Suivi boutique :</span>
                     {isMutualSale ? (
                       <span className="flex items-center gap-1 text-emerald-500 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
-                        <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                        <Icon name="check_circle" className="text-[14px]" />
                         Vente 100% Consolidée
                       </span>
                     ) : isConfirmedByMerchant ? (
                       <span className="flex items-center gap-1 text-emerald-500 font-semibold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
-                        <span className="material-symbols-outlined text-[14px]">local_shipping</span>
+                        <Icon name="local_shipping" className="text-[14px]" />
                         Validé &amp; Expédié
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-on-surface-variant font-medium bg-surface-secondary px-2 py-0.5 rounded-full text-[11px]">
-                        <span className="material-symbols-outlined text-[14px]">chat</span>
+                        <Icon name="chat" className="text-[14px]" />
                         Discussion en cours
                       </span>
                     )}
@@ -400,7 +402,7 @@ export default function ClientCommandesPage({
                         rel="noopener noreferrer"
                         className="text-secondary hover:underline flex items-center gap-1 font-semibold"
                       >
-                        <span className="material-symbols-outlined text-[14px]">pin_drop</span>
+                        <Icon name="pin_drop" className="text-[14px]" />
                         Google Maps
                       </a>
                     </div>
@@ -415,7 +417,7 @@ export default function ClientCommandesPage({
                       onClick={() => handleOpenSatisfyModal(order)}
                       className="h-10 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 font-label-sm font-bold flex items-center justify-center gap-1.5 transition-all active:scale-98 border border-emerald-500/30 cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[18px]">thumb_up</span>
+                      <Icon name="thumb_up" className="text-[18px]" />
                       <span>Marquer Satisfait(e)</span>
                     </button>
                     <button
@@ -423,7 +425,7 @@ export default function ClientCommandesPage({
                       onClick={() => handleOpenCancelModal(order)}
                       className="h-10 rounded-xl bg-surface-secondary hover:bg-rose-500/20 text-on-surface-variant hover:text-rose-500 font-label-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-98 border border-subtle hover:border-rose-500/30 cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[18px]">close</span>
+                      <Icon name="close" className="text-[18px]" />
                       <span>Annuler Commande</span>
                     </button>
                   </div>
@@ -437,7 +439,7 @@ export default function ClientCommandesPage({
                       onClick={() => onOpenChat(order.conversation_id)}
                       className="w-full h-10 rounded-xl bg-primary hover:brightness-105 text-white font-label-md font-bold flex items-center justify-center gap-2 transition-all active:scale-98 shadow-sm cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[18px]">forum</span>
+                      <Icon name="forum" className="text-[18px]" />
                       <span>Ouvrir la discussion en direct</span>
                     </button>
                   )}
@@ -447,7 +449,7 @@ export default function ClientCommandesPage({
                     rel="noopener noreferrer"
                     className="w-full h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-on-surface border border-subtle font-label-sm font-semibold flex items-center justify-center gap-2 transition-colors active:scale-98"
                   >
-                    <span className="material-symbols-outlined text-[16px] text-green-600">chat</span>
+                    <Icon name="chat" className="text-[16px] text-green-600" />
                     <span>Relancer sur WhatsApp</span>
                   </a>
                 </div>
@@ -462,7 +464,7 @@ export default function ClientCommandesPage({
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="rounded-2xl bg-surface-card border border-subtle p-6 max-w-sm w-full space-y-4 shadow-2xl animate-fadeIn">
             <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto">
-              <span className="material-symbols-outlined text-[32px]">thumb_up</span>
+              <Icon name="thumb_up" className="text-[32px]" />
             </div>
             <div className="text-center space-y-1">
               <h3 className="font-headline-sm text-lg font-bold text-on-surface">
@@ -532,7 +534,7 @@ export default function ClientCommandesPage({
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="rounded-2xl bg-surface-card border border-subtle p-6 max-w-sm w-full space-y-4 shadow-2xl animate-fadeIn">
             <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center mx-auto">
-              <span className="material-symbols-outlined text-[32px]">cancel</span>
+              <Icon name="cancel" className="text-[32px]" />
             </div>
             <div className="text-center space-y-1">
               <h3 className="font-headline-sm text-lg font-bold text-on-surface">
@@ -566,7 +568,7 @@ export default function ClientCommandesPage({
                 >
                   <span>{r}</span>
                   {cancelReason === r && (
-                    <span className="material-symbols-outlined text-rose-500 text-[16px]">check</span>
+                    <Icon name="check" className="text-rose-500 text-[16px]" />
                   )}
                 </label>
               ))}
@@ -605,6 +607,9 @@ export default function ClientCommandesPage({
           </div>
         </div>
       )}
+
+      {/* Branded Footer */}
+      <Footer />
     </div>
   );
 }

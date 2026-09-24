@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
 import {
   fetchAnalytics,
@@ -154,7 +155,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
               : "text-on-surface-variant hover:text-on-surface"
           }`}
         >
-          <span className="material-symbols-outlined text-[18px]">query_stats</span>
+          <Icon name="query_stats" className="text-[18px]" />
           <span>Performances &amp; Ventes</span>
         </button>
         <button
@@ -169,7 +170,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
               : "text-on-surface-variant hover:text-on-surface"
           }`}
         >
-          <span className="material-symbols-outlined text-[18px]">group</span>
+          <Icon name="group" className="text-[18px]" />
           <span>Fichier Clients ({clientsList.length})</span>
         </button>
       </div>
@@ -203,14 +204,14 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
         <div className="flex items-center justify-between z-10">
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-lg bg-surface-container text-secondary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+              <Icon name="account_balance_wallet" className="text-[20px]" />
             </span>
             <span className="font-label-lg text-label-lg text-on-surface-variant uppercase tracking-wider">
               Chiffre d'Affaires Encaissé
             </span>
           </div>
           <span className="px-2.5 py-1 rounded-full bg-secondary/15 text-secondary font-label-sm text-label-sm uppercase tracking-wider flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px]">trending_up</span>
+            <Icon name="trending_up" className="text-[14px]" />
             +{analytics?.revenue_growth_percentage || 18.4}%
           </span>
         </div>
@@ -257,7 +258,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
       <section className="grid grid-cols-3 gap-space-xs">
         <div className="flex flex-col p-3 rounded-xl bg-surface-container shadow-md">
           <div className="flex items-center gap-1 text-on-surface-variant mb-1">
-            <span className="material-symbols-outlined text-[16px] text-tertiary">visibility</span>
+            <Icon name="visibility" className="text-[16px] text-tertiary" />
             <span className="font-label-sm text-label-sm truncate uppercase tracking-wider">Visiteurs</span>
           </div>
           <span className="font-headline-sm text-headline-sm text-on-surface">
@@ -268,7 +269,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
 
         <div className="flex flex-col p-3 rounded-xl bg-surface-container shadow-md">
           <div className="flex items-center gap-1 text-on-surface-variant mb-1">
-            <span className="material-symbols-outlined text-[16px] text-primary">shopping_bag</span>
+            <Icon name="shopping_bag" className="text-[16px] text-primary" />
             <span className="font-label-sm text-label-sm truncate uppercase tracking-wider">Intentions</span>
           </div>
           <span className="font-headline-sm text-headline-sm text-on-surface">
@@ -279,7 +280,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
 
         <div className="flex flex-col p-3 rounded-xl bg-surface-container shadow-md">
           <div className="flex items-center gap-1 text-on-surface-variant mb-1">
-            <span className="material-symbols-outlined text-[16px] text-secondary">verified</span>
+            <Icon name="verified" className="text-[16px] text-secondary" />
             <span className="font-label-sm text-label-sm truncate uppercase tracking-wider">Ventes</span>
           </div>
           <span className="font-headline-sm text-headline-sm text-secondary">
@@ -296,7 +297,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[18px]">verified_user</span>
+              <Icon name="verified_user" className="text-[18px]" />
             </span>
             <div>
               <span className="font-label-lg text-sm font-bold text-on-surface block">
@@ -372,9 +373,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                   className="w-10 h-10 rounded-full flex items-center justify-center"
                   style={{ backgroundColor: `${ch.color_hex}26`, color: ch.color_hex }}
                 >
-                  <span className="material-symbols-outlined text-[24px]">
-                    {ch.channel_type === "WHATSAPP" ? "chat" : ch.channel_type === "MESSENGER" ? "forum" : "smart_display"}
-                  </span>
+                  <Icon name={ch.channel_type === "WHATSAPP" ? "chat" : ch.channel_type === "MESSENGER" ? "forum" : "smart_display"} className="text-[24px]" />
                 </div>
                 <div className="flex flex-col">
                   <span className="font-headline-sm text-headline-sm text-on-surface">
@@ -393,7 +392,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                     color: ch.channel_type === "WHATSAPP" ? "#00311f" : "#ffb4a4",
                   }}
                 >
-                  {ch.channel_type === "WHATSAPP" && <span className="material-symbols-outlined text-[13px]">stars</span>}
+                  {ch.channel_type === "WHATSAPP" && <Icon name="stars" className="text-[13px]" />}
                   {ch.badge_label}
                 </span>
               )}
@@ -429,14 +428,14 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="font-headline-sm text-headline-sm text-on-surface">Top Produits</span>
-            <span className="material-symbols-outlined text-[18px] text-primary">local_fire_department</span>
+            <Icon name="local_fire_department" className="text-[18px] text-primary" />
           </div>
           <button
             onClick={onNavigateToCatalog}
             className="font-body-sm text-body-sm text-primary hover:underline flex items-center gap-1"
           >
             <span>Voir Catalogue</span>
-            <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+            <Icon name="arrow_forward" className="text-[14px]" />
           </button>
         </div>
 
@@ -463,7 +462,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                 <span className="font-headline-sm text-headline-sm text-on-surface truncate">
                   {item.product_name}
                 </span>
-                <span className="material-symbols-outlined text-on-surface-variant text-[16px]">tune</span>
+                <Icon name="tune" className="text-on-surface-variant text-[16px]" />
               </div>
               <span className="font-body-sm text-body-sm text-secondary font-semibold">
                 {item.confirmed_sales} ventes confirmées
@@ -473,7 +472,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
               </span>
             </div>
             <div className="p-2 rounded-lg bg-surface-container-high text-secondary flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-[20px]">insights</span>
+              <Icon name="insights" className="text-[20px]" />
             </div>
           </div>
         ))}
@@ -483,7 +482,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
       <section className="rounded-xl bg-surface-container p-4 shadow-md flex flex-col gap-3 mt-1 mb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px] text-primary">qr_code_2</span>
+            <Icon name="qr_code_2" className="text-[20px] text-primary" />
             <span className="font-headline-sm text-headline-sm text-on-surface">Origine du Trafic &amp; QR</span>
           </div>
           <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-secondary font-label-sm text-label-sm flex items-center gap-1">
@@ -530,7 +529,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
           onClick={() => setIsShareModalOpen(true)}
           className="w-full h-12 mt-1 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-lg text-label-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
         >
-          <span className="material-symbols-outlined text-[20px] text-primary">add_link</span>
+          <Icon name="add_link" className="text-[20px] text-primary" />
           Générer un lien tracké Réseau Social / QR
         </button>
       </section>
@@ -542,7 +541,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
           <section className="bg-surface-container p-4 rounded-2xl shadow-md border border-white/5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-[22px]">contacts</span>
+                <Icon name="contacts" className="text-primary text-[22px]" />
                 <h2 className="font-headline-sm text-base font-bold text-on-surface">Annuaire Clients &amp; CRM</h2>
               </div>
               <span className="font-label-sm text-xs text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">
@@ -552,9 +551,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
 
             {/* Smart Search Input */}
             <div className="relative w-full">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant text-[18px]">
-                search
-              </span>
+              <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" />
               <input
                 type="text"
                 value={clientSearch}
@@ -568,7 +565,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                   onClick={() => setClientSearch("")}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface"
                 >
-                  <span className="material-symbols-outlined text-[16px]">close</span>
+                  <Icon name="close" className="text-[16px]" />
                 </button>
               )}
             </div>
@@ -591,7 +588,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                   clientFilter === "VIP" ? "bg-amber-500 text-surface shadow-sm" : "bg-surface-container-high text-on-surface-variant hover:text-on-surface"
                 }`}
               >
-                <span className="material-symbols-outlined text-[13px]">stars</span>
+                <Icon name="stars" className="text-[13px]" />
                 Membres VIP
               </button>
               <button
@@ -601,7 +598,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                   clientFilter === "BUYERS" ? "bg-emerald-500 text-surface shadow-sm" : "bg-surface-container-high text-on-surface-variant hover:text-on-surface"
                 }`}
               >
-                <span className="material-symbols-outlined text-[13px]">shopping_bag</span>
+                <Icon name="shopping_bag" className="text-[13px]" />
                 Acheteurs Confirmés
               </button>
               <button
@@ -611,7 +608,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                   clientFilter === "BLOCKED" ? "bg-rose-500 text-surface shadow-sm" : "bg-surface-container-high text-on-surface-variant hover:text-on-surface"
                 }`}
               >
-                <span className="material-symbols-outlined text-[13px]">block</span>
+                <Icon name="block" className="text-[13px]" />
                 Bloqués
               </button>
             </div>
@@ -630,7 +627,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                 return true;
               }).length === 0 ? (
               <div className="p-8 text-center bg-surface-container rounded-2xl border border-white/5">
-                <span className="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2 block">person_off</span>
+                <Icon name="person_off" className="text-4xl text-on-surface-variant/40 mb-2 block" />
                 <p className="font-bold text-on-surface text-sm mb-1">Aucun client trouvé</p>
                 <p className="text-xs text-on-surface-variant mb-3">Aucun client ne correspond à vos critères de recherche.</p>
                 {clientSearch && (
@@ -679,13 +676,13 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                               </span>
                               {isVip && (
                                 <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-label-sm text-[10px] font-bold flex items-center gap-0.5">
-                                  <span className="material-symbols-outlined text-[12px]">stars</span>
+                                  <Icon name="stars" className="text-[12px]" />
                                   VIP
                                 </span>
                               )}
                               {isBlocked && (
                                 <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-label-sm text-[10px] font-bold flex items-center gap-0.5">
-                                  <span className="material-symbols-outlined text-[12px]">block</span>
+                                  <Icon name="block" className="text-[12px]" />
                                   Bloqué
                                 </span>
                               )}
@@ -725,19 +722,19 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                       {/* Active Perks or Moderation Notice */}
                       {client.custom_discount_percent > 0 && (
                         <div className="px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-[11px] font-semibold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-[14px]">local_offer</span>
+                          <Icon name="local_offer" className="text-[14px]" />
                           <span>Remise commerçante permanente de {client.custom_discount_percent}%</span>
                         </div>
                       )}
                       {client.custom_perk_note && (
                         <div className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-semibold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-[14px]">card_giftcard</span>
+                          <Icon name="card_giftcard" className="text-[14px]" />
                           <span>Avantage accordé : {client.custom_perk_note}</span>
                         </div>
                       )}
                       {client.moderation_notes && (
                         <div className="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-[14px]">info</span>
+                          <Icon name="info" className="text-[14px]" />
                           <span>Note interne : {client.moderation_notes}</span>
                         </div>
                       )}
@@ -756,7 +753,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                               className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 text-[11px] font-bold flex items-center gap-1 transition-all"
                               title="Contacter sur WhatsApp"
                             >
-                              <span className="material-symbols-outlined text-[13px]">chat</span>
+                              <Icon name="chat" className="text-[13px]" />
                               <span>WhatsApp</span>
                             </a>
                           )}
@@ -768,7 +765,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                               className="px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-[11px] font-bold flex items-center gap-1 transition-all"
                               title="Appeler le client"
                             >
-                              <span className="material-symbols-outlined text-[13px]">call</span>
+                              <Icon name="call" className="text-[13px]" />
                               <span>Appel</span>
                             </a>
                           )}
@@ -780,7 +777,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                               className="px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-[11px] font-bold flex items-center gap-1 transition-all"
                               title="Envoyer un SMS"
                             >
-                              <span className="material-symbols-outlined text-[13px]">sms</span>
+                              <Icon name="sms" className="text-[13px]" />
                               <span>SMS</span>
                             </a>
                           )}
@@ -792,7 +789,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                           onClick={() => handleOpenClientDetail(client)}
                           className="px-3 py-1.5 rounded-xl bg-primary text-surface font-bold text-xs flex items-center gap-1 hover:brightness-110 active:scale-95 transition-all shadow-sm"
                         >
-                          <span className="material-symbols-outlined text-[14px]">manage_accounts</span>
+                          <Icon name="manage_accounts" className="text-[14px]" />
                           <span>Fiche &amp; Avantages</span>
                         </button>
                       </div>
@@ -827,7 +824,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                 onClick={() => setSelectedClientDetail(null)}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-white/10"
               >
-                <span className="material-symbols-outlined text-[18px]">close</span>
+                <Icon name="close" className="text-[18px]" />
               </button>
             </div>
 
@@ -857,7 +854,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
               {/* SECTION: ACCORDER DES AVANTAGES */}
               <div className="bg-surface-container p-3.5 rounded-xl flex flex-col gap-3 border border-primary/20">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[18px]">card_giftcard</span>
+                  <Icon name="card_giftcard" className="text-primary text-[18px]" />
                   <h4 className="font-bold text-sm text-on-surface">Accorder des Avantages &amp; Fidélité</h4>
                 </div>
                 <p className="text-[11px] text-on-surface-variant">
@@ -938,7 +935,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                   onClick={handleSavePerks}
                   className="w-full h-10 rounded-xl bg-primary text-surface font-bold text-xs shadow-md hover:brightness-110 transition-all flex items-center justify-center gap-1"
                 >
-                  <span className="material-symbols-outlined text-[16px]">save</span>
+                  <Icon name="save" className="text-[16px]" />
                   Enregistrer les Avantages
                 </button>
               </div>
@@ -946,7 +943,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
               {/* SECTION: MODÉRATION & SÉCURITÉ */}
               <div className="bg-surface-container p-3.5 rounded-xl flex flex-col gap-3 border border-white/5">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-amber-400 text-[18px]">security</span>
+                  <Icon name="security" className="text-amber-400 text-[18px]" />
                   <h4 className="font-bold text-sm text-on-surface">Modération &amp; Sécurité</h4>
                 </div>
 
@@ -978,7 +975,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                   onClick={handleSaveModeration}
                   className="w-full h-10 rounded-xl bg-surface-container-highest hover:bg-white/10 text-on-surface font-bold text-xs transition-all flex items-center justify-center gap-1"
                 >
-                  <span className="material-symbols-outlined text-[16px]">verified_user</span>
+                  <Icon name="verified_user" className="text-[16px]" />
                   Mettre à jour la Modération
                 </button>
               </div>
@@ -987,7 +984,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
               <div className="bg-surface-container p-3.5 rounded-xl flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-secondary text-[18px]">history</span>
+                    <Icon name="history" className="text-secondary text-[18px]" />
                     <h4 className="font-bold text-sm text-on-surface">
                       Historique des Achats ({selectedClientDetail.orders ? selectedClientDetail.orders.length : 0})
                     </h4>

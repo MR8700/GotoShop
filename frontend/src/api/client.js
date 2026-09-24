@@ -1,3 +1,4 @@
+import safeStorage from "../utils/safeStorage";
 import {
   FALLBACK_PUBLIC_STORES,
   getFallbackStore,
@@ -59,22 +60,22 @@ export const getActiveStoreSlug = () => {
   const storeParam = params.get("store") || params.get("slug") || params.get("s");
   if (storeParam && storeParam.trim()) {
     const clean = storeParam.trim();
-    localStorage.setItem("conversastore_active_slug", clean);
+    safeStorage.setItem("conversastore_active_slug", clean);
     return clean;
   }
   const pathname = window.location.pathname;
   const storePathMatch = pathname.match(/^\/(?:store|boutique|s)\/([a-zA-Z0-9_-]+)/);
   if (storePathMatch && storePathMatch[1]) {
     const clean = storePathMatch[1].trim();
-    localStorage.setItem("conversastore_active_slug", clean);
+    safeStorage.setItem("conversastore_active_slug", clean);
     return clean;
   }
   const sub = detectSubdomainSlug();
   if (sub) {
-    localStorage.setItem("conversastore_active_slug", sub);
+    safeStorage.setItem("conversastore_active_slug", sub);
     return sub;
   }
-  const saved = localStorage.getItem("conversastore_active_slug");
+  const saved = safeStorage.getItem("conversastore_active_slug");
   if (saved && saved.trim() && !["defaut", "default", "null", "undefined"].includes(saved.trim().toLowerCase())) {
     return saved.trim();
   }
@@ -84,7 +85,7 @@ export const getActiveStoreSlug = () => {
 export const setActiveStoreSlug = (slug) => {
   if (slug && slug.trim()) {
     const clean = slug.trim();
-    localStorage.setItem("conversastore_active_slug", clean);
+    safeStorage.setItem("conversastore_active_slug", clean);
     if (typeof window !== "undefined" && window.history && window.history.pushState) {
       try {
         const url = new URL(window.location.href);
@@ -93,7 +94,7 @@ export const setActiveStoreSlug = (slug) => {
       } catch (e) {}
     }
   } else {
-    localStorage.removeItem("conversastore_active_slug");
+    safeStorage.removeItem("conversastore_active_slug");
   }
 };
 
@@ -180,6 +181,18 @@ export async function updateStore(storeId, data) {
   const resData = await safeParseJson(res);
   if (!res.ok) throw new Error(formatErrorMessage(resData, "Erreur lors de la mise à jour de la boutique"));
   return resData;
+}
+
+export async function fetchStoreReviews(storeId) {
+  try {
+    const res = await fetch(`${API_BASE}/store/${storeId}/reviews`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.warn("fetchStoreReviews fallback used:", e);
+  }
+  return [];
 }
 
 export async function registerMerchantStore(payload) {
@@ -488,19 +501,19 @@ export async function fetchAnalytics(period = "today") {
 
 // Authentication & Security APIs
 export function getAuthToken() {
-  return localStorage.getItem("conversastore_auth_token");
+  return safeStorage.getItem("conversastore_auth_token");
 }
 
 export function setAuthToken(token) {
   if (token) {
-    localStorage.setItem("conversastore_auth_token", token);
+    safeStorage.setItem("conversastore_auth_token", token);
   } else {
-    localStorage.removeItem("conversastore_auth_token");
+    safeStorage.removeItem("conversastore_auth_token");
   }
 }
 
 export function clearAuthToken() {
-  localStorage.removeItem("conversastore_auth_token");
+  safeStorage.removeItem("conversastore_auth_token");
 }
 
 export async function resetOwnerCredentials() {
@@ -599,9 +612,9 @@ export async function logoutOwner() {
 // ----------------------------------------------------------------------------
 const CUSTOMER_TOKEN_KEY = "conversastore_customer_token";
 
-export const getCustomerToken = () => localStorage.getItem(CUSTOMER_TOKEN_KEY);
-export const setCustomerToken = (t) => localStorage.setItem(CUSTOMER_TOKEN_KEY, t);
-export const clearCustomerToken = () => localStorage.removeItem(CUSTOMER_TOKEN_KEY);
+export const getCustomerToken = () => safeStorage.getItem(CUSTOMER_TOKEN_KEY);
+export const setCustomerToken = (t) => safeStorage.setItem(CUSTOMER_TOKEN_KEY, t);
+export const clearCustomerToken = () => safeStorage.removeItem(CUSTOMER_TOKEN_KEY);
 
 export async function customerQuickRegister(payload) {
   try {
@@ -618,7 +631,7 @@ export async function customerQuickRegister(payload) {
       setCustomerToken(data.access_token);
     }
     if (data.customer) {
-      localStorage.setItem("gatoshop_local_customer", JSON.stringify(data.customer));
+      safeStorage.setItem("gatoshop_local_customer", JSON.stringify(data.customer));
     }
     return data;
   } catch (err) {
@@ -635,7 +648,7 @@ export async function customerQuickRegister(payload) {
     };
     const localToken = localCust.session_token;
     setCustomerToken(localToken);
-    localStorage.setItem("gatoshop_local_customer", JSON.stringify(localCust));
+    safeStorage.setItem("gatoshop_local_customer", JSON.stringify(localCust));
     return {
       success: true,
       access_token: localToken,
@@ -660,12 +673,12 @@ export async function customerQuickLogin(payload) {
       setCustomerToken(data.access_token);
     }
     if (data.customer) {
-      localStorage.setItem("gatoshop_local_customer", JSON.stringify(data.customer));
+      safeStorage.setItem("gatoshop_local_customer", JSON.stringify(data.customer));
     }
     return data;
   } catch (err) {
     // Fallback: Check local saved profile
-    const rawCust = localStorage.getItem("gatoshop_local_customer");
+    const rawCust = safeStorage.getItem("gatoshop_local_customer");
     if (rawCust) {
       try {
         const parsed = JSON.parse(rawCust);
@@ -691,7 +704,7 @@ export async function customerQuickLogin(payload) {
         session_token: "token_local_order",
       };
       setCustomerToken(localCust.session_token);
-      localStorage.setItem("gatoshop_local_customer", JSON.stringify(localCust));
+      safeStorage.setItem("gatoshop_local_customer", JSON.stringify(localCust));
       return { success: true, access_token: localCust.session_token, customer: localCust, is_local: true };
     }
     throw new Error(err.message.includes("Numéro non") ? err.message : "Numéro introuvable. Veuillez utiliser l'onglet 'Nouveau Client' pour vous inscrire en 3s.");
@@ -706,18 +719,18 @@ export async function fetchCustomerProfile() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
-      const raw = localStorage.getItem("gatoshop_local_customer");
+      const raw = safeStorage.getItem("gatoshop_local_customer");
       return raw ? JSON.parse(raw) : null;
     }
     const data = await safeParseJson(res);
     if (data && data.id) {
-      localStorage.setItem("gatoshop_local_customer", JSON.stringify(data));
+      safeStorage.setItem("gatoshop_local_customer", JSON.stringify(data));
       return data;
     }
-    const raw = localStorage.getItem("gatoshop_local_customer");
+    const raw = safeStorage.getItem("gatoshop_local_customer");
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
-    const raw = localStorage.getItem("gatoshop_local_customer");
+    const raw = safeStorage.getItem("gatoshop_local_customer");
     return raw ? JSON.parse(raw) : null;
   }
 }
@@ -907,7 +920,7 @@ const GUEST_ORDERS_KEY = "gatoshop_guest_orders";
 
 export function getLocalGuestOrders() {
   try {
-    const raw = localStorage.getItem(GUEST_ORDERS_KEY);
+    const raw = safeStorage.getItem(GUEST_ORDERS_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -918,7 +931,7 @@ export function saveLocalGuestOrder(order) {
   try {
     const existing = getLocalGuestOrders();
     const updated = [order, ...existing.filter((o) => o.id !== order.id && o.reference_code !== order.reference_code)];
-    localStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify(updated.slice(0, 20)));
+    safeStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify(updated.slice(0, 20)));
   } catch (e) {
     console.warn("Could not persist guest order to localStorage:", e);
   }
@@ -928,7 +941,7 @@ export function updateLocalGuestOrder(orderId, patch) {
   try {
     const existing = getLocalGuestOrders();
     const updated = existing.map((o) => (o.id === orderId ? { ...o, ...patch } : o));
-    localStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify(updated));
+    safeStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify(updated));
   } catch (e) {
     console.warn("Could not update guest order in localStorage:", e);
   }
@@ -936,7 +949,7 @@ export function updateLocalGuestOrder(orderId, patch) {
 
 export function clearLocalGuestOrders() {
   try {
-    localStorage.removeItem(GUEST_ORDERS_KEY);
+    safeStorage.removeItem(GUEST_ORDERS_KEY);
   } catch {}
 }
 
@@ -982,12 +995,12 @@ export async function grantMerchantClientPerk(customerId, data) {
 export const SUPER_ADMIN_TOKEN_KEY = "conversastore_super_admin_token";
 
 export function getSuperAdminToken() {
-  return localStorage.getItem(SUPER_ADMIN_TOKEN_KEY);
+  return safeStorage.getItem(SUPER_ADMIN_TOKEN_KEY);
 }
 
 export function setSuperAdminToken(token) {
-  if (token) localStorage.setItem(SUPER_ADMIN_TOKEN_KEY, token);
-  else localStorage.removeItem(SUPER_ADMIN_TOKEN_KEY);
+  if (token) safeStorage.setItem(SUPER_ADMIN_TOKEN_KEY, token);
+  else safeStorage.removeItem(SUPER_ADMIN_TOKEN_KEY);
 }
 
 export async function loginSuperAdmin(email, password) {
@@ -1181,8 +1194,8 @@ export async function submitSubscriptionRequest(payload) {
   };
 
   try {
-    const existing = JSON.parse(localStorage.getItem("gotoshop_local_subscription_submissions") || "[]");
-    localStorage.setItem("gotoshop_local_subscription_submissions", JSON.stringify([localSubmission, ...existing]));
+    const existing = JSON.parse(safeStorage.getItem("gotoshop_local_subscription_submissions") || "[]");
+    safeStorage.setItem("gotoshop_local_subscription_submissions", JSON.stringify([localSubmission, ...existing]));
   } catch (err) {}
 
   return localSubmission;

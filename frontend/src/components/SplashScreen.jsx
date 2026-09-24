@@ -12,14 +12,14 @@ export default function SplashScreen({ store, onFinished }) {
   ];
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStage(1), 400);
-    const t2 = setTimeout(() => setStage(2), 900);
+    const t1 = setTimeout(() => setStage(1), 180);
+    const t2 = setTimeout(() => setStage(2), 400);
     const t3 = setTimeout(() => {
       setIsFading(true);
       setTimeout(() => {
         onFinished();
-      }, 400);
-    }, 1400);
+      }, 250);
+    }, 700);
 
     return () => {
       clearTimeout(t1);
@@ -30,7 +30,8 @@ export default function SplashScreen({ store, onFinished }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-between bg-surface px-6 py-12 transition-opacity duration-400 select-none ${
+      onClick={onFinished}
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-between bg-surface px-6 py-12 transition-opacity duration-250 select-none cursor-pointer ${
         isFading ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
     >
@@ -41,7 +42,7 @@ export default function SplashScreen({ store, onFinished }) {
       <div className="relative flex flex-col items-center text-center max-w-xs w-full animate-fade-in">
         {/* Boutique Logo with elegant soft ring */}
         <div className="relative mb-5">
-          <div className="relative w-20 h-20 rounded-2xl bg-surface-container border border-subtle p-2 shadow-xl flex items-center justify-center overflow-hidden">
+          <div className="relative w-20 h-20 rounded-2xl bg-surface-container border-2 border-slate-300 dark:border-slate-700 p-2 shadow-xl flex items-center justify-center overflow-hidden">
             <img
               src={getMediaUrl(store?.logo_url) || "/media/store/logo.jpg"}
               alt="Logo"
@@ -59,26 +60,26 @@ export default function SplashScreen({ store, onFinished }) {
         </div>
 
         {/* Store Title */}
-        <h1 className="text-xl font-bold tracking-tight text-white mb-1">
+        <h1 className="text-xl font-bold tracking-tight text-on-surface mb-1">
           {store?.name || "GotoShop"}
         </h1>
 
         {/* Warm emotional tagline */}
-        <p className="text-xs text-slate-400 font-normal mb-6 max-w-[240px] leading-relaxed">
+        <p className="text-xs text-text-muted font-normal mb-6 max-w-[240px] leading-relaxed">
           {store?.tagline || "Le réseau des meilleures boutiques d'Afrique en direct"}
         </p>
 
         {/* Clean, minimalist progress line */}
-        <div className="w-36 bg-surface-container-highest/50 h-1 rounded-full overflow-hidden mb-3.5">
+        <div className="w-36 bg-surface-container-highest/50 h-1.5 rounded-full overflow-hidden mb-3.5 border border-slate-200 dark:border-slate-800">
           <div
-            className="bg-primary h-full rounded-full transition-all duration-400 ease-out"
+            className="bg-primary h-full rounded-full transition-all duration-300 ease-out"
             style={{ width: `${((stage + 1) / messages.length) * 100}%` }}
           />
         </div>
 
         {/* Dynamic Human Message */}
         <div className="h-5 flex items-center justify-center">
-          <p className="text-[11px] text-slate-400 flex items-center gap-1.5 animate-fade-in font-normal">
+          <p className="text-[11px] text-text-muted flex items-center gap-1.5 animate-fade-in font-normal">
             <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
             <span>{messages[stage]}</span>
           </p>
@@ -87,7 +88,7 @@ export default function SplashScreen({ store, onFinished }) {
 
       {/* Emotional reassurance footer */}
       <div className="text-center">
-        <span className="text-[11px] text-slate-500 font-medium tracking-wide">
+        <span className="text-[11px] text-text-muted font-medium tracking-wide">
           Boutiques officielles certifiées • Burkina Faso &amp; International
         </span>
       </div>

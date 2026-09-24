@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useMemo } from "react";
 import { changePassword } from "../api/client";
 
@@ -94,7 +95,7 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-[22px]">shield_lock</span>
+              <Icon name="shield_lock" className="text-[22px]" />
             </div>
             <div>
               <h3 className="font-headline-sm text-base text-on-surface">Sécurité Obligatoire</h3>
@@ -109,16 +110,14 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
               className="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors cursor-pointer"
               title="Fermer"
             >
-              <span className="material-symbols-outlined text-[18px]">close</span>
+              <Icon name="close" className="text-[18px]" />
             </button>
           )}
         </div>
 
         {/* Informative Security Banner */}
         <div className="my-3 p-3 rounded-xl bg-primary/10 border border-primary/25 flex items-start gap-2.5">
-          <span className="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">
-            vpn_key_alert
-          </span>
+          <Icon name="vpn_key_alert" className="text-primary text-[20px] shrink-0 mt-0.5" />
           <p className="font-body-sm text-xs text-on-surface-variant leading-relaxed">
             Pour protéger votre chiffre d'affaires et votre boutique, la personnalisation avec un mot de passe fort est <span className="text-on-surface font-bold">obligatoire</span> avant d'accéder à l'administration.
           </p>
@@ -126,7 +125,7 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
 
         {errorMessage && (
           <div className="mb-3.5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px] shrink-0 text-rose-400">error</span>
+            <Icon name="error" className="text-[16px] shrink-0 text-rose-400" />
             <span className="flex-1">{errorMessage}</span>
           </div>
         )}
@@ -151,9 +150,7 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
                 onClick={() => setShowCurrent(!showCurrent)}
                 className="absolute right-2.5 text-on-surface-variant hover:text-on-surface p-1"
               >
-                <span className="material-symbols-outlined text-[18px]">
-                  {showCurrent ? "visibility_off" : "visibility"}
-                </span>
+                <Icon name={showCurrent ? "visibility_off" : "visibility"} className="text-[18px]" />
               </button>
             </div>
             <span className="text-[10px] text-on-surface-variant/80 mt-0.5 block">
@@ -180,9 +177,7 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
                 onClick={() => setShowNew(!showNew)}
                 className="absolute right-2.5 text-on-surface-variant hover:text-on-surface p-1"
               >
-                <span className="material-symbols-outlined text-[18px]">
-                  {showNew ? "visibility_off" : "visibility"}
-                </span>
+                <Icon name={showNew ? "visibility_off" : "visibility"} className="text-[18px]" />
               </button>
             </div>
 
@@ -223,9 +218,7 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
                       : "bg-surface-container-high text-on-surface-variant/40"
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    {c.passed ? "check" : "circle"}
-                  </span>
+                  <Icon name={c.passed ? "check" : "circle"} className="text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }} />
                 </span>
               </div>
             ))}
@@ -256,16 +249,12 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
                 onClick={() => setShowConfirm(!showConfirm)}
                 className="absolute right-2.5 text-on-surface-variant hover:text-on-surface p-1"
               >
-                <span className="material-symbols-outlined text-[18px]">
-                  {showConfirm ? "visibility_off" : "visibility"}
-                </span>
+                <Icon name={showConfirm ? "visibility_off" : "visibility"} className="text-[18px]" />
               </button>
             </div>
             {confirmPassword && (
               <span className={`text-[11px] font-semibold mt-1 flex items-center gap-1 ${isMatch ? "text-secondary" : "text-red-400"}`}>
-                <span className="material-symbols-outlined text-[13px]">
-                  {isMatch ? "check_circle" : "cancel"}
-                </span>
+                <Icon name={isMatch ? "check_circle" : "cancel"} className="text-[13px]" />
                 {isMatch ? "Les mots de passe correspondent parfaitement" : "Les deux mots de passe sont différents"}
               </span>
             )}
@@ -281,7 +270,7 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
                 : "bg-surface-container-highest text-on-surface-variant/40 cursor-not-allowed"
             }`}
           >
-            <span className="material-symbols-outlined text-[18px]">lock_reset</span>
+            <Icon name="lock_reset" className="text-[18px]" />
             <span>{isSubmitting ? "Enregistrement sécurisé..." : "Valider et Déverrouiller la Boutique"}</span>
           </button>
 
@@ -291,7 +280,7 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
               onClick={onLogout}
               className="w-full h-9 rounded-xl text-on-surface-variant hover:text-red-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[15px]">logout</span>
+              <Icon name="logout" className="text-[15px]" />
               <span>Se déconnecter / Quitter</span>
             </button>
           )}

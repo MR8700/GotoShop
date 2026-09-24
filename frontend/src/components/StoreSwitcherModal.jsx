@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
 import { fetchPublicStores, getActiveStoreSlug, setActiveStoreSlug, getMediaUrl } from "../api/client";
 
@@ -53,7 +54,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
         <div className="px-5 py-4 border-b border-subtle flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">storefront</span>
+              <Icon name="storefront" className="text-[20px]" />
             </div>
             <div>
               <h3 className="font-semibold text-on-surface text-base">Changer de Boutique</h3>
@@ -67,16 +68,14 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
             className="w-8 h-8 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-on-surface border border-subtle flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
             aria-label="Fermer"
           >
-            <span className="material-symbols-outlined text-[18px]">close</span>
+            <Icon name="close" className="text-[18px]" />
           </button>
         </div>
 
         {/* Search Bar */}
         <div className="p-4 border-b border-subtle bg-surface-secondary/30 shrink-0 space-y-2">
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3.5 top-2.5 text-on-surface-variant text-[18px]">
-              search
-            </span>
+            <Icon name="search" className="absolute left-3.5 top-2.5 text-on-surface-variant text-[18px]" />
             <input
               type="text"
               placeholder="Rechercher une boutique par nom, ville ou spécialité..."
@@ -113,7 +112,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
             </div>
           ) : filteredStores.length === 0 ? (
             <div className="text-center py-12 px-4 bg-white/[0.02] rounded-xl border border-white/[0.06] space-y-2">
-              <span className="material-symbols-outlined text-2xl text-slate-400">storefront</span>
+              <Icon name="storefront" className="text-2xl text-slate-400" />
               <p className="font-semibold text-sm text-white">Aucune boutique trouvée</p>
               <p className="text-xs text-slate-400">
                 Aucun résultat pour "{searchQuery}".
@@ -171,7 +170,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
                         </div>
 
                         <div className="text-xs text-on-surface-variant mt-0.5 truncate flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[12px] text-secondary">location_on</span>
+                          <Icon name="location_on" className="text-[12px] text-secondary" />
                           <span>{st.delivery_city?.split("(")[0]?.trim() || "Burkina Faso"}</span>
                         </div>
                       </div>
@@ -192,7 +191,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
                       ) : (
                         <span className="text-on-surface-variant group-hover:text-primary transition-colors flex items-center gap-1 text-[11px] font-medium">
                           <span>Visiter</span>
-                          <span className="material-symbols-outlined text-[13px]">arrow_forward</span>
+                          <Icon name="arrow_forward" className="text-[13px]" />
                         </span>
                       )}
 
@@ -217,7 +216,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
               }}
               className="w-full py-2.5 px-4 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-semibold border border-subtle transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
             >
-              <span className="material-symbols-outlined text-[16px] text-primary">grid_view</span>
+              <Icon name="grid_view" className="text-[16px] text-primary" />
               <span>Voir la Galerie Complète des 100 Boutiques</span>
             </button>
           )}

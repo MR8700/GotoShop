@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState } from "react";
 import { trackVisit } from "../api/client";
 
@@ -84,7 +85,7 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-lg bg-secondary/20 text-secondary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">share</span>
+              <Icon name="share" className="text-[20px]" />
             </span>
             <h3 className="font-headline-sm text-headline-sm text-on-surface">
               Partager sur les Réseaux Sociaux
@@ -94,7 +95,7 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface flex items-center justify-center"
           >
-            <span className="material-symbols-outlined text-[18px]">close</span>
+            <Icon name="close" className="text-[18px]" />
           </button>
         </div>
 
@@ -116,9 +117,7 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
                     : "bg-surface-container text-on-surface-variant hover:text-on-surface"
                 }`}
               >
-                <span className="material-symbols-outlined text-[16px]" style={{ color: net.color }}>
-                  {net.icon}
-                </span>
+                <Icon name={net.icon} className="text-[16px]" style={{ color: net.color }} />
                 <span>{net.name.split(" ")[0]}</span>
               </button>
             );
@@ -132,7 +131,7 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
               className="w-11 h-11 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0"
               style={{ backgroundColor: `${currentNet.color}26`, color: currentNet.color }}
             >
-              <span className="material-symbols-outlined text-[24px]">{currentNet.icon}</span>
+              <Icon name={currentNet.icon} className="text-[24px]" />
             </div>
             <div>
               <h4 className="font-headline-sm text-headline-sm text-on-surface">{currentNet.name}</h4>
@@ -143,7 +142,7 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
           {activeNetwork === "qr" ? (
             <div className="flex flex-col items-center py-2 bg-white rounded-xl p-3 shadow-inner">
               <div className="w-36 h-36 border-4 border-dashed border-gray-800 flex flex-col items-center justify-center text-black text-center font-bold text-xs p-2">
-                <span className="material-symbols-outlined text-[36px] text-primary-container">qr_code_2</span>
+                <Icon name="qr_code_2" className="text-[36px] text-primary-container" />
                 <span>SCANNER POUR COMMANDER</span>
                 <span className="text-[10px] text-gray-600 mt-1">{store?.name}</span>
               </div>
@@ -151,7 +150,7 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
           ) : (
             <div className="p-2.5 rounded-lg bg-surface-container-lowest flex items-center justify-between gap-2 border border-white/5">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="material-symbols-outlined text-secondary text-[16px]">link</span>
+                <Icon name="link" className="text-secondary text-[16px]" />
                 <span className="font-mono text-xs text-on-surface-variant truncate">
                   {trackedUrl}
                 </span>
@@ -170,7 +169,7 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
               onClick={handleShareNative}
               className="h-11 rounded-xl bg-primary-container text-on-primary-container font-label-md text-label-md font-bold flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-transform"
             >
-              <span className="material-symbols-outlined text-[18px]">send</span>
+              <Icon name="send" className="text-[18px]" />
               <span>Partager</span>
             </button>
             <button
@@ -178,7 +177,7 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
               onClick={handleTestClick}
               className="h-11 rounded-xl bg-surface-container-highest text-secondary font-label-md text-label-md font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform hover:bg-surface-bright"
             >
-              <span className="material-symbols-outlined text-[18px]">touch_app</span>
+              <Icon name="touch_app" className="text-[18px]" />
               <span>Tester Clic (+1)</span>
             </button>
           </div>

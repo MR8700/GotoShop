@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useEffect, useRef } from "react";
 import {
   fetchConversations,
@@ -751,7 +752,7 @@ export default function ChatPage({
         <div className="p-4 border-b border-border bg-surface-elevated/40 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
-              <span className="material-symbols-outlined text-xl">forum</span>
+              <Icon name="forum" className="text-xl" />
             </div>
             <div>
               <h2 className="font-bold text-base leading-tight">Messagerie</h2>
@@ -765,7 +766,7 @@ export default function ChatPage({
               onClick={onClose}
               className="w-8 h-8 rounded-full flex items-center justify-center text-foreground-muted hover:bg-surface-elevated hover:text-foreground"
             >
-              <span className="material-symbols-outlined text-xl">close</span>
+              <Icon name="close" className="text-xl" />
             </button>
           )}
         </div>
@@ -795,9 +796,7 @@ export default function ChatPage({
         {/* Search Bar */}
         <div className="px-3 pt-2.5 pb-1">
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-foreground-muted text-sm">
-              search
-            </span>
+            <Icon name="search" className="absolute left-3 top-2.5 text-foreground-muted text-sm" />
             <input
               type="text"
               value={searchQuery}
@@ -824,9 +823,7 @@ export default function ChatPage({
                         call.status === "ENDED" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
                       }`}
                     >
-                      <span className="material-symbols-outlined text-lg">
-                        {call.call_type === "VIDEO" ? "videocam" : "call"}
-                      </span>
+                      <Icon name={call.call_type === "VIDEO" ? "videocam" : "call"} className="text-lg" />
                     </div>
                     <div className="min-w-0">
                       <div className="font-semibold text-xs truncate">
@@ -848,7 +845,7 @@ export default function ChatPage({
                     }}
                     className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-sm">chat</span>
+                    <Icon name="chat" className="text-sm" />
                   </button>
                 </div>
               ))
@@ -945,7 +942,7 @@ export default function ChatPage({
                   onClick={() => setActiveConvId(null)}
                   className="md:hidden w-8 h-8 rounded-full flex items-center justify-center text-foreground-muted hover:bg-surface-elevated"
                 >
-                  <span className="material-symbols-outlined text-xl">arrow_back</span>
+                  <Icon name="arrow_back" className="text-xl" />
                 </button>
 
                 <div className="relative">
@@ -984,7 +981,7 @@ export default function ChatPage({
                   className="p-2 rounded-xl text-foreground-muted hover:text-primary hover:bg-primary/10 transition-colors"
                   title="Appel vocal"
                 >
-                  <span className="material-symbols-outlined text-xl">call</span>
+                  <Icon name="call" className="text-xl" />
                 </button>
                 <button
                   type="button"
@@ -992,7 +989,7 @@ export default function ChatPage({
                   className="p-2 rounded-xl text-foreground-muted hover:text-primary hover:bg-primary/10 transition-colors"
                   title="Appel vidéo"
                 >
-                  <span className="material-symbols-outlined text-xl">videocam</span>
+                  <Icon name="videocam" className="text-xl" />
                 </button>
                 <button
                   type="button"
@@ -1002,14 +999,14 @@ export default function ChatPage({
                   }`}
                   title="Informations"
                 >
-                  <span className="material-symbols-outlined text-xl">info</span>
+                  <Icon name="info" className="text-xl" />
                 </button>
                 {onClose && (
                   <button
                     onClick={onClose}
                     className="md:hidden w-8 h-8 rounded-full flex items-center justify-center text-foreground-muted hover:bg-surface-elevated"
                   >
-                    <span className="material-symbols-outlined text-xl">close</span>
+                    <Icon name="close" className="text-xl" />
                   </button>
                 )}
               </div>
@@ -1019,9 +1016,7 @@ export default function ChatPage({
             {activeConv.order && (
               <div className="px-4 py-2.5 bg-primary/10 border-b border-primary/20 flex items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="material-symbols-outlined text-primary text-base shrink-0">
-                    receipt_long
-                  </span>
+                  <Icon name="receipt_long" className="text-primary text-base shrink-0" />
                   <div className="truncate">
                     <span className="font-bold text-foreground">
                       Commande #{activeConv.order.order_number}
@@ -1082,7 +1077,7 @@ export default function ChatPage({
                       onClick={handleOpenPaymentProofModal}
                       className="px-3 py-1.5 rounded-lg bg-primary text-white font-bold text-xs shadow-sm hover:bg-primary-hover flex items-center gap-1.5"
                     >
-                      <span className="material-symbols-outlined text-sm">upload_file</span>
+                      <Icon name="upload_file" className="text-sm" />
                       <span>Envoyer la preuve de paiement</span>
                     </button>
                   </div>
@@ -1155,7 +1150,7 @@ export default function ChatPage({
               {messages.length === 0 ? (
                 <div className="py-12 text-center text-xs text-foreground-muted space-y-2">
                   <div className="w-12 h-12 rounded-full bg-surface-elevated mx-auto flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-2xl">chat</span>
+                    <Icon name="chat" className="text-2xl" />
                   </div>
                   <p>Démarrez la conversation avec {activeConv.store?.name}.</p>
                 </div>
@@ -1234,7 +1229,7 @@ export default function ChatPage({
                         <div className="w-full max-w-sm p-4 bg-surface rounded-2xl border border-border shadow-lg space-y-3">
                           <div className="flex items-center justify-between border-b border-border pb-2">
                             <span className="font-bold text-xs text-primary flex items-center gap-1.5">
-                              <span className="material-symbols-outlined text-sm">receipt</span>
+                              <Icon name="receipt" className="text-sm" />
                               Preuve de paiement reçue
                             </span>
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 font-bold">
@@ -1292,7 +1287,7 @@ export default function ChatPage({
                     return (
                       <div key={m.id} className="flex justify-center my-2">
                         <div className="px-3 py-1.5 rounded-xl bg-surface-elevated/60 border border-border text-[11px] text-foreground-muted flex items-center gap-2">
-                          <span className="material-symbols-outlined text-sm text-primary">phone_in_talk</span>
+                          <Icon name="phone_in_talk" className="text-sm text-primary" />
                           <span>{m.content}</span>
                         </div>
                       </div>
@@ -1323,7 +1318,7 @@ export default function ChatPage({
                         {m.message_type === "LOCATION" && m.metadata?.latitude && (
                           <div className="p-2 rounded-xl bg-black/10 border border-white/10 space-y-1">
                             <div className="flex items-center gap-1.5 font-bold">
-                              <span className="material-symbols-outlined text-sm">location_on</span>
+                              <Icon name="location_on" className="text-sm" />
                               <span>Localisation partagée</span>
                             </div>
                             <p className="text-[11px] opacity-90">{m.metadata.address}</p>
@@ -1352,7 +1347,7 @@ export default function ChatPage({
                               }}
                               className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30"
                             >
-                              <span className="material-symbols-outlined text-base">play_arrow</span>
+                              <Icon name="play_arrow" className="text-base" />
                             </button>
                             <audio src={getMediaUrl(m.attachments[0].file_url)} className="hidden" />
                             <div className="flex-1">
@@ -1402,7 +1397,7 @@ export default function ChatPage({
               {/* Typing indicator */}
               {typingUsers.length > 0 && (
                 <div className="flex items-center gap-2 text-xs text-foreground-muted italic animate-pulse">
-                  <span className="material-symbols-outlined text-sm">edit</span>
+                  <Icon name="edit" className="text-sm" />
                   <span>{typingUsers.join(", ")} est en train d'écrire...</span>
                 </div>
               )}
@@ -1426,14 +1421,14 @@ export default function ChatPage({
                       className="p-2 rounded-xl text-foreground-muted hover:text-red-500 hover:bg-surface"
                       title="Annuler"
                     >
-                      <span className="material-symbols-outlined text-lg">delete</span>
+                      <Icon name="delete" className="text-lg" />
                     </button>
                     <button
                       type="button"
                       onClick={stopRecordingAudio}
                       className="px-3.5 py-1.5 rounded-xl bg-red-500 text-white font-bold text-xs flex items-center gap-1 shadow-sm"
                     >
-                      <span className="material-symbols-outlined text-sm">send</span>
+                      <Icon name="send" className="text-sm" />
                       <span>Envoyer</span>
                     </button>
                   </div>
@@ -1457,7 +1452,7 @@ export default function ChatPage({
                     className="p-2 rounded-xl text-foreground-muted hover:text-foreground hover:bg-surface-elevated transition-colors"
                     title="Joindre une photo ou document"
                   >
-                    <span className="material-symbols-outlined text-xl">attach_file</span>
+                    <Icon name="attach_file" className="text-xl" />
                   </button>
 
                   {/* Location Button */}
@@ -1467,7 +1462,7 @@ export default function ChatPage({
                     className="p-2 rounded-xl text-foreground-muted hover:text-primary hover:bg-primary/10 transition-colors"
                     title="Partager ma position GPS"
                   >
-                    <span className="material-symbols-outlined text-xl">location_on</span>
+                    <Icon name="location_on" className="text-xl" />
                   </button>
 
                   {/* Input field */}
@@ -1486,7 +1481,7 @@ export default function ChatPage({
                       disabled={isSending}
                       className="p-2.5 rounded-xl bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary-hover active:scale-95 transition-all"
                     >
-                      <span className="material-symbols-outlined text-lg">send</span>
+                      <Icon name="send" className="text-lg" />
                     </button>
                   ) : (
                     <button
@@ -1495,7 +1490,7 @@ export default function ChatPage({
                       className="p-2.5 rounded-xl bg-surface-elevated text-primary hover:bg-primary/10 border border-primary/20 transition-all"
                       title="Maintenir ou cliquer pour enregistrer une note vocale"
                     >
-                      <span className="material-symbols-outlined text-lg">mic</span>
+                      <Icon name="mic" className="text-lg" />
                     </button>
                   )}
                 </form>
@@ -1506,7 +1501,7 @@ export default function ChatPage({
           /* Empty Active Room */
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-foreground-muted">
             <div className="w-16 h-16 rounded-2xl bg-surface-elevated flex items-center justify-center text-primary mb-3">
-              <span className="material-symbols-outlined text-3xl">chat</span>
+              <Icon name="chat" className="text-3xl" />
             </div>
             <h3 className="font-bold text-base text-foreground">Espace de Commerce Conversationnel</h3>
             <p className="text-xs max-w-sm mt-1">
@@ -1527,7 +1522,7 @@ export default function ChatPage({
               onClick={() => setShowRightDrawer(false)}
               className="w-7 h-7 rounded-full flex items-center justify-center text-foreground-muted hover:bg-surface-elevated"
             >
-              <span className="material-symbols-outlined text-lg">close</span>
+              <Icon name="close" className="text-lg" />
             </button>
           </div>
 
@@ -1591,7 +1586,7 @@ export default function ChatPage({
                   {activeConv.order.delivery && (
                     <div className="border-t border-border pt-2 space-y-1 text-foreground-muted">
                       <div className="font-semibold text-foreground flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs text-primary">pin_drop</span>
+                        <Icon name="pin_drop" className="text-xs text-primary" />
                         <span>Livraison</span>
                       </div>
                       <p className="text-[11px]">{activeConv.order.delivery.delivery_address}</p>
@@ -1629,9 +1624,7 @@ export default function ChatPage({
             {/* Ringing vs Active State Header */}
             <div>
               <div className="w-20 h-20 rounded-full bg-primary/20 text-primary mx-auto flex items-center justify-center mb-3 animate-pulse">
-                <span className="material-symbols-outlined text-4xl">
-                  {activeCall.call_type === "VIDEO" ? "videocam" : "call"}
-                </span>
+                <Icon name={activeCall.call_type === "VIDEO" ? "videocam" : "call"} className="text-4xl" />
               </div>
               <h3 className="font-bold text-lg text-foreground">
                 {activeCall.caller_name}
@@ -1661,14 +1654,14 @@ export default function ChatPage({
                   className="w-14 h-14 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 transition-transform active:scale-95"
                   title="Refuser"
                 >
-                  <span className="material-symbols-outlined text-2xl">call_end</span>
+                  <Icon name="call_end" className="text-2xl" />
                 </button>
                 <button
                   onClick={handleAnswerCall}
                   className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg hover:bg-emerald-600 transition-transform active:scale-95 animate-bounce"
                   title="Accepter"
                 >
-                  <span className="material-symbols-outlined text-2xl">call</span>
+                  <Icon name="call" className="text-2xl" />
                 </button>
               </div>
             ) : (
@@ -1680,9 +1673,7 @@ export default function ChatPage({
                   }`}
                   title={isMicMuted ? "Activer micro" : "Couper micro"}
                 >
-                  <span className="material-symbols-outlined text-xl">
-                    {isMicMuted ? "mic_off" : "mic"}
-                  </span>
+                  <Icon name={isMicMuted ? "mic_off" : "mic"} className="text-xl" />
                 </button>
 
                 {activeCall.call_type === "VIDEO" && (
@@ -1693,9 +1684,7 @@ export default function ChatPage({
                     }`}
                     title={isCameraOff ? "Activer caméra" : "Couper caméra"}
                   >
-                    <span className="material-symbols-outlined text-xl">
-                      {isCameraOff ? "videocam_off" : "videocam"}
-                    </span>
+                    <Icon name={isCameraOff ? "videocam_off" : "videocam"} className="text-xl" />
                   </button>
                 )}
 
@@ -1704,7 +1693,7 @@ export default function ChatPage({
                   className="w-14 h-14 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 transition-transform active:scale-95"
                   title="Raccrocher"
                 >
-                  <span className="material-symbols-outlined text-2xl">call_end</span>
+                  <Icon name="call_end" className="text-2xl" />
                 </button>
               </div>
             )}
@@ -1720,14 +1709,14 @@ export default function ChatPage({
           <div className="relative w-full max-w-md bg-surface border border-border rounded-2xl shadow-2xl p-5 space-y-4 text-xs text-foreground">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="font-bold text-sm text-primary flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-base">upload_file</span>
+                <Icon name="upload_file" className="text-base" />
                 Envoyer une preuve de paiement
               </h3>
               <button
                 onClick={() => setIsPaymentProofModalOpen(false)}
                 className="w-7 h-7 rounded-full flex items-center justify-center text-foreground-muted hover:bg-surface-elevated"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <Icon name="close" className="text-lg" />
               </button>
             </div>
 
@@ -1786,7 +1775,7 @@ export default function ChatPage({
               onClick={() => setPreviewMediaUrl(null)}
               className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black"
             >
-              <span className="material-symbols-outlined text-xl">close</span>
+              <Icon name="close" className="text-xl" />
             </button>
           </div>
         </div>

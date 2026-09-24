@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
 import { fetchCustomerStats } from "../api/client";
 
@@ -29,7 +30,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
     return (
       <div className="flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto space-y-5 pt-12 pb-32">
         <div className="w-16 h-16 rounded-full bg-secondary/20 text-secondary flex items-center justify-center shadow-lg animate-pulse">
-          <span className="material-symbols-outlined text-[32px]">stars</span>
+          <Icon name="stars" className="text-[32px]" />
         </div>
         <div className="space-y-2">
           <h2 className="font-headline-sm text-headline-sm text-on-surface">
@@ -43,7 +44,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
           onClick={onOpenAuth}
           className="w-full h-12 rounded-xl bg-primary-container text-on-primary-container font-label-lg font-bold shadow-md hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2"
         >
-          <span className="material-symbols-outlined text-[20px]">flash_on</span>
+          <Icon name="flash_on" className="text-[20px]" />
           <span>Activer mes Avantages (3s)</span>
         </button>
       </div>
@@ -66,7 +67,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
           <p className="text-xs text-on-surface-variant">Espace Privilège Membre</p>
         </div>
         <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 border ${tierBadge}`}>
-          <span className="material-symbols-outlined text-[15px]">verified</span>
+          <Icon name="verified" className="text-[15px]" />
           {stats?.loyalty_tier || "Bronze"}
         </span>
       </div>
@@ -75,7 +76,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
       <div className="relative overflow-hidden rounded-3xl bg-surface-container border border-primary/25 p-6 shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[24px] text-primary">workspace_premium</span>
+            <Icon name="workspace_premium" className="text-[24px] text-primary" />
             <span className="font-headline-sm text-xs font-bold uppercase tracking-widest text-on-surface">
               Awa Club Privilège
             </span>
@@ -124,7 +125,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
       <div className="grid grid-cols-2 gap-3">
         <div className="p-4 rounded-2xl bg-surface-container shadow-md border border-white/5 space-y-1">
           <div className="w-8 h-8 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center mb-2">
-            <span className="material-symbols-outlined text-[18px]">payments</span>
+            <Icon name="payments" className="text-[18px]" />
           </div>
           <p className="text-xs text-on-surface-variant">Total Achats Conclus</p>
           <p className="text-lg font-bold text-primary tabular-nums">
@@ -134,7 +135,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
 
         <div className="p-4 rounded-2xl bg-surface-container shadow-md border border-white/5 space-y-1">
           <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center mb-2">
-            <span className="material-symbols-outlined text-[18px]">savings</span>
+            <Icon name="savings" className="text-[18px]" />
           </div>
           <p className="text-xs text-on-surface-variant">Économies Ventes Flash</p>
           <p className="text-lg font-bold text-emerald-400 tabular-nums">
@@ -146,7 +147,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
       {/* Loyalty Status Warning if inactive */}
       {stats?.is_loyalty_active === false && (
         <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
-          <span className="material-symbols-outlined text-[18px]">info</span>
+          <Icon name="info" className="text-[18px]" />
           <span>Le programme de fidélité est actuellement suspendu par la boutique.</span>
         </div>
       )}
@@ -155,7 +156,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
       <div className="rounded-2xl bg-surface-container p-4 shadow-md border border-white/5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-headline-sm text-sm font-bold text-on-surface flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px] text-secondary">redeem</span>
+            <Icon name="redeem" className="text-[20px] text-secondary" />
             Paliers & Privilèges Définis par la Boutique
           </h3>
           <span className="text-[11px] text-on-surface-variant font-mono">
@@ -182,13 +183,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span
-                          className={`material-symbols-outlined text-[20px] ${
-                            isUnlocked ? "text-secondary" : "text-on-surface-variant"
-                          }`}
-                        >
-                          {isUnlocked ? "verified" : "lock"}
-                        </span>
+                        <Icon name={isUnlocked ? "verified" : "lock"} className={`text-[20px] ${ isUnlocked ? "text-secondary" : "text-on-surface-variant" }`} />
                         <h4 className="font-headline-sm text-sm font-bold text-on-surface">
                           {tier.name}
                         </h4>
@@ -239,7 +234,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
         ) : (
           <div className="space-y-2.5 text-xs">
             <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-surface-container-high/60 border border-white/5">
-              <span className="material-symbols-outlined text-secondary text-[18px] shrink-0 mt-0.5">bolt</span>
+              <Icon name="bolt" className="text-secondary text-[18px] shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold text-on-surface">Traitement & Expédition Prioritaire</p>
                 <p className="text-on-surface-variant text-[11px]">
@@ -249,7 +244,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
             </div>
 
             <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-surface-container-high/60 border border-white/5">
-              <span className="material-symbols-outlined text-primary text-[18px] shrink-0 mt-0.5">loyalty</span>
+              <Icon name="loyalty" className="text-primary text-[18px] shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold text-on-surface">Points Convertibles en Réductions</p>
                 <p className="text-on-surface-variant text-[11px]">
@@ -265,7 +260,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
         onClick={onNavigateToShop}
         className="w-full h-12 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md font-bold flex items-center justify-center gap-2 transition-colors tap-scale cursor-pointer"
       >
-        <span className="material-symbols-outlined text-[18px]">storefront</span>
+        <Icon name="storefront" className="text-[18px]" />
         <span>Continuer mes achats pour cumuler des points</span>
       </button>
     </div>

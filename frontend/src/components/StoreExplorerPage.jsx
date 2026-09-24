@@ -1,6 +1,8 @@
+import Icon from "./Icon";
 import React, { useState, useMemo } from "react";
 import { getMediaUrl } from "../api/client";
 import ThemeToggle from "./ThemeToggle";
+import Footer from "./Footer";
 
 export default function StoreExplorerPage({
   stores = [],
@@ -152,7 +154,7 @@ export default function StoreExplorerPage({
         <div className="max-w-5xl mx-auto h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-bold shadow-sm">
-              <span className="material-symbols-outlined text-[20px]">storefront</span>
+              <Icon name="storefront" className="text-[20px]" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
@@ -180,7 +182,7 @@ export default function StoreExplorerPage({
                 onClick={onOpenCustomerAuth}
                 className="h-8 px-3 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface text-xs font-medium border border-subtle transition-all flex items-center gap-1.5"
               >
-                <span className="material-symbols-outlined text-[15px] text-primary">login</span>
+                <Icon name="login" className="text-[15px] text-primary" />
                 <span>Connexion</span>
               </button>
             )}
@@ -189,7 +191,7 @@ export default function StoreExplorerPage({
               onClick={onOpenRegisterStore}
               className="h-8 px-3 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5"
             >
-              <span className="material-symbols-outlined text-[15px]">add_business</span>
+              <Icon name="add_business" className="text-[15px]" />
               <span className="hidden xs:inline">Ouvrir ma boutique</span>
             </button>
 
@@ -236,14 +238,14 @@ export default function StoreExplorerPage({
                 className="h-11 px-5 rounded-xl bg-primary hover:brightness-105 text-white text-sm font-semibold flex items-center gap-2 shadow-sm transition-all active:scale-[0.98]"
               >
                 <span>Explorer les 100 boutiques</span>
-                <span className="material-symbols-outlined text-[18px]">arrow_downward</span>
+                <Icon name="arrow_downward" className="text-[18px]" />
               </a>
 
               <button
                 onClick={onOpenRegisterStore}
                 className="h-11 px-5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface text-sm font-medium border border-subtle transition-all flex items-center gap-2"
               >
-                <span className="material-symbols-outlined text-[18px] text-amber-500">store</span>
+                <Icon name="store" className="text-[18px] text-amber-500" />
                 <span>Créer ma boutique</span>
               </button>
             </div>
@@ -253,7 +255,7 @@ export default function StoreExplorerPage({
           <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 mt-6 border-t border-subtle">
             <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-secondary/60 border border-subtle">
               <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-[18px]">chat</span>
+                <Icon name="chat" className="text-[18px]" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-on-surface">100% Direct</p>
@@ -263,7 +265,7 @@ export default function StoreExplorerPage({
 
             <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-secondary/60 border border-subtle">
               <div className="w-8 h-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-[18px]">verified_user</span>
+                <Icon name="verified_user" className="text-[18px]" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-on-surface">À la livraison</p>
@@ -273,7 +275,7 @@ export default function StoreExplorerPage({
 
             <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-secondary/60 border border-subtle">
               <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-[18px]">badge</span>
+                <Icon name="badge" className="text-[18px]" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-on-surface">1 Seul Compte</p>
@@ -288,9 +290,7 @@ export default function StoreExplorerPage({
       <section id="stores-directory" className="px-4 sm:px-6 pt-4 pb-2 max-w-5xl mx-auto w-full space-y-4">
         {/* Search Bar */}
         <div className="relative">
-          <span className="material-symbols-outlined absolute left-3.5 top-3.5 text-slate-400 text-[19px]">
-            search
-          </span>
+          <Icon name="search" className="absolute left-3.5 top-3.5 text-slate-400 text-[19px]" />
           <input
             type="text"
             placeholder="Rechercher une boutique par nom, gérant, spécialité ou ville..."
@@ -306,7 +306,7 @@ export default function StoreExplorerPage({
               onClick={() => setSearchQuery("")}
               className="absolute right-3 top-3 w-5 h-5 rounded-full bg-surface-secondary text-on-surface-variant flex items-center justify-center hover:text-on-surface"
             >
-              <span className="material-symbols-outlined text-[14px]">close</span>
+              <Icon name="close" className="text-[14px]" />
             </button>
           )}
         </div>
@@ -328,7 +328,7 @@ export default function StoreExplorerPage({
                     : "bg-surface-secondary text-on-surface-variant hover:text-on-surface border border-subtle"
                 }`}
               >
-                <span className="material-symbols-outlined text-[15px]">{f.icon}</span>
+                <Icon name={f.icon} className="text-[15px]" />
                 <span>{f.label}</span>
               </button>
             );
@@ -357,7 +357,7 @@ export default function StoreExplorerPage({
         ) : paginatedStores.length === 0 ? (
           <div className="text-center py-16 px-4 bg-surface-container rounded-2xl border border-subtle space-y-3 shadow-card">
             <div className="w-12 h-12 rounded-xl bg-surface-secondary text-on-surface-variant flex items-center justify-center mx-auto">
-              <span className="material-symbols-outlined text-2xl">storefront</span>
+              <Icon name="storefront" className="text-2xl" />
             </div>
             <h3 className="font-semibold text-base text-on-surface">Aucune boutique trouvée</h3>
             <p className="text-xs text-on-surface-variant max-w-sm mx-auto">
@@ -380,7 +380,7 @@ export default function StoreExplorerPage({
                 <div
                   key={st.id}
                   onClick={() => onSelectStore(st.slug)}
-                  className="group relative bg-surface-container rounded-2xl border border-subtle hover:border-strong transition-all duration-200 cursor-pointer flex flex-col justify-between overflow-hidden shadow-card hover:shadow-card-hover"
+                  className="group relative bg-surface-container rounded-2xl border-2 border-slate-200 dark:border-slate-800 hover:border-primary/60 transition-all duration-200 cursor-pointer flex flex-col justify-between overflow-hidden shadow-card hover:shadow-card-hover"
                 >
                   <div className="p-5 space-y-4">
                     {/* Top Identity Row */}
@@ -390,8 +390,8 @@ export default function StoreExplorerPage({
                         <div className="relative shrink-0">
                           <img
                             src={getMediaUrl(st.logo_url) || "/media/store/logo.jpg"}
-                            alt={st.name}
-                            className="w-12 h-12 rounded-xl object-cover border border-subtle bg-surface"
+                            alt=""
+                            className="w-12 h-12 rounded-xl object-cover border-2 border-slate-200 dark:border-slate-700 bg-surface shadow-xs"
                             onError={(e) => {
                               e.target.onerror = null;
                               e.target.src = "/media/store/logo.jpg";
@@ -399,10 +399,10 @@ export default function StoreExplorerPage({
                           />
                           {st.is_verified && (
                             <span
-                              className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-secondary text-white flex items-center justify-center text-[10px] font-bold shadow"
-                              title="Boutique vérifiée"
+                              className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-secondary text-white flex items-center justify-center text-[10px] font-bold shadow ring-2 ring-surface select-none"
+                              title="Boutique vérifiée GotoShop"
                             >
-                              <span className="material-symbols-outlined text-[10px]">check</span>
+                              <Icon name="check" className="text-[10px]" aria-hidden="true" />
                             </span>
                           )}
                         </div>
@@ -414,7 +414,7 @@ export default function StoreExplorerPage({
                           </h3>
                           <div className="flex items-center gap-1.5 text-xs text-on-surface-variant mt-0.5 truncate">
                             <span className="flex items-center gap-0.5">
-                              <span className="material-symbols-outlined text-[13px] text-secondary">location_on</span>
+                              <Icon name="location_on" className="text-[13px] text-secondary" aria-hidden="true" />
                               <span>{st.delivery_city?.split("(")[0]?.trim() || "Burkina Faso"}</span>
                             </span>
                             {st.owner_name && (
@@ -428,10 +428,8 @@ export default function StoreExplorerPage({
                       </div>
 
                       {/* Star Rating Badge */}
-                      <div className="flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-semibold">
-                        <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                          star
-                        </span>
+                      <div className="flex items-center gap-1 shrink-0 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-500 text-xs font-semibold">
+                        <Icon name="star" className="text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }} aria-hidden="true" />
                         <span>{st.rating || 4.9}</span>
                       </div>
                     </div>
@@ -442,14 +440,14 @@ export default function StoreExplorerPage({
                     </p>
                   </div>
 
-                  {/* Card Action Footer */}
-                  <div className="px-5 py-3 border-t border-subtle bg-surface-secondary/40 flex items-center justify-between text-xs">
+                  {/* Card Action Footer (Dual-Tone Superimposed Bar) */}
+                  <div className="px-5 py-3 border-t-2 border-slate-200 dark:border-slate-800 bg-surface-secondary/80 flex items-center justify-between text-xs">
                     <span className="text-on-surface-variant font-medium">
                       Paiement à la livraison
                     </span>
                     <span className="text-primary font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                       <span>Visiter la vitrine</span>
-                      <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                      <Icon name="arrow_forward" className="text-[14px]" />
                     </span>
                   </div>
                 </div>
@@ -466,7 +464,7 @@ export default function StoreExplorerPage({
               disabled={currentPage === 1}
               className="px-3 py-1.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest disabled:opacity-40 text-xs font-medium text-on-surface flex items-center gap-1 transition-all border border-subtle"
             >
-              <span className="material-symbols-outlined text-[15px]">chevron_left</span>
+              <Icon name="chevron_left" className="text-[15px]" />
               <span>Précédent</span>
             </button>
 
@@ -480,31 +478,30 @@ export default function StoreExplorerPage({
               className="px-3 py-1.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest disabled:opacity-40 text-xs font-medium text-on-surface flex items-center gap-1 transition-all border border-subtle"
             >
               <span>Suivant</span>
-              <span className="material-symbols-outlined text-[15px]">chevron_right</span>
+              <Icon name="chevron_right" className="text-[15px]" />
             </button>
           </div>
         )}
       </main>
 
-      {/* Clean Platform Footer */}
-      <footer className="mt-12 pt-6 border-t border-subtle text-center text-xs text-on-surface-variant max-w-5xl mx-auto w-full px-4 space-y-2">
+      {/* Platform Navigation Links & Branded Footer */}
+      <div className="mt-8 pt-4 text-center text-xs text-on-surface-variant max-w-5xl mx-auto w-full px-4">
         <div className="flex items-center justify-center gap-4 flex-wrap">
-          <button onClick={onOpenRegisterStore} className="text-primary hover:underline font-semibold">
+          <button onClick={onOpenRegisterStore} className="text-primary hover:underline font-semibold cursor-pointer">
             Ouvrir ma boutique
           </button>
           <span>•</span>
-          <button onClick={onOpenOwnerLogin} className="hover:text-on-surface transition-colors">
+          <button onClick={onOpenOwnerLogin} className="hover:text-on-surface transition-colors cursor-pointer">
             Espace Commerçant
           </button>
           <span>•</span>
-          <button onClick={onOpenSuperAdmin} className="hover:text-on-surface transition-colors">
+          <button onClick={onOpenSuperAdmin} className="hover:text-on-surface transition-colors cursor-pointer">
             Console Plateforme
           </button>
         </div>
-        <p className="text-[11px] text-on-surface-variant/70">
-          GotoShop • Plateforme de commerce conversationnel multi-boutiques pour l'Afrique de l'Ouest.
-        </p>
-      </footer>
+      </div>
+
+      <Footer />
     </div>
   );
 }

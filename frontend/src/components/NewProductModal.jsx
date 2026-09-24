@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useRef } from "react";
 import { createProduct } from "../api/client";
 
@@ -129,7 +130,7 @@ export default function NewProductModal({ store, categories, onClose, onProductC
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">add_a_photo</span>
+              <Icon name="add_a_photo" className="text-[20px]" />
             </span>
             <h3 className="font-headline-sm text-headline-sm text-on-surface">Nouveau Produit</h3>
           </div>
@@ -137,7 +138,7 @@ export default function NewProductModal({ store, categories, onClose, onProductC
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface flex items-center justify-center"
           >
-            <span className="material-symbols-outlined text-[18px]">close</span>
+            <Icon name="close" className="text-[18px]" />
           </button>
         </div>
 
@@ -156,7 +157,7 @@ export default function NewProductModal({ store, categories, onClose, onProductC
                   onClick={() => setImagePreview(null)}
                   className="absolute top-2 right-2 bg-error text-on-error p-1.5 rounded-full shadow-md"
                 >
-                  <span className="material-symbols-outlined text-[16px]">delete</span>
+                  <Icon name="delete" className="text-[16px]" />
                 </button>
               </div>
             ) : (
@@ -166,7 +167,7 @@ export default function NewProductModal({ store, categories, onClose, onProductC
                   onClick={() => cameraInputRef.current?.click()}
                   className="h-24 rounded-xl border border-dashed border-primary/50 bg-primary-container/10 text-primary flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
                 >
-                  <span className="material-symbols-outlined text-[26px]">photo_camera</span>
+                  <Icon name="photo_camera" className="text-[26px]" />
                   <span className="font-label-sm text-xs font-bold">Prendre Photo</span>
                 </button>
                 <button
@@ -174,7 +175,7 @@ export default function NewProductModal({ store, categories, onClose, onProductC
                   onClick={() => fileInputRef.current?.click()}
                   className="h-24 rounded-xl border border-dashed border-outline/50 bg-surface-container text-on-surface flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
                 >
-                  <span className="material-symbols-outlined text-[26px]">photo_library</span>
+                  <Icon name="photo_library" className="text-[26px]" />
                   <span className="font-label-sm text-xs font-bold">Importer Galerie</span>
                 </button>
               </div>
@@ -212,9 +213,7 @@ export default function NewProductModal({ store, categories, onClose, onProductC
                     : "border-outline-variant/40 bg-surface-container text-on-surface-variant"
                 }`}
               >
-                <span className="material-symbols-outlined text-[18px]">
-                  {videoPreview ? "check_circle" : "videocam"}
-                </span>
+                <Icon name={videoPreview ? "check_circle" : "videocam"} className="text-[18px]" />
                 <span className="truncate">{videoPreview ? "Vidéo prête" : "Ajouter vidéo"}</span>
               </button>
               <input
@@ -239,9 +238,7 @@ export default function NewProductModal({ store, categories, onClose, onProductC
                     : "border-outline-variant/40 bg-surface-container text-on-surface-variant"
                 }`}
               >
-                <span className="material-symbols-outlined text-[18px]">
-                  {pdfData ? "check_circle" : "picture_as_pdf"}
-                </span>
+                <Icon name={pdfData ? "check_circle" : "picture_as_pdf"} className="text-[18px]" />
                 <span className="truncate">{pdfName || "Joindre PDF"}</span>
               </button>
               <input
@@ -345,7 +342,7 @@ export default function NewProductModal({ store, categories, onClose, onProductC
             disabled={isSubmitting}
             className="w-full h-13 py-3 rounded-xl bg-primary-container text-on-primary-container font-label-lg text-label-lg font-bold shadow-lg hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-[20px]">check</span>
+            <Icon name="check" className="text-[20px]" />
             <span>{isSubmitting ? "Enregistrement..." : "Publier le produit en base"}</span>
           </button>
         </form>

@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React from "react";
 
 export default function BottomNav({ activeTab, onSelectTab, pendingCount = 0, mode = "client", clientOrdersCount = 0, unreadChatCount = 0 }) {
@@ -35,12 +36,7 @@ export default function BottomNav({ activeTab, onSelectTab, pendingCount = 0, mo
               }`}
             >
               <div className="relative flex items-center justify-center">
-                <span
-                  className="material-symbols-outlined text-[20px] transition-transform"
-                  style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}
-                >
-                  {tab.icon}
-                </span>
+                <Icon name={tab.icon} className="text-[20px] transition-transform" style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}} />
                 {tab.badge && tab.badge > 0 ? (
                   <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center leading-none">
                     {tab.badge}

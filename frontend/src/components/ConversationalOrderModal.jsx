@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState } from "react";
 import { createConversationalOrder, getActiveStoreSlug } from "../api/client";
 
@@ -45,6 +46,7 @@ export default function ConversationalOrderModal({
   // Flow State: "EDIT" | "SUCCESS"
   const [step, setStep] = useState("EDIT");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [createdOrder, setCreatedOrder] = useState(null);
 
   const deliveryFee = 500;
@@ -80,12 +82,17 @@ export default function ConversationalOrderModal({
   };
 
   const handleSubmitOrder = async () => {
+    setErrorMessage("");
     if (!customerName.trim()) {
-      showToast?.("Veuillez renseigner votre nom");
+      const msg = "Veuillez renseigner votre nom";
+      setErrorMessage(msg);
+      showToast?.(msg);
       return;
     }
     if (deliveryMode !== "EXACT_GPS" && !deliveryAddress.trim()) {
-      showToast?.("Veuillez décrire votre adresse de livraison");
+      const msg = "Veuillez préciser votre adresse ou repère de livraison";
+      setErrorMessage(msg);
+      showToast?.(msg);
       return;
     }
 
@@ -148,7 +155,9 @@ export default function ConversationalOrderModal({
       onOrderCreated?.(result);
     } catch (err) {
       console.error("Erreur transmission commande :", err);
-      showToast?.(err.message || "Erreur création de la commande");
+      const msg = err.message || "Erreur de transmission de la commande. Veuillez vérifier votre connexion et réessayer.";
+      setErrorMessage(msg);
+      showToast?.(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -156,13 +165,13 @@ export default function ConversationalOrderModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden text-foreground">
+      <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col bg-surface border-2 border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden text-foreground">
         
         {/* Header */}
         <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-surface-elevated/60">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined">restaurant</span>
+              <Icon name="restaurant" />
             </div>
             <div>
               <h3 className="font-bold text-base leading-tight">
@@ -177,12 +186,29 @@ export default function ConversationalOrderModal({
             onClick={onClose}
             className="w-8 h-8 rounded-full flex items-center justify-center text-foreground-muted hover:bg-surface-elevated hover:text-foreground transition-colors"
           >
-            <span className="material-symbols-outlined text-xl">close</span>
+            <Icon name="close" className="text-xl" />
           </button>
         </div>
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          {errorMessage && (
+            <div className="p-3.5 bg-red-500/10 border-2 border-red-500/40 rounded-xl text-red-600 dark:text-red-400 text-xs flex items-start gap-2.5 shadow-sm">
+              <Icon name="error" className="text-[20px] text-red-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-bold">Attention</p>
+                <p className="mt-0.5 leading-relaxed">{errorMessage}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setErrorMessage("")}
+                className="text-red-500 hover:text-red-700 font-bold p-0.5"
+              >
+                <Icon name="close" className="text-[16px]" />
+              </button>
+            </div>
+          )}
+
           {step === "EDIT" ? (
             <>
               {/* Product summary card */}
@@ -228,7 +254,7 @@ export default function ConversationalOrderModal({
               {isCustomizable && (
                 <div className="p-4 bg-primary/5 rounded-xl border border-primary/20 space-y-4">
                   <div className="flex items-center gap-2 text-primary font-bold text-sm">
-                    <span className="material-symbols-outlined text-lg">tune</span>
+                    <Icon name="tune" className="text-lg" />
                     <span>Personnalisation sur mesure</span>
                   </div>
 
@@ -307,7 +333,7 @@ export default function ConversationalOrderModal({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-foreground-muted flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-sm text-primary">location_on</span>
+                    <Icon name="location_on" className="text-sm text-primary" />
                     Où souhaitez-vous recevoir votre commande ?
                   </label>
                 </div>
@@ -354,7 +380,7 @@ export default function ConversationalOrderModal({
                   <div className="p-3 bg-surface-elevated/40 rounded-xl border border-border flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-semibold text-foreground flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm text-primary">my_location</span>
+                        <Icon name="my_location" className="text-sm text-primary" />
                         <span>Coordonnées GPS exactes</span>
                       </div>
                       <p className="text-[11px] text-foreground-muted truncate">
@@ -367,7 +393,7 @@ export default function ConversationalOrderModal({
                       disabled={isLocating}
                       className="px-3 py-1.5 text-xs font-bold rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors flex items-center gap-1 shrink-0"
                     >
-                      <span className="material-symbols-outlined text-sm">{isLocating ? "hourglass_empty" : "near_me"}</span>
+                      <Icon name={isLocating ? "hourglass_empty" : "near_me"} className="text-sm" />
                       <span>{isLocating ? "Localisation..." : gpsCaptured ? "Actualiser" : "Utiliser ma position"}</span>
                     </button>
                   </div>
@@ -434,7 +460,7 @@ export default function ConversationalOrderModal({
             /* SUCCESS STATE */
             <div className="py-6 text-center space-y-4">
               <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center animate-bounce">
-                <span className="material-symbols-outlined text-3xl">check_circle</span>
+                <Icon name="check_circle" className="text-3xl" />
               </div>
 
               <div>
@@ -445,8 +471,8 @@ export default function ConversationalOrderModal({
               </div>
 
               {/* Order recap box */}
-              <div className="p-4 bg-surface-elevated/60 border border-border rounded-xl text-left text-xs space-y-2 max-w-sm mx-auto">
-                <div className="flex justify-between font-bold border-b border-border pb-1.5">
+              <div className="p-4 bg-surface-secondary border-2 border-slate-300 dark:border-slate-700 rounded-xl text-left text-xs space-y-2 max-w-sm mx-auto shadow-sm">
+                <div className="flex justify-between font-bold border-b border-slate-300 dark:border-slate-700 pb-1.5">
                   <span>Statut :</span>
                   <span className="text-amber-500 font-semibold">En attente d'acceptation</span>
                 </div>
@@ -456,11 +482,11 @@ export default function ConversationalOrderModal({
                 </div>
                 <div className="text-foreground-muted">
                   <span>Livraison : </span>
-                  <span className="text-foreground">{createdOrder?.delivery?.delivery_address}</span>
+                  <span className="text-foreground font-medium">{createdOrder?.delivery?.delivery_address}</span>
                 </div>
               </div>
 
-              <div className="p-3.5 bg-primary/10 rounded-xl border border-primary/20 text-xs text-primary max-w-sm mx-auto">
+              <div className="p-3.5 bg-primary/10 rounded-xl border-2 border-primary/30 text-xs text-primary max-w-sm mx-auto shadow-xs">
                 💬 <strong>Commerce conversationnel intégré :</strong> Vous pouvez maintenant échanger directement avec le chef, envoyer votre preuve de paiement et suivre la préparation.
               </div>
             </div>
@@ -468,7 +494,7 @@ export default function ConversationalOrderModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-border bg-surface-elevated/40 flex items-center gap-3">
+        <div className="p-4 border-t-2 border-slate-200 dark:border-slate-800 bg-surface-elevated/40 flex items-center gap-3">
           {step === "EDIT" ? (
             <>
               <button
@@ -484,9 +510,7 @@ export default function ConversationalOrderModal({
                 disabled={isSubmitting}
                 className="flex-[2] py-2.5 px-4 text-xs font-bold rounded-xl bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary-hover active:scale-[0.98] transition-all flex items-center justify-center gap-2"
               >
-                <span className="material-symbols-outlined text-sm">
-                  {isSubmitting ? "hourglass_empty" : "send"}
-                </span>
+                <Icon name={isSubmitting ? "hourglass_empty" : "send"} className="text-sm" />
                 <span>{isSubmitting ? "Transmission..." : `Confirmer la commande (${totalAmount.toLocaleString()} F)`}</span>
               </button>
             </>
@@ -509,7 +533,7 @@ export default function ConversationalOrderModal({
                 }}
                 className="flex-[2] py-3 px-4 text-xs font-bold rounded-xl bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary-hover active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-base">forum</span>
+                <Icon name="forum" className="text-base" />
                 <span>Ouvrir le chat de la commande</span>
               </button>
             </div>

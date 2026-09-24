@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState } from "react";
 import { loginOwner, resetOwnerCredentials } from "../api/client";
 
@@ -66,13 +67,13 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
           onClick={onClose}
           className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-surface-secondary hover:bg-surface-elevated border border-subtle text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors cursor-pointer"
         >
-          <span className="material-symbols-outlined text-[18px]">close</span>
+          <Icon name="close" className="text-[18px]" />
         </button>
 
         {/* Top Header */}
         <div className="flex flex-col items-center text-center pt-1 pb-4">
           <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mb-3 shadow-sm">
-            <span className="material-symbols-outlined text-[24px]">storefront</span>
+            <Icon name="storefront" className="text-[24px]" />
           </div>
           <h2 className="text-base font-bold text-on-surface tracking-tight">Espace Commerçant</h2>
           <p className="text-xs text-on-surface-variant font-normal mt-0.5">
@@ -82,7 +83,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
 
         {errorMessage && (
           <div className="mb-3.5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px] shrink-0 text-rose-400">error</span>
+            <Icon name="error" className="text-[16px] shrink-0 text-rose-400" />
             <span className="flex-1">{errorMessage}</span>
           </div>
         )}
@@ -93,9 +94,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
               Email ou Téléphone
             </label>
             <div className="relative flex items-center">
-              <span className="material-symbols-outlined absolute left-3 text-on-surface-variant/60 text-[18px]">
-                mail
-              </span>
+              <Icon name="mail" className="absolute left-3 text-on-surface-variant/60 text-[18px]" />
               <input
                 type="text"
                 value={identifier}
@@ -112,9 +111,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
               Mot de passe
             </label>
             <div className="relative flex items-center">
-              <span className="material-symbols-outlined absolute left-3 text-on-surface-variant/60 text-[18px]">
-                lock
-              </span>
+              <Icon name="lock" className="absolute left-3 text-on-surface-variant/60 text-[18px]" />
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -128,9 +125,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-2.5 text-on-surface-variant hover:text-on-surface p-1 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[18px]">
-                  {showPassword ? "visibility_off" : "visibility"}
-                </span>
+                <Icon name={showPassword ? "visibility_off" : "visibility"} className="text-[18px]" />
               </button>
             </div>
           </div>
@@ -140,7 +135,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
             disabled={isLoading || !identifier || !password}
             className="w-full h-11 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer mt-2"
           >
-            <span className="material-symbols-outlined text-[18px]">login</span>
+            <Icon name="login" className="text-[18px]" />
             <span>{isLoading ? "Connexion en cours..." : "Accéder à ma Boutique"}</span>
           </button>
         </form>
@@ -158,7 +153,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
               className="text-[10px] text-primary hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
               title="Réinitialiser l'accès démo par défaut"
             >
-              <span className="material-symbols-outlined text-[12px]">refresh</span>
+              <Icon name="refresh" className="text-[12px]" />
               <span>{isResetting ? "Réinit..." : "Réinitialiser"}</span>
             </button>
           </div>
@@ -203,7 +198,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
               onClick={onOpenRegisterStore}
               className="w-full py-2.5 px-3 rounded-xl bg-secondary/15 hover:bg-secondary/25 border border-secondary/30 text-secondary text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[16px]">add_business</span>
+              <Icon name="add_business" className="text-[16px]" />
               <span>Ouvrir ma boutique (14 jours gratuits)</span>
             </button>
           </div>

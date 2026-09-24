@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
 import {
   getMediaUrl,
@@ -212,7 +213,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
             className="relative w-10 h-10 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center transition-transform active:scale-95 shadow-sm"
             title="Notifications & Alertes"
           >
-            <span className="material-symbols-outlined text-[20px]">notifications</span>
+            <Icon name="notifications" className="text-[20px]" />
             {(notificationsData.unread_count > 0 || notificationsData.discrepancies_count > 0) && (
               <span className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-rose-500 text-white font-bold text-[10px] flex items-center justify-center shadow animate-pulse">
                 {notificationsData.unread_count || notificationsData.discrepancies_count}
@@ -224,7 +225,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
             className="w-10 h-10 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center transition-transform active:scale-95 shadow-sm"
             title="Actualiser"
           >
-            <span className="material-symbols-outlined text-[18px]">refresh</span>
+            <Icon name="refresh" className="text-[18px]" />
           </button>
         </div>
       </div>
@@ -234,7 +235,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
         <section className="w-full bg-rose-500/10 border-2 border-rose-500/40 rounded-2xl p-4 shadow-lg space-y-3.5 animate-fadeIn">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-rose-400">
-              <span className="material-symbols-outlined text-[22px] animate-bounce">warning</span>
+              <Icon name="warning" className="text-[22px] animate-bounce" />
               <span className="font-label-lg font-bold uppercase tracking-wider text-xs">
                 Incohérences &amp; Litiges Détectés ({discrepanciesList.length})
               </span>
@@ -286,7 +287,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                           onClick={() => handleResolve(disc.id, "ACCEPT_CANCELLATION", "Annulation client acceptée")}
                           className="h-10 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition-all active:scale-98 flex items-center justify-center gap-1"
                         >
-                          <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+                          <Icon name="restart_alt" className="text-[16px]" />
                           <span>Accepter l'annulation (+Stock)</span>
                         </button>
                         <button
@@ -295,7 +296,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                           onClick={() => handleResolve(disc.id, "FORCE_CONFIRM_SALE", "Vente maintenue sur preuve")}
                           className="h-10 rounded-xl bg-secondary hover:bg-secondary/90 text-surface text-xs font-bold transition-all active:scale-98 flex items-center justify-center gap-1 shadow"
                         >
-                          <span className="material-symbols-outlined text-[16px]">verified</span>
+                          <Icon name="verified" className="text-[16px]" />
                           <span>Maintenir Vente Conclue</span>
                         </button>
                       </>
@@ -307,7 +308,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                           onClick={() => handleResolve(disc.id, "FORCE_CONFIRM_SALE", "Requalifié en vente sur retour client")}
                           className="h-10 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-surface text-xs font-bold transition-all active:scale-98 flex items-center justify-center gap-1 shadow"
                         >
-                          <span className="material-symbols-outlined text-[16px]">thumb_up</span>
+                          <Icon name="thumb_up" className="text-[16px]" />
                           <span>Requalifier en Vente (+CA)</span>
                         </button>
                         <button
@@ -333,9 +334,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
         <section className="w-full bg-primary-container/20 rounded-xl p-space-md flex items-center justify-between shadow-md relative overflow-hidden">
           <div className="flex items-center gap-space-sm min-w-0">
             <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center flex-shrink-0 animate-bounce">
-              <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                bolt
-              </span>
+              <Icon name="bolt" className="text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }} />
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-baseline gap-1">
@@ -360,9 +359,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
         <section className="w-full bg-secondary/10 border border-secondary/20 rounded-xl p-space-md flex items-center justify-between shadow-md relative overflow-hidden">
           <div className="flex items-center gap-space-sm min-w-0">
             <div className="w-10 h-10 rounded-full bg-secondary text-surface flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                check_circle
-              </span>
+              <Icon name="check_circle" className="text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }} />
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-baseline gap-1">
@@ -396,12 +393,12 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                 {urgentItem.reference_code}
               </span>
               <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px] text-secondary">schedule</span>
+                <Icon name="schedule" className="text-[14px] text-secondary" />
                 {urgentItem.time_elapsed_display || "Il y a 23h40"}
               </span>
             </div>
             <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px]">forum</span>
+              <Icon name="forum" className="text-[14px]" />
               {urgentItem.channel_type}
             </span>
           </div>
@@ -409,7 +406,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
           {/* Client Feedback Callout Banner if client already acted */}
           {urgentItem.client_status === "SATISFIED" && (
             <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-start gap-2.5 text-xs text-emerald-300 shadow-sm animate-pulse">
-              <span className="material-symbols-outlined text-[20px] text-emerald-400 shrink-0">thumb_up</span>
+              <Icon name="thumb_up" className="text-[20px] text-emerald-400 shrink-0" />
               <div>
                 <strong className="block font-bold text-emerald-300">
                   Le client confirme avoir reçu le produit et est Satisfait(e) ({urgentItem.client_satisfaction_rating || 5}★) !
@@ -423,7 +420,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
 
           {urgentItem.client_status === "CANCELLED" && (
             <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-start gap-2.5 text-xs text-rose-300 shadow-sm">
-              <span className="material-symbols-outlined text-[20px] text-rose-400 shrink-0">cancel</span>
+              <Icon name="cancel" className="text-[20px] text-rose-400 shrink-0" />
               <div>
                 <strong className="block font-bold text-rose-300">
                   Le client a annulé cette commande !
@@ -462,9 +459,9 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                   rel="noreferrer"
                   className="mt-1 inline-flex items-center gap-1 text-[11px] text-secondary hover:underline bg-secondary/10 px-2 py-0.5 rounded w-fit"
                 >
-                  <span className="material-symbols-outlined text-[13px]">pin_drop</span>
+                  <Icon name="pin_drop" className="text-[13px]" />
                   <span>Position GPS de livraison (Google Maps)</span>
-                  <span className="material-symbols-outlined text-[11px]">open_in_new</span>
+                  <Icon name="open_in_new" className="text-[11px]" />
                 </a>
               )}
             </div>
@@ -481,9 +478,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                   onClick={() => handleConfirmYes(urgentItem)}
                   className="w-full h-14 rounded-xl bg-secondary-container text-on-secondary-container font-label-lg text-label-lg flex items-center justify-center gap-space-sm shadow-md active:scale-95 transition-transform font-bold"
                 >
-                  <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    check_circle
-                  </span>
+                  <Icon name="check_circle" className="text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }} />
                   <span>OUI, VENTE CONCLUE</span>
                 </button>
                 <button
@@ -491,14 +486,14 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                   onClick={() => handleConfirmNo(urgentItem)}
                   className="w-full h-12 rounded-xl bg-surface-container-highest text-on-surface-variant font-label-md text-label-md flex items-center justify-center gap-space-xs active:scale-95 transition-transform font-semibold"
                 >
-                  <span className="material-symbols-outlined text-[18px]">cancel</span>
+                  <Icon name="cancel" className="text-[18px]" />
                   <span>NON, ABANDON / REPORT</span>
                 </button>
               </div>
             </>
           ) : (
             <div className="flex flex-col items-center justify-center p-space-md bg-secondary-container/20 rounded-xl text-center">
-              <span className="material-symbols-outlined text-[36px] text-secondary">verified</span>
+              <Icon name="verified" className="text-[36px] text-secondary" />
               <span className="font-headline-sm text-headline-sm text-on-surface mt-1">
                 +{confirmedAmount?.toLocaleString("fr-FR")} FCFA Encaissés
               </span>
@@ -518,7 +513,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
           className="flex flex-col items-start justify-between p-space-md bg-surface-container rounded-xl shadow-md active:scale-98 transition-transform min-h-[110px] text-left"
         >
           <div className="w-10 h-10 rounded-full bg-primary-container/20 text-primary-fixed-dim flex items-center justify-center">
-            <span className="material-symbols-outlined text-[20px]">add_a_photo</span>
+            <Icon name="add_a_photo" className="text-[20px]" />
           </div>
           <div>
             <span className="font-label-lg text-label-lg text-on-surface block leading-tight">Nouveau Produit</span>
@@ -532,7 +527,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
           className="flex flex-col items-start justify-between p-space-md bg-surface-container rounded-xl shadow-md active:scale-98 transition-transform min-h-[110px] text-left"
         >
           <div className="w-10 h-10 rounded-full bg-secondary/20 text-secondary flex items-center justify-center">
-            <span className="material-symbols-outlined text-[20px]">share</span>
+            <Icon name="share" className="text-[20px]" />
           </div>
           <div>
             <span className="font-label-lg text-label-lg text-on-surface block leading-tight">
@@ -548,7 +543,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
         <div className="flex flex-col gap-2 bg-surface-container p-3.5 rounded-2xl shadow-md border border-white/5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[22px]">swap_horizontal_circle</span>
+              <Icon name="swap_horizontal_circle" className="text-primary text-[22px]" />
               <h2 className="font-headline-sm text-base font-bold text-on-surface">Flux des Intentions</h2>
             </div>
             <div className="flex items-center gap-2">
@@ -561,18 +556,14 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                 className="px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-label-sm text-xs font-bold flex items-center gap-1 transition-all"
               >
                 {visibleLimit >= filteredFeed.length ? "Réduire" : `Tout afficher (${filteredFeed.length})`}
-                <span className="material-symbols-outlined text-[14px]">
-                  {visibleLimit >= filteredFeed.length ? "unfold_less" : "unfold_more"}
-                </span>
+                <Icon name={visibleLimit >= filteredFeed.length ? "unfold_less" : "unfold_more"} className="text-[14px]" />
               </button>
             </div>
           </div>
 
           {/* Smart Search Bar */}
           <div className="relative w-full">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant text-[19px]">
-              search
-            </span>
+            <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[19px]" />
             <input
               type="text"
               value={searchQuery}
@@ -586,7 +577,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                 onClick={() => setSearchQuery("")}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-white/10"
               >
-                <span className="material-symbols-outlined text-[16px]">close</span>
+                <Icon name="close" className="text-[16px]" />
               </button>
             )}
           </div>
@@ -650,7 +641,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                 showArchivedOnly ? "bg-amber-500 text-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface"
               }`}
             >
-              <span className="material-symbols-outlined text-[13px]">archive</span>
+              <Icon name="archive" className="text-[13px]" />
               Archivées ({feedList.filter((i) => i.is_archived).length})
             </button>
           </div>
@@ -660,9 +651,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
         <div className="flex flex-col gap-2">
           {displayedFeed.length === 0 ? (
             <div className="p-8 text-center bg-surface-container rounded-2xl border border-white/5">
-              <span className="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2 block">
-                search_off
-              </span>
+              <Icon name="search_off" className="text-4xl text-on-surface-variant/40 mb-2 block" />
               <p className="font-bold text-on-surface text-sm mb-1">Aucune intention trouvée</p>
               <p className="text-xs text-on-surface-variant mb-4">
                 Aucun résultat ne correspond aux filtres ou à la recherche appliquée.
@@ -738,17 +727,17 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                     <div className="flex flex-col items-end shrink-0 gap-1">
                       {isSatisfied ? (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-label-sm text-[10px] font-bold flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[12px]">thumb_up</span>
+                          <Icon name="thumb_up" className="text-[12px]" />
                           Satisfait
                         </span>
                       ) : isSold ? (
                         <span className="px-2 py-0.5 rounded-full bg-secondary/20 text-secondary font-label-sm text-[10px] font-bold flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[12px]">check</span>
+                          <Icon name="check" className="text-[12px]" />
                           Confirmée
                         </span>
                       ) : isCancelled ? (
                         <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-label-sm text-[10px] font-bold flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[12px]">close</span>
+                          <Icon name="close" className="text-[12px]" />
                           Annulée
                         </span>
                       ) : item.status === "REDIRECTED" ? (
@@ -758,7 +747,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-full bg-primary-container/20 text-primary-fixed-dim font-label-sm text-[10px] uppercase flex items-center gap-1 font-semibold">
-                          <span className="material-symbols-outlined text-[11px]">alarm</span>
+                          <Icon name="alarm" className="text-[11px]" />
                           En attente
                         </span>
                       )}
@@ -779,9 +768,9 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 text-[11px] text-secondary hover:underline bg-secondary/10 px-2 py-1 rounded-lg w-fit"
                     >
-                      <span className="material-symbols-outlined text-[13px]">pin_drop</span>
+                      <Icon name="pin_drop" className="text-[13px]" />
                       <span>Livraison GPS Google Maps : {item.delivery_city || "Position client"}</span>
-                      <span className="material-symbols-outlined text-[11px]">open_in_new</span>
+                      <Icon name="open_in_new" className="text-[11px]" />
                     </a>
                   )}
 
@@ -799,9 +788,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                             : "bg-surface-container-high text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest"
                         }`}
                       >
-                        <span className="material-symbols-outlined text-[14px]">
-                          {isArchived ? "unarchive" : "archive"}
-                        </span>
+                        <Icon name={isArchived ? "unarchive" : "archive"} className="text-[14px]" />
                         <span>{isArchived ? "Désarchiver" : "Archiver"}</span>
                       </button>
 
@@ -812,7 +799,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                         title="Supprimer définitivement cette intention"
                         className="px-2 py-1 rounded-lg bg-surface-container-high text-rose-400 hover:bg-rose-500/20 text-[11px] font-semibold flex items-center gap-1 transition-all"
                       >
-                        <span className="material-symbols-outlined text-[14px]">delete</span>
+                        <Icon name="delete" className="text-[14px]" />
                         <span>Supprimer</span>
                       </button>
                     </div>
@@ -829,7 +816,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                           className="px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 text-[11px] font-semibold flex items-center gap-1 transition-all"
                           title="Contacter sur WhatsApp"
                         >
-                          <span className="material-symbols-outlined text-[13px]">chat</span>
+                          <Icon name="chat" className="text-[13px]" />
                           <span>WhatsApp</span>
                         </a>
                       )}
@@ -842,7 +829,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                           className="px-2 py-1 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
                           title="Ouvrir la messagerie directe"
                         >
-                          <span className="material-symbols-outlined text-[13px]">forum</span>
+                          <Icon name="forum" className="text-[13px]" />
                           <span>Chat</span>
                         </button>
                       )}
@@ -854,7 +841,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                         className="px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-[11px] font-bold flex items-center gap-1 transition-all"
                       >
                         <span>Détails</span>
-                        <span className="material-symbols-outlined text-[13px]">arrow_forward</span>
+                        <Icon name="arrow_forward" className="text-[13px]" />
                       </button>
                     </div>
                   </div>
@@ -872,7 +859,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                 className="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
               >
                 <span>Afficher 30 suivants</span>
-                <span className="material-symbols-outlined text-[16px]">expand_more</span>
+                <Icon name="expand_more" className="text-[16px]" />
               </button>
               <button
                 type="button"
@@ -892,7 +879,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
           <div className="rounded-2xl bg-surface-container-high border border-white/10 p-5 max-w-md w-full max-h-[85vh] flex flex-col shadow-2xl animate-fadeIn overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-[20px]">receipt_long</span>
+                <Icon name="receipt_long" className="text-primary text-[20px]" />
                 <h3 className="font-headline-sm text-base font-bold text-on-surface">
                   Commande {selectedIntentDetail.reference_code}
                 </h3>
@@ -901,7 +888,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                 onClick={() => setSelectedIntentDetail(null)}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-white/10"
               >
-                <span className="material-symbols-outlined text-[18px]">close</span>
+                <Icon name="close" className="text-[18px]" />
               </button>
             </div>
 
@@ -953,10 +940,10 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                     className="mt-2 p-2 rounded-lg bg-secondary/15 text-secondary flex items-center justify-between font-bold"
                   >
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[15px]">pin_drop</span>
+                      <Icon name="pin_drop" className="text-[15px]" />
                       Position GPS Client (Maps)
                     </span>
-                    <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                    <Icon name="open_in_new" className="text-[14px]" />
                   </a>
                 )}
               </div>
@@ -990,9 +977,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                 }}
                 className="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all flex items-center gap-1"
               >
-                <span className="material-symbols-outlined text-[14px]">
-                  {selectedIntentDetail.is_archived ? "unarchive" : "archive"}
-                </span>
+                <Icon name={selectedIntentDetail.is_archived ? "unarchive" : "archive"} className="text-[14px]" />
                 <span>{selectedIntentDetail.is_archived ? "Désarchiver" : "Archiver"}</span>
               </button>
               {onOpenChat && (
@@ -1005,7 +990,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                   }}
                   className="px-3 py-1.5 rounded-xl bg-primary text-surface text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[14px]">forum</span>
+                  <Icon name="forum" className="text-[14px]" />
                   <span>Ouvrir le Chat</span>
                 </button>
               )}
@@ -1027,7 +1012,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
           <div className="rounded-2xl bg-surface-container-high border border-white/10 p-5 max-w-md w-full max-h-[85vh] flex flex-col shadow-2xl animate-fadeIn">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-[22px]">notifications</span>
+                <Icon name="notifications" className="text-primary text-[22px]" />
                 <h3 className="font-headline-sm text-base font-bold text-on-surface">Alertes &amp; Rappels</h3>
               </div>
               <div className="flex items-center gap-2">
@@ -1041,7 +1026,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                   onClick={() => setIsNotifsOpen(false)}
                   className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface"
                 >
-                  <span className="material-symbols-outlined text-[18px]">close</span>
+                  <Icon name="close" className="text-[18px]" />
                 </button>
               </div>
             </div>
@@ -1049,7 +1034,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
             <div className="flex-1 overflow-y-auto py-3 space-y-2.5">
               {notificationsData.notifications?.length === 0 ? (
                 <div className="p-8 text-center text-on-surface-variant text-xs space-y-2">
-                  <span className="material-symbols-outlined text-[32px] opacity-40">notifications_off</span>
+                  <Icon name="notifications_off" className="text-[32px] opacity-40" />
                   <p>Aucune notification pour le moment. Tout est à jour !</p>
                 </div>
               ) : (

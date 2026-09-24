@@ -44,6 +44,10 @@ def get_current_store(
 def list_public_stores(db: Session = Depends(get_db)):
     return StoreService.get_public_stores(db)
 
+@router.get("/{store_id}/reviews")
+def get_store_reviews(store_id: str, db: Session = Depends(get_db)):
+    return StoreService.get_store_reviews(db, store_id)
+
 @router.put("/{store_id}", response_model=StoreDetailSchema)
 def update_store(store_id: str, data: StoreUpdateSchema, db: Session = Depends(get_db)):
     store = StoreService.update_store(db, store_id, data)

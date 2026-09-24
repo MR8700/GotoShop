@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
 import {
   fetchSubscriptionPublicInfo,
@@ -330,9 +331,7 @@ export default function SubscriptionModal({
         <div className="px-5 py-4 bg-surface-secondary border-b border-subtle text-on-surface flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-[22px]">
-                {mode === "NEW_STORE" ? "add_business" : "workspace_premium"}
-              </span>
+              <Icon name={mode === "NEW_STORE" ? "add_business" : "workspace_premium"} className="text-[22px]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -361,7 +360,7 @@ export default function SubscriptionModal({
             className="w-8 h-8 rounded-lg bg-surface-card hover:bg-surface-elevated border border-subtle flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
             aria-label="Fermer"
           >
-            <span className="material-symbols-outlined text-[18px]">close</span>
+            <Icon name="close" className="text-[18px]" />
           </button>
         </div>
 
@@ -378,9 +377,7 @@ export default function SubscriptionModal({
             /* SUCCESS CONFIRMATION SCREEN */
             <div className="text-center py-4 px-2 space-y-5 animate-fade-in">
               <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 flex items-center justify-center mx-auto shadow-md">
-                <span className="material-symbols-outlined text-[36px]">
-                  storefront
-                </span>
+                <Icon name="storefront" className="text-[36px]" />
               </div>
 
               <div className="space-y-1.5">
@@ -407,9 +404,7 @@ export default function SubscriptionModal({
                     Lien unique d'accès à votre boutique :
                   </label>
                   <div className="flex items-center gap-2 bg-surface-card p-2 rounded-xl border border-subtle">
-                    <span className="material-symbols-outlined text-primary text-[18px]">
-                      link
-                    </span>
+                    <Icon name="link" className="text-primary text-[18px]" />
                     <input
                       type="text"
                       readOnly
@@ -421,9 +416,7 @@ export default function SubscriptionModal({
                       onClick={() => copyToClipboard(fullStorePublicUrl, "url")}
                       className="px-3 py-1.5 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-xs font-semibold text-on-surface border border-subtle flex items-center gap-1 transition-all cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[14px]">
-                        {copiedUrl ? "check" : "content_copy"}
-                      </span>
+                      <Icon name={copiedUrl ? "check" : "content_copy"} className="text-[14px]" />
                       <span>{copiedUrl ? "Copié !" : "Copier"}</span>
                     </button>
                   </div>
@@ -432,9 +425,7 @@ export default function SubscriptionModal({
                 {/* Login credentials notice */}
                 <div className="p-3 bg-surface-card/60 rounded-xl border border-subtle text-xs space-y-1.5">
                   <div className="font-semibold text-on-surface flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-primary">
-                    <span className="material-symbols-outlined text-[16px]">
-                      vpn_key
-                    </span>
+                    <Icon name="vpn_key" className="text-[16px]" />
                     <span>Vos accès commerçant :</span>
                   </div>
                   <div className="text-[11px] text-on-surface-variant flex flex-col gap-0.5">
@@ -464,9 +455,7 @@ export default function SubscriptionModal({
                   onClick={() => handleFinishAndEnterStore(true)}
                   className="px-5 py-3 rounded-xl bg-primary hover:brightness-105 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[18px]">
-                    dashboard
-                  </span>
+                  <Icon name="dashboard" className="text-[18px]" />
                   <span>Ouvrir mon Espace Commerçant 🚀</span>
                 </button>
 
@@ -475,9 +464,7 @@ export default function SubscriptionModal({
                   onClick={() => handleFinishAndEnterStore(false)}
                   className="px-4 py-3 rounded-xl bg-surface-secondary hover:bg-surface-elevated border border-subtle text-on-surface font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[18px]">
-                    storefront
-                  </span>
+                  <Icon name="storefront" className="text-[18px]" />
                   <span>Voir la vitrine client</span>
                 </button>
               </div>
@@ -487,9 +474,7 @@ export default function SubscriptionModal({
             <form onSubmit={handleSubmit} className="space-y-6">
               {errorMessage && (
                 <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs font-medium text-rose-300 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px] text-rose-400">
-                    error
-                  </span>
+                  <Icon name="error" className="text-[18px] text-rose-400" />
                   <span>{errorMessage}</span>
                 </div>
               )}
@@ -541,9 +526,7 @@ export default function SubscriptionModal({
                         </div>
                       </div>
                       <div className="text-[10px] text-primary font-semibold mt-2.5 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[13px]">
-                          bolt
-                        </span>
+                        <Icon name="bolt" className="text-[13px]" />
                         <span>Activation en 1 clic</span>
                       </div>
                     </div>
@@ -584,9 +567,7 @@ export default function SubscriptionModal({
                         </div>
                       </div>
                       <div className="text-[10px] text-on-surface-variant font-medium mt-2.5 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[13px]">
-                          verified
-                        </span>
+                        <Icon name="verified" className="text-[13px]" />
                         <span>Badge Pro & Priorité</span>
                       </div>
                     </div>
@@ -831,9 +812,7 @@ export default function SubscriptionModal({
                           <ul className="space-y-1 text-[10px] text-on-surface-variant border-t border-subtle pt-2">
                             {features.slice(0, 2).map((f, idx) => (
                               <li key={idx} className="flex items-center gap-1">
-                                <span className="material-symbols-outlined text-[12px] text-primary shrink-0">
-                                  check
-                                </span>
+                                <Icon name="check" className="text-[12px] text-primary shrink-0" />
                                 <span className="truncate">{f}</span>
                               </li>
                             ))}
@@ -902,9 +881,7 @@ export default function SubscriptionModal({
                             href={currentDialOption.tel_link}
                             className="px-3 py-1.5 rounded-lg bg-secondary hover:brightness-105 text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
                           >
-                            <span className="material-symbols-outlined text-[14px]">
-                              call
-                            </span>
+                            <Icon name="call" className="text-[14px]" />
                             <span>Composer</span>
                           </a>
                         )}
@@ -913,9 +890,7 @@ export default function SubscriptionModal({
                           onClick={() => copyToClipboard(currentDialOption.ussd_code, "code")}
                           className="px-3 py-1.5 rounded-lg bg-surface-card hover:bg-surface-elevated border border-subtle text-on-surface text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-[14px]">
-                            {copiedCode ? "check" : "content_copy"}
-                          </span>
+                          <Icon name={copiedCode ? "check" : "content_copy"} className="text-[14px]" />
                           <span>{copiedCode ? "Copié !" : "Copier"}</span>
                         </button>
                       </div>
@@ -949,16 +924,12 @@ export default function SubscriptionModal({
                           }}
                           className="p-1 rounded-lg text-rose-400 hover:bg-rose-500/10 cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-[18px]">
-                            delete
-                          </span>
+                          <Icon name="delete" className="text-[18px]" />
                         </button>
                       </div>
                     ) : (
                       <label className="border-2 border-dashed border-subtle hover:border-primary/50 rounded-xl p-3 text-center cursor-pointer block bg-surface-card hover:bg-surface-secondary/40 transition-colors">
-                        <span className="material-symbols-outlined text-[20px] text-on-surface-variant mx-auto block mb-1">
-                          photo_camera
-                        </span>
+                        <Icon name="photo_camera" className="text-[20px] text-on-surface-variant mx-auto block mb-1" />
                         <div className="text-[11px] font-medium text-on-surface">
                           Cliquez pour charger la capture de confirmation Mobile Money
                         </div>
@@ -1013,16 +984,12 @@ export default function SubscriptionModal({
                           ? "Créer ma Boutique (14 Jours Gratuits) 🚀"
                           : "Activer ma Boutique avec Formule"}
                       </span>
-                      <span className="material-symbols-outlined text-[16px]">
-                        arrow_forward
-                      </span>
+                      <Icon name="arrow_forward" className="text-[16px]" />
                     </>
                   ) : (
                     <>
                       <span>Confirmer le Renouvellement</span>
-                      <span className="material-symbols-outlined text-[16px]">
-                        check_circle
-                      </span>
+                      <Icon name="check_circle" className="text-[16px]" />
                     </>
                   )}
                 </button>

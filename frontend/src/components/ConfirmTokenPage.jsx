@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
 import { confirmByToken } from "../api/client";
 
@@ -26,7 +27,7 @@ export default function ConfirmTokenPage({ token, onBackToStore, showToast }) {
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-margin py-8 max-w-md mx-auto text-center">
       <div className="w-full bg-surface-container-high rounded-2xl p-6 shadow-2xl border border-white/5 flex flex-col items-center gap-4">
         <div className="w-16 h-16 rounded-full bg-primary-container/20 text-primary-container flex items-center justify-center">
-          <span className="material-symbols-outlined text-[32px]">verified</span>
+          <Icon name="verified" className="text-[32px]" />
         </div>
 
         <span className="px-3 py-1 rounded-full bg-secondary-container/20 text-secondary font-label-sm text-xs font-bold uppercase">
@@ -50,7 +51,7 @@ export default function ConfirmTokenPage({ token, onBackToStore, showToast }) {
                   {token}
                 </span>
               </div>
-              <span className="material-symbols-outlined text-secondary">lock</span>
+              <Icon name="lock" className="text-secondary" />
             </div>
 
             <div className="flex flex-col gap-2 w-full pt-2">
@@ -60,7 +61,7 @@ export default function ConfirmTokenPage({ token, onBackToStore, showToast }) {
                 onClick={() => handleDecision(true)}
                 className="w-full h-14 rounded-xl bg-secondary-container text-on-secondary font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
               >
-                <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                <Icon name="check_circle" className="text-[20px]" />
                 <span>OUI, VENTE RÉALISÉE</span>
               </button>
 
@@ -70,16 +71,14 @@ export default function ConfirmTokenPage({ token, onBackToStore, showToast }) {
                 onClick={() => handleDecision(false)}
                 className="w-full h-12 rounded-xl bg-surface-container-highest text-on-surface-variant font-label-md text-label-md flex items-center justify-center gap-2 active:scale-95 transition-transform"
               >
-                <span className="material-symbols-outlined text-[18px]">cancel</span>
+                <Icon name="cancel" className="text-[18px]" />
                 <span>NON, PAS DE VENTE</span>
               </button>
             </div>
           </>
         ) : (
           <div className="flex flex-col items-center gap-3 py-4">
-            <span className={`material-symbols-outlined text-[48px] ${isSold ? "text-secondary" : "text-on-surface-variant"}`}>
-              {isSold ? "task_alt" : "unpublished"}
-            </span>
+            <Icon name={isSold ? "task_alt" : "unpublished"} className={`text-[48px] ${isSold ? "text-secondary" : "text-on-surface-variant"}`} />
             <h3 className="font-headline-sm text-on-surface">{message}</h3>
             <p className="font-body-sm text-on-surface-variant">
               {isSold

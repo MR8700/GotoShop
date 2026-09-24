@@ -67,6 +67,10 @@ class StoreUpdateSchema(BaseModel):
     # Loyalty Settings
     is_loyalty_active: Optional[bool] = None
     loyalty_spend_per_point: Optional[int] = None
+    # Public Visibility Settings
+    show_ratings_publicly: Optional[bool] = None
+    show_sales_count_publicly: Optional[bool] = None
+    show_reviews_publicly: Optional[bool] = None
 
 class StoreDetailSchema(BaseModel):
     id: str
@@ -97,6 +101,9 @@ class StoreDetailSchema(BaseModel):
     is_custom_theme_active: Optional[bool] = True
     is_loyalty_active: Optional[bool] = True
     loyalty_spend_per_point: Optional[int] = 1000
+    show_ratings_publicly: Optional[bool] = True
+    show_sales_count_publicly: Optional[bool] = True
+    show_reviews_publicly: Optional[bool] = True
     subscription_status: Optional[str] = "ACTIVE"
     subscription_plan: Optional[str] = "PRO"
     subscription_expires_at: Optional[datetime] = None

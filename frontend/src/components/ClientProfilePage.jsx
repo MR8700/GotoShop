@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState } from "react";
 import { updateCustomerProfile, getMediaUrl } from "../api/client";
 import { WEST_AFRICAN_COUNTRIES } from "../utils/locations";
@@ -41,7 +42,7 @@ export default function ClientProfilePage({
     return (
       <div className="flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto space-y-5 pt-12 pb-32">
         <div className="w-16 h-16 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shadow-lg">
-          <span className="material-symbols-outlined text-[32px]">person</span>
+          <Icon name="person" className="text-[32px]" />
         </div>
         <div className="space-y-2">
           <h2 className="font-headline-sm text-headline-sm text-on-surface">Votre Profil Client</h2>
@@ -53,7 +54,7 @@ export default function ClientProfilePage({
           onClick={onOpenAuth}
           className="w-full h-12 rounded-xl bg-primary-container text-on-primary-container font-label-lg font-bold shadow-md hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2"
         >
-          <span className="material-symbols-outlined text-[20px]">flash_on</span>
+          <Icon name="flash_on" className="text-[20px]" />
           <span>Créer mon Profil (3s)</span>
         </button>
 
@@ -62,7 +63,7 @@ export default function ClientProfilePage({
             onClick={onOpenOwnerLogin}
             className="text-xs text-secondary hover:underline flex items-center justify-center gap-1.5 mx-auto"
           >
-            <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+            <Icon name="admin_panel_settings" className="text-[16px]" />
             <span>Accès Commerçante / Propriétaire</span>
           </button>
         </div>
@@ -160,11 +161,11 @@ export default function ClientProfilePage({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <span className="material-symbols-outlined text-[32px]">person</span>
+                <Icon name="person" className="text-[32px]" />
               )}
             </div>
             <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-              <span className="material-symbols-outlined text-[20px]">photo_camera</span>
+              <Icon name="photo_camera" className="text-[20px]" />
               <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
             </label>
           </div>
@@ -172,7 +173,7 @@ export default function ClientProfilePage({
             <p className="font-bold text-on-surface text-sm">{name || "Votre Nom"}</p>
             <p className="text-xs text-secondary font-mono">{phone}</p>
             <label className="text-[11px] text-primary hover:underline cursor-pointer flex items-center gap-1 mt-1">
-              <span className="material-symbols-outlined text-[14px]">upload</span>
+              <Icon name="upload" className="text-[14px]" />
               <span>Changer ma photo de profil</span>
               <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
             </label>
@@ -270,7 +271,7 @@ export default function ClientProfilePage({
         <div className="p-3.5 rounded-xl bg-surface-container-high/60 border border-primary/20 space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
-              <span className="material-symbols-outlined text-[16px]">pin_drop</span>
+              <Icon name="pin_drop" className="text-[16px]" />
               Localisation GPS Mémorisée
             </span>
             <button
@@ -279,7 +280,7 @@ export default function ClientProfilePage({
               disabled={isLocating}
               className="px-2.5 py-1 rounded-lg bg-primary-container text-on-primary-container text-[11px] font-bold hover:brightness-110 active:scale-95 flex items-center gap-1"
             >
-              <span className="material-symbols-outlined text-[14px]">my_location</span>
+              <Icon name="my_location" className="text-[14px]" />
               <span>{isLocating ? "Détection..." : "Activer GPS Actuel"}</span>
             </button>
           </div>
@@ -294,7 +295,7 @@ export default function ClientProfilePage({
                 className="text-secondary hover:underline flex items-center gap-1 font-semibold"
               >
                 <span>Voir Maps</span>
-                <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                <Icon name="open_in_new" className="text-[14px]" />
               </a>
             </div>
           ) : (
@@ -324,7 +325,7 @@ export default function ClientProfilePage({
           disabled={isSaving}
           className="w-full h-12 rounded-xl bg-primary-container text-on-primary-container font-label-lg font-bold shadow-md hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2"
         >
-          <span className="material-symbols-outlined text-[20px]">check</span>
+          <Icon name="check" className="text-[20px]" />
           <span>{isSaving ? "Enregistrement..." : "Enregistrer mes Informations"}</span>
         </button>
 
@@ -334,7 +335,7 @@ export default function ClientProfilePage({
           onClick={onLogoutCustomer}
           className="w-full h-10 rounded-xl bg-surface-container-high hover:bg-red-500/10 text-on-surface-variant hover:text-red-400 font-label-md font-semibold flex items-center justify-center gap-2 transition-colors"
         >
-          <span className="material-symbols-outlined text-[16px]">logout</span>
+          <Icon name="logout" className="text-[16px]" />
           <span>Déconnexion du compte client</span>
         </button>
       </form>
@@ -349,7 +350,7 @@ export default function ClientProfilePage({
           onClick={onOpenOwnerLogin}
           className="px-3 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-secondary font-bold flex items-center gap-1.5 shrink-0 transition-transform active:scale-95"
         >
-          <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+          <Icon name="admin_panel_settings" className="text-[16px]" />
           <span>Connexion Admin</span>
         </button>
       </div>

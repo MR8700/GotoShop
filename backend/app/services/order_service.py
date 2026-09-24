@@ -49,242 +49,249 @@ class OrderService:
         delivery_fee: int = 500,
         notes: Optional[str] = None
     ) -> Dict[str, Any]:
-        store = StoreService.resolve_store(db, slug=store_id)
-        if not store:
-            store = StoreService.get_default_store(db)
-        if not store:
-            raise ValueError(f"Store {store_id} not found")
-
-        actual_store_id = store.id
-
-        # Validate customer_id against customers table to prevent foreign key errors
-        actual_customer_id = None
-        if customer_id:
-            cust = db.query(Customer).filter(Customer.id == customer_id).first()
-            if cust:
-                actual_customer_id = cust.id
-
-        order_number = OrderService.generate_order_number(db, store.slug)
-        order_id = str(uuid.uuid4())
-
-        # Calculate items subtotal
-        subtotal = 0
-        order_items = []
-        for it in items_data:
-            product_id = it.get("product_id")
-            variant_id = it.get("variant_id")
-            qty = max(1, int(it.get("quantity", 1)))
-            unit_price = int(it.get("unit_price", 0))
-
-            product = None
-            if product_id:
-                product = db.query(Product).filter(Product.id == product_id).first()
-                if not product and hasattr(Product, "slug"):
-                    product = db.query(Product).filter(Product.slug == product_id).first()
-
-            if not product:
-                product = db.query(Product).filter(Product.store_id == actual_store_id).first()
-
-            product_name = it.get("product_name") or (product.name if product else "Produit")
-            if not unit_price and product:
-                unit_price = product.price
-
-            var = None
-            variant_name = it.get("variant_name")
-            if variant_id:
-                var = db.query(ProductVariant).filter(ProductVariant.id == variant_id).first()
-                if var:
-                    variant_name = var.name
-                    if var.price_override:
-                        unit_price = var.price_override
-
-            total_price = unit_price * qty
-            subtotal += total_price
-
-            customization_text = it.get("customization_text")
-            customization_options = it.get("customization_options")
-            if isinstance(customization_options, (dict, list)):
-                customization_options = json.dumps(customization_options, ensure_ascii=False)
-
-            is_customized = bool(customization_text or customization_options)
-
-            # Store only valid ForeignKeys
-            actual_product_id = product.id if product else None
-            actual_variant_id = var.id if var else None
-
-            item = OrderItem(
-                id=str(uuid.uuid4()),
-                order_id=order_id,
-                product_id=actual_product_id,
-                variant_id=actual_variant_id,
-                product_name=product_name,
-                variant_name=variant_name,
-                quantity=qty,
-                unit_price=unit_price,
-                total_price=total_price,
-                is_customized=is_customized,
-                customization_text=customization_text,
-                customization_options=customization_options
-            )
-            order_items.append(item)
-
-        total_amount = subtotal + delivery_fee
-
-        order = Order(
-            id=order_id,
-            order_number=order_number,
-            store_id=actual_store_id,
-            customer_id=actual_customer_id,
-            customer_token=customer_token,
-            customer_name=customer_name,
-            customer_phone=customer_phone,
-            customer_email=customer_email,
-            status="PENDING_SELLER_ACCEPTANCE",
-            payment_status="PAYMENT_PENDING",
-            subtotal_amount=subtotal,
-            delivery_fee=delivery_fee,
-            discount_amount=0,
-            total_amount=total_amount,
-            currency=store.currency or "FCFA",
-            notes=notes,
-            created_at=datetime.utcnow()
-        )
-        db.add(order)
-        db.flush()
-
-        for itm in order_items:
-            db.add(itm)
-
-        # Delivery details
-        delivery = OrderDelivery(
-            id=str(uuid.uuid4()),
-            order_id=order.id,
-            delivery_mode=delivery_data.get("delivery_mode", "GPS_AND_DESCRIPTION"),
-            delivery_city=delivery_data.get("delivery_city", "Kossodo (Ouagadougou)"),
-            delivery_address=delivery_data.get("delivery_address"),
-            latitude=delivery_data.get("latitude"),
-            longitude=delivery_data.get("longitude"),
-            location_accuracy=delivery_data.get("location_accuracy"),
-            location_captured_at=datetime.utcnow() if delivery_data.get("latitude") else None,
-            delivery_notes=delivery_data.get("delivery_notes"),
-            delivery_status="PENDING"
-        )
-        db.add(delivery)
-
-        # Initial pending payment record
-        payment = Payment(
-            id=str(uuid.uuid4()),
-            order_id=order.id,
-            store_id=actual_store_id,
-            amount=total_amount,
-            currency=order.currency,
-            payment_method="MOBILE_MONEY_PROOF",
-            status="PAYMENT_PENDING"
-        )
-        db.add(payment)
-
-        # Also create a bridging OrderIntent so existing analytics & metrics reflect this sale
         try:
-            intent_product = db.query(Product).filter(Product.id == order_items[0].product_id).first() if order_items and order_items[0].product_id else None
-            if not intent_product:
-                intent_product = db.query(Product).filter(Product.store_id == actual_store_id).first() or db.query(Product).first()
+            store = StoreService.resolve_store(db, slug=store_id)
+            if not store:
+                store = StoreService.get_default_store(db)
+            if not store:
+                raise ValueError(f"Boutique introuvable ({store_id})")
 
-            if intent_product:
-                intent = OrderIntent(
+            actual_store_id = store.id
+
+            if not items_data:
+                raise ValueError("Veuillez ajouter au moins un produit à votre commande.")
+
+            # Validate customer_id against customers table to prevent foreign key errors
+            actual_customer_id = None
+            if customer_id:
+                cust = db.query(Customer).filter(Customer.id == customer_id).first()
+                if cust:
+                    actual_customer_id = cust.id
+
+            order_number = OrderService.generate_order_number(db, store.slug)
+            order_id = str(uuid.uuid4())
+
+            # Calculate items subtotal
+            subtotal = 0
+            order_items = []
+            for it in items_data:
+                product_id = it.get("product_id")
+                variant_id = it.get("variant_id")
+                qty = max(1, int(it.get("quantity", 1)))
+                unit_price = int(it.get("unit_price", 0))
+
+                product = None
+                if product_id:
+                    product = db.query(Product).filter(Product.id == product_id).first()
+                    if not product and hasattr(Product, "slug"):
+                        product = db.query(Product).filter(Product.slug == product_id).first()
+
+                if not product:
+                    product = db.query(Product).filter(Product.store_id == actual_store_id).first()
+
+                product_name = it.get("product_name") or (product.name if product else "Produit")
+                if not unit_price and product:
+                    unit_price = product.price
+
+                var = None
+                variant_name = it.get("variant_name")
+                if variant_id:
+                    var = db.query(ProductVariant).filter(ProductVariant.id == variant_id).first()
+                    if var:
+                        variant_name = var.name
+                        if var.price_override:
+                            unit_price = var.price_override
+
+                total_price = unit_price * qty
+                subtotal += total_price
+
+                customization_text = it.get("customization_text")
+                customization_options = it.get("customization_options")
+                if isinstance(customization_options, (dict, list)):
+                    customization_options = json.dumps(customization_options, ensure_ascii=False)
+
+                is_customized = bool(customization_text or customization_options)
+
+                # Store only valid ForeignKeys
+                actual_product_id = product.id if product else None
+                actual_variant_id = var.id if var else None
+
+                item = OrderItem(
                     id=str(uuid.uuid4()),
-                    reference_code=order_number,
-                    store_id=actual_store_id,
-                    product_id=intent_product.id,
-                    channel_type="IN_APP_CHAT",
-                    customer_name=customer_name,
-                    customer_phone=customer_phone,
-                    customer_source="CONVERSATIONAL_COMMERCE",
-                    customer_location_url=f"https://maps.google.com/?q={delivery.latitude},{delivery.longitude}" if delivery.latitude else None,
-                    customer_coordinates=f"{delivery.latitude}, {delivery.longitude}" if delivery.latitude else None,
-                    customer_id=actual_customer_id,
-                    quantity=order_items[0].quantity if order_items else 1,
-                    selected_color=order_items[0].variant_name if order_items else "Standard",
-                    delivery_city=delivery.delivery_city,
-                    unit_price=order_items[0].unit_price if order_items else total_amount,
-                    total_amount=total_amount,
-                    currency=order.currency,
-                    status="CREATED",
-                    client_status="PENDING",
-                    coherence_status="HARMONIZED_PENDING"
+                    order_id=order_id,
+                    product_id=actual_product_id,
+                    variant_id=actual_variant_id,
+                    product_name=product_name,
+                    variant_name=variant_name,
+                    quantity=qty,
+                    unit_price=unit_price,
+                    total_price=total_price,
+                    is_customized=is_customized,
+                    customization_text=customization_text,
+                    customization_options=customization_options
                 )
-                db.add(intent)
-        except Exception as e_intent:
-            print("Notice: OrderIntent bridge skipped:", e_intent)
+                order_items.append(item)
 
-        # Create or link order conversation
-        conv = ChatService.get_or_create_conversation(
-            db=db,
-            store_id=actual_store_id,
-            context_type="ORDER",
-            order_id=order.id,
-            customer_id=actual_customer_id,
-            customer_token=customer_token,
-            customer_name=customer_name
-        )
+            total_amount = subtotal + delivery_fee
 
-        # Post initial interactive Order Card into conversation
-        items_summary = ", ".join([f"{it.product_name} × {it.quantity}" for it in order_items])
-        order_card_metadata = {
-            "order_id": order.id,
-            "order_number": order.order_number,
-            "total_amount": order.total_amount,
-            "currency": order.currency,
-            "items_count": len(order_items),
-            "items_summary": items_summary,
-            "status": order.status,
-            "payment_status": order.payment_status,
-            "delivery_address": delivery.delivery_address,
-            "has_gps": bool(delivery.latitude and delivery.longitude),
-            "latitude": delivery.latitude,
-            "longitude": delivery.longitude
-        }
+            order = Order(
+                id=order_id,
+                order_number=order_number,
+                store_id=actual_store_id,
+                customer_id=actual_customer_id,
+                customer_token=customer_token,
+                customer_name=customer_name,
+                customer_phone=customer_phone,
+                customer_email=customer_email,
+                status="PENDING_SELLER_ACCEPTANCE",
+                payment_status="PAYMENT_PENDING",
+                subtotal_amount=subtotal,
+                delivery_fee=delivery_fee,
+                discount_amount=0,
+                total_amount=total_amount,
+                currency=store.currency or "FCFA",
+                notes=notes,
+                created_at=datetime.utcnow()
+            )
+            db.add(order)
+            db.flush()
 
-        ChatService.send_message(
-            db=db,
-            conversation_id=conv.id,
-            sender_type="SYSTEM",
-            sender_name="Système",
-            content=f"📦 Nouvelle commande #{order.order_number} créée pour un total de {order.total_amount:,} {order.currency}. En attente de validation par le commerçant.",
-            message_type="ORDER",
-            metadata=order_card_metadata
-        )
+            for itm in order_items:
+                db.add(itm)
 
-        # Audit log
-        audit = AuditLog(
-            id=str(uuid.uuid4()),
-            event_name="ORDER_CREATED",
-            actor_type="CUSTOMER",
-            actor_id=customer_id or customer_token,
-            actor_name=customer_name,
-            resource_type="ORDER",
-            resource_id=order.id,
-            previous_state=None,
-            new_state=order.status,
-            metadata_json=json.dumps({"order_number": order.order_number, "total_amount": order.total_amount})
-        )
-        db.add(audit)
+            # Delivery details
+            delivery = OrderDelivery(
+                id=str(uuid.uuid4()),
+                order_id=order.id,
+                delivery_mode=delivery_data.get("delivery_mode", "GPS_AND_DESCRIPTION"),
+                delivery_city=delivery_data.get("delivery_city", "Kossodo (Ouagadougou)"),
+                delivery_address=delivery_data.get("delivery_address"),
+                latitude=delivery_data.get("latitude"),
+                longitude=delivery_data.get("longitude"),
+                location_accuracy=delivery_data.get("location_accuracy"),
+                location_captured_at=datetime.utcnow() if delivery_data.get("latitude") else None,
+                delivery_notes=delivery_data.get("delivery_notes"),
+                delivery_status="PENDING"
+            )
+            db.add(delivery)
 
-        db.commit()
-        db.refresh(order)
+            # Initial pending payment record
+            payment = Payment(
+                id=str(uuid.uuid4()),
+                order_id=order.id,
+                store_id=actual_store_id,
+                amount=total_amount,
+                currency=order.currency,
+                payment_method="MOBILE_MONEY_PROOF",
+                status="PAYMENT_PENDING"
+            )
+            db.add(payment)
 
-        # Broadcast via WebSocket to store owner / user
-        manager.safe_broadcast_sync(conv.id, {
-            "type": "order.created",
-            "order_id": order.id,
-            "order_number": order.order_number,
-            "store_id": actual_store_id,
-            "total_amount": order.total_amount,
-            "currency": order.currency,
-            "customer_name": customer_name,
-            "conversation_id": conv.id
-        })
+            # Also create a bridging OrderIntent so existing analytics & metrics reflect this sale
+            try:
+                intent_product = db.query(Product).filter(Product.id == order_items[0].product_id).first() if order_items and order_items[0].product_id else None
+                if not intent_product:
+                    intent_product = db.query(Product).filter(Product.store_id == actual_store_id).first() or db.query(Product).first()
 
-        return OrderService.format_order_dict(order, conversation_id=conv.id)
+                if intent_product:
+                    intent = OrderIntent(
+                        id=str(uuid.uuid4()),
+                        reference_code=order_number,
+                        store_id=actual_store_id,
+                        product_id=intent_product.id,
+                        channel_type="IN_APP_CHAT",
+                        customer_name=customer_name,
+                        customer_phone=customer_phone,
+                        customer_source="CONVERSATIONAL_COMMERCE",
+                        customer_location_url=f"https://maps.google.com/?q={delivery.latitude},{delivery.longitude}" if delivery.latitude else None,
+                        customer_coordinates=f"{delivery.latitude}, {delivery.longitude}" if delivery.latitude else None,
+                        customer_id=actual_customer_id,
+                        quantity=order_items[0].quantity if order_items else 1,
+                        selected_color=order_items[0].variant_name if order_items else "Standard",
+                        delivery_city=delivery.delivery_city,
+                        unit_price=order_items[0].unit_price if order_items else total_amount,
+                        total_amount=total_amount,
+                        currency=order.currency,
+                        status="CREATED",
+                        client_status="PENDING",
+                        coherence_status="HARMONIZED_PENDING"
+                    )
+                    db.add(intent)
+            except Exception as e_intent:
+                print("Notice: OrderIntent bridge skipped:", e_intent)
+
+            # Create or link order conversation
+            conv = ChatService.get_or_create_conversation(
+                db=db,
+                store_id=actual_store_id,
+                context_type="ORDER",
+                order_id=order.id,
+                customer_id=actual_customer_id,
+                customer_token=customer_token,
+                customer_name=customer_name
+            )
+
+            # Post initial interactive Order Card into conversation
+            items_summary = ", ".join([f"{it.product_name} × {it.quantity}" for it in order_items])
+            order_card_metadata = {
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "total_amount": order.total_amount,
+                "currency": order.currency,
+                "items_count": len(order_items),
+                "items_summary": items_summary,
+                "status": order.status,
+                "payment_status": order.payment_status,
+                "delivery_address": delivery.delivery_address,
+                "has_gps": bool(delivery.latitude and delivery.longitude),
+                "latitude": delivery.latitude,
+                "longitude": delivery.longitude
+            }
+
+            ChatService.send_message(
+                db=db,
+                conversation_id=conv.id,
+                sender_type="SYSTEM",
+                sender_name="Système",
+                content=f"📦 Nouvelle commande #{order.order_number} créée pour un total de {order.total_amount:,} {order.currency}. En attente de validation par le commerçant.",
+                message_type="ORDER",
+                metadata=order_card_metadata
+            )
+
+            # Audit log
+            audit = AuditLog(
+                id=str(uuid.uuid4()),
+                event_name="ORDER_CREATED",
+                actor_type="CUSTOMER",
+                actor_id=customer_id or customer_token,
+                actor_name=customer_name,
+                resource_type="ORDER",
+                resource_id=order.id,
+                previous_state=None,
+                new_state=order.status,
+                metadata_json=json.dumps({"order_number": order.order_number, "total_amount": order.total_amount})
+            )
+            db.add(audit)
+
+            db.commit()
+            db.refresh(order)
+
+            # Broadcast via WebSocket to store owner / user
+            manager.safe_broadcast_sync(conv.id, {
+                "type": "order.created",
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "store_id": actual_store_id,
+                "total_amount": order.total_amount,
+                "currency": order.currency,
+                "customer_name": customer_name,
+                "conversation_id": conv.id
+            })
+
+            return OrderService.format_order_dict(order, conversation_id=conv.id)
+        except Exception as e:
+            db.rollback()
+            raise e
 
     @staticmethod
     def accept_order(db: Session, order_id: str, seller_name: str = "Commerçant") -> Dict[str, Any]:
@@ -540,12 +547,21 @@ class OrderService:
                 "proofs": proofs_info
             }
 
+        store_name = ""
+        store_slug = ""
+        try:
+            if order.store:
+                store_name = order.store.name or ""
+                store_slug = order.store.slug or ""
+        except Exception:
+            pass
+
         return {
             "id": order.id,
             "order_number": order.order_number,
             "store_id": order.store_id,
-            "store_name": order.store.name if order.store else "",
-            "store_slug": order.store.slug if order.store else "",
+            "store_name": store_name,
+            "store_slug": store_slug,
             "customer_id": order.customer_id,
             "customer_name": order.customer_name,
             "customer_phone": order.customer_phone,

@@ -41,6 +41,9 @@ def run_migrations():
                     ("contact_whatsapp", "VARCHAR(30)"),
                     ("contact_email", "VARCHAR(100)"),
                     ("voice_note_subtitle", "VARCHAR(200) DEFAULT 'Écouter les conseils taille & qualité'"),
+                    ("show_ratings_publicly", "BOOLEAN DEFAULT TRUE"),
+                    ("show_sales_count_publicly", "BOOLEAN DEFAULT TRUE"),
+                    ("show_reviews_publicly", "BOOLEAN DEFAULT TRUE"),
                 ]
                 for col_name, col_type in cols_to_add:
                     if col_name not in store_cols:

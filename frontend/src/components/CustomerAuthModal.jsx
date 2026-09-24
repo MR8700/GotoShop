@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState } from "react";
 import { customerQuickRegister, customerQuickLogin } from "../api/client";
 import { WEST_AFRICAN_COUNTRIES } from "../utils/locations";
@@ -75,13 +76,13 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
           className="absolute top-4 right-4 w-8 h-8 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-on-surface border border-subtle flex items-center justify-center transition-colors cursor-pointer"
           aria-label="Fermer"
         >
-          <span className="material-symbols-outlined text-[18px]">close</span>
+          <Icon name="close" className="text-[18px]" />
         </button>
 
         {/* Header */}
         <div className="text-center space-y-1 pt-1">
           <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 text-primary mb-1">
-            <span className="material-symbols-outlined text-[20px]">stars</span>
+            <Icon name="stars" className="text-[20px]" />
           </div>
           <h2 className="text-base sm:text-lg font-semibold text-on-surface">
             {mode === "register" ? "Compte Client Unique" : "Retrouver mes Commandes"}
@@ -139,9 +140,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
                 Nom &amp; Prénom
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-on-surface-variant">
-                  person
-                </span>
+                <Icon name="person" className="absolute left-3 top-2.5 text-[18px] text-on-surface-variant" />
                 <input
                   type="text"
                   placeholder="Ex: Ibrahim Ouédraogo"
@@ -178,9 +177,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
               Numéro WhatsApp / Téléphone
             </label>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-on-surface-variant">
-                phone_iphone
-              </span>
+              <Icon name="phone_iphone" className="absolute left-3 top-2.5 text-[18px] text-on-surface-variant" />
               <input
                 type="tel"
                 placeholder={`Ex: ${currentCountry.dial} 70 12 34 56`}
@@ -227,9 +224,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
                   Quartier / Repère de livraison (champ libre)
                 </label>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-on-surface-variant">
-                    pin_drop
-                  </span>
+                  <Icon name="pin_drop" className="absolute left-3 top-2.5 text-[18px] text-on-surface-variant" />
                   <input
                     type="text"
                     placeholder="Ex: Ouaga 2000, face pharmacie..."
@@ -253,12 +248,12 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
               ) : mode === "register" ? (
                 <>
                   <span>Créer mon compte</span>
-                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                  <Icon name="arrow_forward" className="text-[16px]" />
                 </>
               ) : (
                 <>
                   <span>Accéder à mes commandes</span>
-                  <span className="material-symbols-outlined text-[16px]">login</span>
+                  <Icon name="login" className="text-[16px]" />
                 </>
               )}
             </button>
@@ -266,7 +261,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
         </form>
 
         <div className="flex items-center justify-center gap-1 text-[11px] text-on-surface-variant/70 pt-1">
-          <span className="material-symbols-outlined text-[14px]">lock</span>
+          <Icon name="lock" className="text-[14px]" />
           <span>Coordonnées protégées pour vos livraisons exclusives</span>
         </div>
       </div>

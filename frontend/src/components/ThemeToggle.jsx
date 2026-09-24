@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React from "react";
 import { useTheme } from "../context/ThemeContext";
 
@@ -13,9 +14,7 @@ export default function ThemeToggle({ variant = "icon", className = "" }) {
         title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
         className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-xl border border-subtle bg-surface-secondary hover:bg-surface-container-highest text-on-surface transition-all active:scale-95 text-xs font-medium ${className}`}
       >
-        <span className="material-symbols-outlined text-[16px] text-primary">
-          {isDark ? "light_mode" : "dark_mode"}
-        </span>
+        <Icon name={isDark ? "light_mode" : "dark_mode"} className="text-[16px] text-primary" />
         <span className="font-medium text-[11px]">
           {isDark ? "Mode Clair" : "Mode Sombre"}
         </span>
@@ -40,7 +39,7 @@ export default function ThemeToggle({ variant = "icon", className = "" }) {
           }`}
           aria-pressed={!isDark}
         >
-          <span className="material-symbols-outlined text-[15px] text-amber-500">light_mode</span>
+          <Icon name="light_mode" className="text-[15px] text-amber-500" />
           <span>Clair</span>
         </button>
         <button
@@ -53,7 +52,7 @@ export default function ThemeToggle({ variant = "icon", className = "" }) {
           }`}
           aria-pressed={isDark}
         >
-          <span className="material-symbols-outlined text-[15px] text-primary">dark_mode</span>
+          <Icon name="dark_mode" className="text-[15px] text-primary" />
           <span>Sombre</span>
         </button>
       </div>
@@ -69,9 +68,7 @@ export default function ThemeToggle({ variant = "icon", className = "" }) {
       title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
       className={`w-8 h-8 rounded-xl border border-subtle bg-surface-secondary hover:bg-surface-container-highest text-on-surface flex items-center justify-center transition-all active:scale-95 ${className}`}
     >
-      <span className="material-symbols-outlined text-[18px] text-on-surface transition-transform duration-200">
-        {isDark ? "light_mode" : "dark_mode"}
-      </span>
+      <Icon name={isDark ? "light_mode" : "dark_mode"} className="text-[18px] text-on-surface transition-transform duration-200" />
     </button>
   );
 }

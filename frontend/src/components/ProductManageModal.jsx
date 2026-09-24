@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useRef } from "react";
 import { getMediaUrl, updateProduct, deleteProduct } from "../api/client";
 
@@ -139,7 +140,7 @@ export default function ProductManageModal({
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-lg bg-primary/20 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">edit_square</span>
+              <Icon name="edit_square" className="text-[20px]" />
             </span>
             <div>
               <h3 className="font-headline-sm text-base text-on-surface font-bold">
@@ -154,7 +155,7 @@ export default function ProductManageModal({
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface flex items-center justify-center hover:bg-surface-bright transition-colors"
           >
-            <span className="material-symbols-outlined text-[18px]">close</span>
+            <Icon name="close" className="text-[18px]" />
           </button>
         </div>
 
@@ -229,7 +230,7 @@ export default function ProductManageModal({
                 onClick={() => setIsEditing(true)}
                 className="w-full h-11 rounded-xl bg-primary text-surface font-label-md text-sm font-bold flex items-center justify-center gap-1.5 shadow-md active:scale-98 transition-all hover:brightness-110"
               >
-                <span className="material-symbols-outlined text-[18px]">edit</span>
+                <Icon name="edit" className="text-[18px]" />
                 <span>Modifier les Informations / Prix / Stock</span>
               </button>
 
@@ -240,7 +241,7 @@ export default function ProductManageModal({
                   onClick={handleArchive}
                   className="h-10 rounded-xl bg-surface-container-highest text-on-surface-variant hover:text-on-surface font-label-md text-xs font-bold flex items-center justify-center gap-1 active:scale-98 transition-all"
                 >
-                  <span className="material-symbols-outlined text-[16px]">visibility_off</span>
+                  <Icon name="visibility_off" className="text-[16px]" />
                   <span>Archiver / Masquer</span>
                 </button>
                 <button
@@ -249,7 +250,7 @@ export default function ProductManageModal({
                   onClick={handleHardDelete}
                   className="h-10 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 font-label-md text-xs font-bold flex items-center justify-center gap-1 active:scale-98 transition-all"
                 >
-                  <span className="material-symbols-outlined text-[16px]">delete_forever</span>
+                  <Icon name="delete_forever" className="text-[16px]" />
                   <span>Supprimer Définitivement</span>
                 </button>
               </div>
@@ -283,7 +284,7 @@ export default function ProductManageModal({
                     onClick={() => fileInputRef.current?.click()}
                     className="px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant/30 text-on-surface font-label-md text-xs font-semibold hover:bg-surface-bright flex items-center gap-1.5"
                   >
-                    <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+                    <Icon name="photo_camera" className="text-[16px]" />
                     <span>Changer la photo</span>
                   </button>
                   <p className="text-[10px] text-on-surface-variant mt-1">
@@ -431,7 +432,7 @@ export default function ProductManageModal({
                 disabled={saving}
                 className="h-11 rounded-xl bg-primary text-surface font-label-md text-sm font-bold flex items-center justify-center gap-1 shadow-md active:scale-95 transition-all hover:brightness-110"
               >
-                <span className="material-symbols-outlined text-[18px]">save</span>
+                <Icon name="save" className="text-[18px]" />
                 <span>{saving ? "Sauvegarde..." : "Enregistrer"}</span>
               </button>
               <button

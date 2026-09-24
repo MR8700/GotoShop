@@ -1,7 +1,9 @@
+import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
-import { getMediaUrl } from "../api/client";
+import { getMediaUrl, fetchStoreReviews } from "../api/client";
 import ProductManageModal from "./ProductManageModal";
 import NewProductModal from "./NewProductModal";
+import Footer from "./Footer";
 
 export default function VitrinePage({
   store,
@@ -26,6 +28,8 @@ export default function VitrinePage({
   const [countdownSeconds, setCountdownSeconds] = useState(store?.flash_remaining_seconds || 15502);
   const [managedProduct, setManagedProduct] = useState(null);
   const [isNewProductOpen, setIsNewProductOpen] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -33,6 +37,16 @@ export default function VitrinePage({
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (store?.id && store?.show_reviews_publicly !== false) {
+      setLoadingReviews(true);
+      fetchStoreReviews(store.id)
+        .then((data) => setReviews(Array.isArray(data) ? data : []))
+        .catch(() => setReviews([]))
+        .finally(() => setLoadingReviews(false));
+    }
+  }, [store?.id, store?.show_reviews_publicly]);
 
   const formatCountdown = (secs) => {
     const h = String(Math.floor(secs / 3600)).padStart(2, "0");
@@ -58,7 +72,7 @@ export default function VitrinePage({
         <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-surface-container border border-subtle shadow-sm animate-fade-in">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-[18px]">verified_user</span>
+              <Icon name="verified_user" className="text-[18px]" />
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-on-surface truncate">
@@ -82,7 +96,7 @@ export default function VitrinePage({
         >
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-[18px]">bolt</span>
+              <Icon name="bolt" className="text-[18px]" />
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-on-surface group-hover:text-primary transition-colors truncate">
@@ -95,7 +109,7 @@ export default function VitrinePage({
           </div>
           <span className="px-3 py-1 rounded-xl bg-surface-secondary text-on-surface text-xs font-medium shrink-0 group-hover:bg-primary group-hover:text-white transition-all flex items-center gap-1 border border-subtle">
             <span>Se connecter</span>
-            <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+            <Icon name="arrow_forward" className="text-[14px]" />
           </span>
         </div>
       )}
@@ -104,7 +118,7 @@ export default function VitrinePage({
         <div className="flex items-center justify-between p-3.5 rounded-2xl bg-surface-container border border-secondary/30 shadow-sm text-xs">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="w-8 h-8 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0 font-bold">
-              <span className="material-symbols-outlined text-[18px]">tune</span>
+              <Icon name="tune" className="text-[18px]" />
             </span>
             <div className="min-w-0">
               <p className="font-semibold text-on-surface truncate">
@@ -119,7 +133,7 @@ export default function VitrinePage({
             onClick={() => setIsNewProductOpen(true)}
             className="px-3 py-1.5 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold shrink-0 shadow-sm transition-all flex items-center gap-1 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[16px]">add</span>
+            <Icon name="add" className="text-[16px]" />
             <span>Nouvel Article</span>
           </button>
         </div>
@@ -130,7 +144,7 @@ export default function VitrinePage({
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-surface-container border border-primary/25 shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-[16px]">timer</span>
+              <Icon name="timer" className="text-[16px]" />
             </div>
             <div className="min-w-0">
               <span className="text-xs font-semibold text-on-surface truncate block">
@@ -149,16 +163,16 @@ export default function VitrinePage({
         </div>
       )}
 
-      {/* Store Identity Card */}
-      <section className="rounded-2xl bg-surface-container p-5 sm:p-6 border border-subtle shadow-card space-y-4">
+      {/* Store Identity Card - High Contrast & Dual-Tone Layered Elevation */}
+      <section className="rounded-2xl bg-surface-container p-5 sm:p-6 border-2 border-slate-300 dark:border-slate-700/80 shadow-card space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3.5 min-w-0">
-            {/* Store Logo with Verified Badge */}
+            {/* Store Logo with Isolated Verified Badge */}
             <div className="relative shrink-0">
               <img
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-subtle bg-surface"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border-2 border-slate-200 dark:border-slate-700 bg-surface shadow-xs"
                 src={getMediaUrl(store?.logo_url) || "/media/store/logo.jpg"}
-                alt={store?.name}
+                alt=""
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = "/media/store/logo.jpg";
@@ -166,10 +180,10 @@ export default function VitrinePage({
               />
               {store?.is_verified && (
                 <span
-                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-secondary text-white flex items-center justify-center text-[11px] font-bold shadow"
-                  title="Commerçant certifié"
+                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-secondary text-white flex items-center justify-center shadow ring-2 ring-surface select-none"
+                  title="Commerçant certifié GotoShop"
                 >
-                  <span className="material-symbols-outlined text-[11px]">check</span>
+                  <Icon name="check" className="text-[12px]" aria-hidden="true" />
                 </span>
               )}
             </div>
@@ -181,18 +195,26 @@ export default function VitrinePage({
               <p className="text-xs text-on-surface-variant mt-0.5 line-clamp-1">
                 {store?.tagline || store?.description}
               </p>
-              <div className="flex items-center gap-2 text-xs mt-1.5">
-                <span className="flex items-center gap-1 text-amber-500 font-semibold">
-                  <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    star
-                  </span>
-                  <span>{store?.rating || 4.9}</span>
-                </span>
-                <span className="text-on-surface-variant/40">•</span>
-                <span className="text-on-surface-variant">
-                  {store?.sales_count || 340} ventes conclues
-                </span>
-              </div>
+
+              {/* Dynamic Customer Rating & Sales Count with Merchant Visibility Controls */}
+              {(store?.show_ratings_publicly !== false || store?.show_sales_count_publicly !== false) && (
+                <div className="flex items-center gap-2 text-xs mt-1.5 flex-wrap">
+                  {store?.show_ratings_publicly !== false && (
+                    <span className="flex items-center gap-1 text-amber-500 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/25">
+                      <Icon name="star" className="text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }} aria-hidden="true" />
+                      <span>{store?.rating || 4.9}</span>
+                    </span>
+                  )}
+                  {store?.show_ratings_publicly !== false && store?.show_sales_count_publicly !== false && (
+                    <span className="text-on-surface-variant/40">•</span>
+                  )}
+                  {store?.show_sales_count_publicly !== false && (
+                    <span className="text-on-surface-variant font-medium">
+                      {store?.sales_count || 340} ventes conclues
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -200,28 +222,27 @@ export default function VitrinePage({
           <button
             onClick={() => onOpenChat ? onOpenChat() : onOpenTunnel(heroProduct, "WHATSAPP")}
             aria-label="Discuter avec le vendeur"
-            className="w-10 h-10 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 flex items-center justify-center transition-colors shrink-0"
+            className="w-10 h-10 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border-2 border-primary/30 flex items-center justify-center transition-all shrink-0 active:scale-95 cursor-pointer shadow-xs"
             title="Discuter en direct avec le commerçant"
           >
-            <span className="material-symbols-outlined text-[20px]">forum</span>
+            <Icon name="forum" className="text-[20px]" />
           </button>
         </div>
 
-        {/* Owner Note / Bio */}
+        {/* Owner Note / Bio (Dual-Tone Superimposed Layer) */}
         {store?.owner_bio && (
-          <div className="p-3 rounded-xl bg-surface-secondary/50 border-l-2 border-primary text-xs text-on-surface-secondary leading-relaxed italic">
-            "{store.owner_bio}"
+          <div className="p-3.5 rounded-xl bg-surface-secondary border-l-4 border-l-primary border border-slate-300 dark:border-slate-700/80 text-xs text-on-surface leading-relaxed shadow-xs flex items-start gap-2.5">
+            <Icon name="format_quote" className="text-primary text-[18px] shrink-0 mt-0.5" aria-hidden="true" />
+            <span className="italic">{store.owner_bio}</span>
           </div>
         )}
 
-        {/* Trust Badges */}
-        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-subtle">
+        {/* Trust Badges - Superimposed distinct cards */}
+        <div className="grid grid-cols-3 gap-2 pt-2 border-t-2 border-slate-200 dark:border-slate-800">
           {store?.trust_badges?.map((badge, idx) => (
-            <div key={idx} className="flex flex-col items-center justify-center p-2 rounded-xl bg-surface-secondary/40 text-center border border-subtle">
-              <span className="material-symbols-outlined text-[17px] text-primary">
-                {badge.icon_name}
-              </span>
-              <span className="text-[11px] font-medium text-on-surface-secondary mt-1 line-clamp-1">
+            <div key={idx} className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-surface-secondary text-center border border-slate-300 dark:border-slate-700 shadow-xs">
+              <Icon name={badge.icon_name} className="text-[18px] text-primary" aria-hidden="true" />
+              <span className="text-[11px] font-semibold text-on-surface mt-1 line-clamp-1">
                 {badge.label}
               </span>
             </div>
@@ -344,7 +365,7 @@ export default function VitrinePage({
                 onClick={() => setManagedProduct(heroProduct)}
                 className="h-10 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface border border-subtle text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[16px]">edit</span>
+                <Icon name="edit" className="text-[16px]" />
                 <span>Gérer l'article</span>
               </button>
               <button
@@ -356,7 +377,7 @@ export default function VitrinePage({
                 }}
                 className="h-10 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[16px]">delete</span>
+                <Icon name="delete" className="text-[16px]" />
                 <span>Supprimer</span>
               </button>
             </div>
@@ -370,9 +391,7 @@ export default function VitrinePage({
                 }
                 className="w-full h-12 rounded-xl bg-primary hover:brightness-105 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99] cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[20px]">
-                  {heroProduct.is_customizable ? "tune" : "shopping_bag"}
-                </span>
+                <Icon name={heroProduct.is_customizable ? "tune" : "shopping_bag"} className="text-[20px]" />
                 <span>
                   {heroProduct.is_customizable
                     ? "Personnaliser & Commander en direct"
@@ -385,7 +404,7 @@ export default function VitrinePage({
                   onClick={() => onOpenChat?.()}
                   className="h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-semibold border border-subtle flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[16px] text-secondary">forum</span>
+                  <Icon name="forum" className="text-[16px] text-secondary" />
                   <span>Discuter en direct</span>
                 </button>
                 <button
@@ -393,7 +412,7 @@ export default function VitrinePage({
                   onClick={() => onOpenTunnel(heroProduct, "WHATSAPP", selectedHeroColor)}
                   className="h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-green-600 text-xs font-semibold border border-subtle flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[16px]">chat</span>
+                  <Icon name="chat" className="text-[16px]" />
                   <span>WhatsApp</span>
                 </button>
               </div>
@@ -412,7 +431,7 @@ export default function VitrinePage({
             onClick={() => onSelectCategory(null)}
             className="text-xs text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[14px]">refresh</span>
+            <Icon name="refresh" className="text-[14px]" />
             <span>Toutes les catégories</span>
           </button>
         ) : (
@@ -426,7 +445,7 @@ export default function VitrinePage({
       {products.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-surface-card border border-subtle text-center space-y-3">
           <div className="w-12 h-12 rounded-xl bg-surface-secondary text-on-surface-variant flex items-center justify-center">
-            <span className="material-symbols-outlined text-2xl">inventory_2</span>
+            <Icon name="inventory_2" className="text-2xl" />
           </div>
           <div className="space-y-1">
             <p className="font-semibold text-on-surface text-sm">Aucun article dans cette sélection</p>
@@ -496,7 +515,7 @@ export default function VitrinePage({
                     className="h-8 px-3 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-medium border border-subtle transition-colors flex items-center gap-1 active:scale-95 cursor-pointer"
                     title="Ajouter au panier"
                   >
-                    <span className="material-symbols-outlined text-[15px]">add</span>
+                    <Icon name="add" className="text-[15px]" />
                     <span>Ajouter</span>
                   </button>
                 </div>
@@ -509,7 +528,7 @@ export default function VitrinePage({
                       onClick={() => setManagedProduct(p)}
                       className="h-9 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-medium border border-subtle flex items-center justify-center gap-1 cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[14px]">edit</span>
+                      <Icon name="edit" className="text-[14px]" />
                       <span>Modifier</span>
                     </button>
                     <button
@@ -521,7 +540,7 @@ export default function VitrinePage({
                       }}
                       className="h-9 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-medium flex items-center justify-center gap-1 cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[14px]">delete</span>
+                      <Icon name="delete" className="text-[14px]" />
                       <span>Supprimer</span>
                     </button>
                   </div>
@@ -535,9 +554,7 @@ export default function VitrinePage({
                       }
                       className="w-full h-10 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 active:scale-[0.99] cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[16px]">
-                        {p.is_customizable ? "tune" : "shopping_bag"}
-                      </span>
+                      <Icon name={p.is_customizable ? "tune" : "shopping_bag"} className="text-[16px]" />
                       <span>
                         {p.is_customizable
                           ? "Personnaliser & Commander"
@@ -550,7 +567,7 @@ export default function VitrinePage({
                         onClick={() => onOpenChat?.()}
                         className="h-8 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-on-surface text-[11px] font-medium border border-subtle flex items-center justify-center gap-1 transition-colors cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-[14px] text-secondary">forum</span>
+                        <Icon name="forum" className="text-[14px] text-secondary" />
                         <span>Discuter</span>
                       </button>
                       <button
@@ -558,7 +575,7 @@ export default function VitrinePage({
                         onClick={() => onOpenTunnel(p, "WHATSAPP")}
                         className="h-8 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-green-600 text-[11px] font-medium border border-subtle flex items-center justify-center gap-1 transition-colors cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-[14px]">chat</span>
+                        <Icon name="chat" className="text-[14px]" />
                         <span>WhatsApp</span>
                       </button>
                     </div>
@@ -570,11 +587,65 @@ export default function VitrinePage({
         </div>
       )}
 
+      {/* Customer Satisfaction Reviews Section (Configured by Merchant) */}
+      {store?.show_reviews_publicly !== false && (
+        <section className="rounded-2xl bg-surface-container p-5 sm:p-6 border-2 border-slate-300 dark:border-slate-700/80 shadow-card space-y-4 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Icon name="verified" className="text-amber-500 text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }} />
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-on-surface">Avis Clients &amp; Retours Vérifiés</h3>
+                <p className="text-[11px] text-on-surface-variant">Expériences réelles de clients livrés</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center gap-1">
+              ⭐ {store?.rating || 4.9} / 5
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            {reviews.map((rev) => (
+              <div
+                key={rev.id}
+                className="p-3.5 rounded-xl bg-surface-secondary border border-slate-300 dark:border-slate-700 shadow-xs flex flex-col justify-between gap-2.5"
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold">
+                        {rev.customer_name?.charAt(0) || "C"}
+                      </div>
+                      <span className="font-semibold text-xs text-on-surface">{rev.customer_name}</span>
+                    </div>
+                    <div className="flex items-center gap-0.5 text-amber-500">
+                      {[...Array(rev.rating || 5)].map((_, i) => (
+                        <Icon name="star" className="text-[13px]" key={i} style={{ fontVariationSettings: "'FILL' 1" }} />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-on-surface-secondary leading-relaxed italic">
+                    "{rev.feedback}"
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] text-on-surface-variant pt-1 border-t border-slate-200 dark:border-slate-800">
+                  <span className="flex items-center gap-1 text-secondary font-medium">
+                    <Icon name="check_circle" className="text-[12px]" />
+                    Achat vérifié
+                  </span>
+                  <span>{rev.created_at || "Récemment"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Personal Contact Assistance Banner */}
-      <section className="rounded-2xl bg-surface-card border border-subtle shadow-card p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+      <section className="rounded-2xl bg-surface-container border-2 border-slate-300 dark:border-slate-700/80 shadow-card p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[20px]">support_agent</span>
+          <div className="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0 border border-secondary/20">
+            <Icon name="support_agent" className="text-[20px]" />
           </div>
           <div>
             <h4 className="font-semibold text-sm text-on-surface">
@@ -599,10 +670,13 @@ export default function VitrinePage({
           }}
           className="w-full sm:w-auto h-10 px-4 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95 cursor-pointer"
         >
-          <span className="material-symbols-outlined text-[16px]">forum</span>
+          <Icon name="forum" className="text-[16px]" />
           <span>Poser une question en direct</span>
         </button>
       </section>
+
+      {/* Footer Go Technologie (GOT) Branding */}
+      <Footer storeName={store?.name} />
 
       {/* Floating Cart Drawer when items present */}
       {cartCount > 0 && (
@@ -610,7 +684,7 @@ export default function VitrinePage({
           <div className="pointer-events-auto mx-auto max-w-md rounded-2xl bg-surface-elevated/95 p-3.5 backdrop-blur-xl shadow-card-hover flex items-center justify-between gap-3 border border-subtle">
             <div className="flex items-center gap-3 min-w-0">
               <div className="relative w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-bold shadow-sm shrink-0">
-                <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
+                <Icon name="shopping_bag" className="text-[20px]" />
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-secondary text-white text-[10px] font-bold flex items-center justify-center">
                   {cartCount}
                 </span>
@@ -628,7 +702,7 @@ export default function VitrinePage({
               className="h-10 px-4 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 cursor-pointer shrink-0"
             >
               <span>Valider la commande</span>
-              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              <Icon name="arrow_forward" className="text-[16px]" />
             </button>
           </div>
         </aside>

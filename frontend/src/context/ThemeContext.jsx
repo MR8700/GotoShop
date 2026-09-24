@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import safeStorage from "../utils/safeStorage";
 
 const ThemeContext = createContext({
   theme: "light",
@@ -9,12 +10,12 @@ const ThemeContext = createContext({
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("gotoshop_theme");
+    try {
+      const saved = safeStorage.getItem("gotoshop_theme");
       if (saved === "dark" || saved === "light") {
         return saved;
       }
-    }
+    } catch (e) {}
     return "light"; // Default theme is Light Mode
   });
 
@@ -41,7 +42,7 @@ export function ThemeProvider({ children }) {
   const setTheme = (newTheme) => {
     setThemeState(newTheme);
     try {
-      localStorage.setItem("gotoshop_theme", newTheme);
+      safeStorage.setItem("gotoshop_theme", newTheme);
     } catch (e) {}
     applyTheme(newTheme);
   };

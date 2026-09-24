@@ -59,6 +59,11 @@ class Store(Base):
     is_loyalty_active = Column(Boolean, default=True)
     loyalty_spend_per_point = Column(Integer, default=1000)
 
+    # Public Reputation & Visibility Controls (Configurable by Store Owner)
+    show_ratings_publicly = Column(Boolean, default=True)
+    show_sales_count_publicly = Column(Boolean, default=True)
+    show_reviews_publicly = Column(Boolean, default=True)
+
     # Multi-Tenant & SaaS Subscription Settings
     subscription_status = Column(String(30), default="ACTIVE")  # ACTIVE, TRIAL, SUSPENDED, EXPIRED
     subscription_plan = Column(String(30), default="PRO")       # STARTER, PRO, VIP

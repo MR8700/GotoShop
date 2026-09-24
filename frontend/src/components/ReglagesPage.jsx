@@ -1,3 +1,4 @@
+import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
 import {
   updateStore,
@@ -29,6 +30,9 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
   const [avatarData, setAvatarData] = useState(null);
   const [flashTitle, setFlashTitle] = useState(store?.flash_title || "");
   const [flashSubtitle, setFlashSubtitle] = useState(store?.flash_subtitle || "");
+  const [showRatingsPublicly, setShowRatingsPublicly] = useState(store?.show_ratings_publicly !== false);
+  const [showSalesCountPublicly, setShowSalesCountPublicly] = useState(store?.show_sales_count_publicly !== false);
+  const [showReviewsPublicly, setShowReviewsPublicly] = useState(store?.show_reviews_publicly !== false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Theme & Colors state
@@ -198,6 +202,9 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
         owner_bio: ownerBio,
         flash_title: flashTitle,
         flash_subtitle: flashSubtitle,
+        show_ratings_publicly: showRatingsPublicly,
+        show_sales_count_publicly: showSalesCountPublicly,
+        show_reviews_publicly: showReviewsPublicly,
       };
       if (avatarData) {
         payload.avatar_data = avatarData;
@@ -342,7 +349,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
         <div className="p-3.5 rounded-xl bg-surface-container-high/60 border border-primary/20 space-y-3">
           <div className="flex items-center justify-between">
             <span className="font-label-sm text-label-sm text-primary font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[18px]">account_circle</span>
+              <Icon name="account_circle" className="text-[18px]" />
               Profil de la Commerçante
             </span>
             <span className="font-label-sm text-label-sm text-secondary bg-secondary/15 px-2 py-0.5 rounded-full font-medium">
@@ -362,7 +369,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
                 }}
               />
               <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white rounded-full opacity-90 group-hover:opacity-100 cursor-pointer transition-opacity">
-                <span className="material-symbols-outlined text-[18px]">photo_camera</span>
+                <Icon name="photo_camera" className="text-[18px]" />
                 <span className="text-[9px] font-bold">Changer</span>
                 <input
                   type="file"
@@ -478,10 +485,87 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
           />
         </div>
 
+        {/* Contrôles de Réputation & Visibilité Publique */}
+        <div className="p-4 rounded-xl bg-surface-secondary/70 border-2 border-slate-300 dark:border-slate-700/80 space-y-3.5 shadow-xs">
+          <div className="flex items-center gap-2">
+            <Icon name="stars" className="text-amber-500 text-[20px]" />
+            <div>
+              <p className="font-bold text-xs uppercase tracking-wider text-on-surface">
+                Visibilité Publique de la Réputation
+              </p>
+              <p className="text-[11px] text-on-surface-variant">
+                Contrôlez précisément les métriques et avis affichés aux clients sur votre vitrine.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2.5 pt-1">
+            {/* Toggle 1: Étoiles / Note */}
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface border border-slate-300 dark:border-slate-700">
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <Icon name="star" className="text-amber-500 text-[18px] shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-on-surface">Afficher la note moyenne (étoiles)</p>
+                  <p className="text-[10px] text-on-surface-variant">Calculée d'après les notes réelles des acheteurs</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={showRatingsPublicly}
+                  onChange={(e) => setShowRatingsPublicly(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+
+            {/* Toggle 2: Nombre de ventes conclues */}
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface border border-slate-300 dark:border-slate-700">
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <Icon name="shopping_cart_checkout" className="text-secondary text-[18px] shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-on-surface">Afficher le compteur de ventes</p>
+                  <p className="text-[10px] text-on-surface-variant">Ex: "340 ventes conclues" visible sur l'en-tête</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={showSalesCountPublicly}
+                  onChange={(e) => setShowSalesCountPublicly(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+
+            {/* Toggle 3: Avis & témoignages clients */}
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface border border-slate-300 dark:border-slate-700">
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <Icon name="forum" className="text-primary text-[18px] shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-on-surface">Afficher les avis &amp; retours clients</p>
+                  <p className="text-[10px] text-on-surface-variant">Section publique de retours de satisfaction</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={showReviewsPublicly}
+                  onChange={(e) => setShowReviewsPublicly(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
         <button
           type="submit"
           disabled={isSaving}
-          className="w-full h-12 rounded-xl bg-primary-container text-on-primary-container font-label-lg text-label-lg font-bold shadow-md hover:brightness-110 active:scale-98 transition-all"
+          className="w-full h-12 rounded-xl bg-primary-container text-on-primary-container font-label-lg text-label-lg font-bold shadow-md hover:brightness-110 active:scale-98 transition-all cursor-pointer"
         >
           {isSaving ? "Enregistrement..." : "Enregistrer les modifications"}
         </button>
@@ -491,7 +575,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
       <section className="bg-surface-container rounded-xl p-space-md shadow-md space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-[22px]">palette</span>
+            <Icon name="palette" className="text-primary text-[22px]" />
             <div>
               <h3 className="font-headline-sm text-headline-sm text-on-surface">Thème & Couleurs du Site</h3>
               <p className="font-body-sm text-xs text-on-surface-variant">
@@ -516,9 +600,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
         <div className={`p-2.5 rounded-lg text-xs flex items-center gap-2 ${
           isCustomThemeActive ? "bg-primary/10 border border-primary/20 text-on-surface" : "bg-surface-container-high text-on-surface-variant"
         }`}>
-          <span className="material-symbols-outlined text-[16px] text-primary">
-            {isCustomThemeActive ? "check_circle" : "toggle_off"}
-          </span>
+          <Icon name={isCustomThemeActive ? "check_circle" : "toggle_off"} className="text-[16px] text-primary" />
           <span>
             {isCustomThemeActive
               ? "Couleurs personnalisées actives et visibles par tous les visiteurs."
@@ -630,7 +712,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
               className="px-3 py-1.5 rounded-lg text-xs font-bold shadow text-white flex items-center gap-1.5"
               style={{ backgroundColor: primaryColor }}
             >
-              <span className="material-symbols-outlined text-[15px]">shopping_bag</span>
+              <Icon name="shopping_bag" className="text-[15px]" />
               <span>Bouton Commander</span>
             </button>
             <span
@@ -648,7 +730,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
           disabled={isSavingTheme}
           className="w-full h-11 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md text-xs font-bold border border-primary/30 flex items-center justify-center gap-2 transition-all active:scale-98"
         >
-          <span className="material-symbols-outlined text-[16px] text-primary">save</span>
+          <Icon name="save" className="text-[16px] text-primary" />
           <span>{isSavingTheme ? "Application du thème..." : "Appliquer & Enregistrer le Thème"}</span>
         </button>
       </section>
@@ -657,7 +739,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
       <section className="bg-surface-container rounded-xl p-space-md shadow-md space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-secondary text-[22px]">stars</span>
+            <Icon name="stars" className="text-secondary text-[22px]" />
             <div>
               <h3 className="font-headline-sm text-headline-sm text-on-surface">Programme de Fidélité & Avantages</h3>
               <p className="font-body-sm text-xs text-on-surface-variant">
@@ -727,7 +809,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
               onClick={() => handleOpenTierModal(null)}
               className="text-xs text-secondary hover:underline font-bold flex items-center gap-1"
             >
-              <span className="material-symbols-outlined text-[15px]">add_circle</span>
+              <Icon name="add_circle" className="text-[15px]" />
               <span>Nouveau palier</span>
             </button>
           </div>
@@ -752,9 +834,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-secondary text-[18px]">
-                          workspace_premium
-                        </span>
+                        <Icon name="workspace_premium" className="text-secondary text-[18px]" />
                         <span className="font-headline-sm text-sm font-bold text-on-surface">
                           {tier.name}
                         </span>
@@ -776,7 +856,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
 
                       <div className="pt-1 text-xs">
                         <p className="font-bold text-primary flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[14px]">redeem</span>
+                          <Icon name="redeem" className="text-[14px]" />
                           {tier.perk_title || "Avantage exclusif"}
                           {tier.discount_percent > 0 && (
                             <span className="text-secondary font-mono">(-{tier.discount_percent}%)</span>
@@ -797,7 +877,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
                         className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-highest text-primary flex items-center justify-center transition-colors"
                         title="Modifier"
                       >
-                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                        <Icon name="edit" className="text-[16px]" />
                       </button>
                       <button
                         type="button"
@@ -805,7 +885,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
                         className="w-8 h-8 rounded-lg bg-surface-container hover:bg-red-500/20 text-on-surface-variant hover:text-red-400 flex items-center justify-center transition-colors"
                         title="Supprimer"
                       >
-                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                        <Icon name="delete" className="text-[16px]" />
                       </button>
                     </div>
                   </div>
@@ -825,7 +905,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
               Paramétrez vos numéros et identifiants. (Ils sont masqués sur le site pour la confidentialité).
             </p>
           </div>
-          <span className="material-symbols-outlined text-secondary">security</span>
+          <Icon name="security" className="text-secondary" />
         </div>
 
         <div className="space-y-2.5 pt-1">
@@ -840,7 +920,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
                     className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-sm"
                     style={{ backgroundColor: `${ch.theme_color}26`, color: ch.theme_color }}
                   >
-                    <span className="material-symbols-outlined text-[20px]">{ch.icon_name}</span>
+                    <Icon name={ch.icon_name} className="text-[20px]" />
                   </span>
                   <div>
                     <div className="font-headline-sm text-sm text-on-surface font-semibold flex items-center gap-1.5">
@@ -881,7 +961,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
               {/* Handle Value & Edit Trigger */}
               <div className="flex items-center justify-between bg-surface-container-lowest p-2 rounded-lg text-xs font-mono text-on-surface-variant">
                 <div className="flex items-center gap-2 truncate">
-                  <span className="material-symbols-outlined text-[15px] text-on-surface-variant">lock</span>
+                  <Icon name="lock" className="text-[15px] text-on-surface-variant" />
                   <span className="truncate">
                     {ch.account_handle ? ch.account_handle : "Non configuré"}
                   </span>
@@ -891,7 +971,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
                   onClick={() => startEditChannel(ch)}
                   className="text-primary hover:underline font-label-sm font-bold flex items-center gap-1 flex-shrink-0"
                 >
-                  <span className="material-symbols-outlined text-[13px]">edit</span>
+                  <Icon name="edit" className="text-[13px]" />
                   Modifier
                 </button>
               </div>
@@ -904,7 +984,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
       <section className="bg-surface-container rounded-xl p-space-md shadow-md space-y-4 border border-amber-500/20">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-amber-400 text-[24px]">verified</span>
+            <Icon name="verified" className="text-amber-400 text-[24px]" />
             <div>
               <h3 className="font-headline-sm text-headline-sm text-on-surface">Mon Abonnement & Forfait</h3>
               <p className="font-body-sm text-xs text-on-surface-variant">
@@ -971,7 +1051,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
             }}
             className="flex-1 h-12 rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-amber-500 hover:brightness-110 text-white font-label-md text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-transform active:scale-98"
           >
-            <span className="material-symbols-outlined text-[18px]">autorenew</span>
+            <Icon name="autorenew" className="text-[18px]" />
             <span>Renouveler mon Abonnement (Orange / Moov)</span>
           </button>
 
@@ -983,7 +1063,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
             }}
             className="h-12 px-4 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-amber-300 font-label-md text-xs font-bold flex items-center justify-center gap-2 border border-amber-500/30 transition-transform active:scale-98"
           >
-            <span className="material-symbols-outlined text-[18px]">upgrade</span>
+            <Icon name="upgrade" className="text-[18px]" />
             <span>Changer de Formule</span>
           </button>
         </div>
@@ -993,7 +1073,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
       <section className="bg-surface-container rounded-xl p-space-md shadow-md space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">shield_lock</span>
+            <Icon name="shield_lock" className="text-primary" />
             <h3 className="font-headline-sm text-headline-sm text-on-surface">Sécurité du Compte Commerçante</h3>
           </div>
           <span className="px-2 py-0.5 rounded-full bg-secondary/15 text-secondary font-label-sm text-label-sm font-semibold">
@@ -1011,7 +1091,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
             onClick={onOpenChangePassword}
             className="h-11 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-xs font-bold flex items-center justify-center gap-1.5 transition-transform active:scale-95 border border-white/5"
           >
-            <span className="material-symbols-outlined text-[16px] text-primary">key</span>
+            <Icon name="key" className="text-[16px] text-primary" />
             <span>Changer mot de passe</span>
           </button>
 
@@ -1020,7 +1100,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
             onClick={onLogout}
             className="h-11 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 font-label-sm text-xs font-bold flex items-center justify-center gap-1.5 transition-transform active:scale-95 border border-red-500/20"
           >
-            <span className="material-symbols-outlined text-[16px]">logout</span>
+            <Icon name="logout" className="text-[16px]" />
             <span>Déconnexion</span>
           </button>
         </div>
@@ -1038,7 +1118,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
                 onClick={() => setEditingChannel(null)}
                 className="w-7 h-7 rounded-full bg-surface-container text-on-surface flex items-center justify-center"
               >
-                <span className="material-symbols-outlined text-[16px]">close</span>
+                <Icon name="close" className="text-[16px]" />
               </button>
             </div>
 
@@ -1105,7 +1185,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
           <div className="bg-surface-container-high rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-white/5 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
               <h3 className="font-headline-sm text-headline-sm text-on-surface flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-secondary text-[20px]">stars</span>
+                <Icon name="stars" className="text-secondary text-[20px]" />
                 <span>{editingTier === "new" ? "Nouveau Palier de Fidélité" : "Modifier le Palier"}</span>
               </h3>
               <button
@@ -1113,7 +1193,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
                 onClick={() => setEditingTier(null)}
                 className="w-7 h-7 rounded-full bg-surface-container text-on-surface flex items-center justify-center"
               >
-                <span className="material-symbols-outlined text-[16px]">close</span>
+                <Icon name="close" className="text-[16px]" />
               </button>
             </div>
 
