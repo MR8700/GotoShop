@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import engine, Base
-from app.routers import store, catalog, channels, commerce, analytics, auth, customer, notifications, super_admin, subscription, orders, chat, calls, media
+from app.routers import store, catalog, channels, commerce, analytics, auth, customer, notifications, super_admin, subscription, orders, chat, calls, media, store_subscriptions, store_qr
 import app.models  # Ensures all models (Order, Chat, Payment, Media, Call, etc.) are registered
 from app.seed.seeder import seed_database
 import os
@@ -44,10 +44,31 @@ def run_migrations():
                     ("show_ratings_publicly", "BOOLEAN DEFAULT TRUE"),
                     ("show_sales_count_publicly", "BOOLEAN DEFAULT TRUE"),
                     ("show_reviews_publicly", "BOOLEAN DEFAULT TRUE"),
+                    ("activity_type", "VARCHAR(50) DEFAULT 'GENERAL_COMMERCE'"),
+                    ("capabilities", "TEXT"),
+                    ("country", "VARCHAR(100) DEFAULT 'Burkina Faso'"),
+                    ("city", "VARCHAR(100) DEFAULT 'Ouagadougou'"),
+                    ("business_preferences", "TEXT"),
+                    ("notification_profile", "TEXT"),
+                    ("commerce_profile", "TEXT"),
+                    ("communication_profile", "TEXT"),
+                    ("qr_code_svg", "TEXT"),
+                    ("followers_count", "INTEGER DEFAULT 0"),
                 ]
                 for col_name, col_type in cols_to_add:
                     if col_name not in store_cols:
                         conn.execute(text(f"ALTER TABLE stores ADD COLUMN {col_name} {col_type}"))
+
+            if "customers" in table_names:
+                cust_cols = [c["name"] for c in inspector.get_columns("customers")]
+                cust_cols_to_add = [
+                    ("country", "VARCHAR(100) DEFAULT 'Burkina Faso'"),
+                    ("delivery_neighborhood", "VARCHAR(255)"),
+                    ("notification_preferences", "TEXT"),
+                ]
+                for col_name, col_type in cust_cols_to_add:
+                    if col_name not in cust_cols:
+                        conn.execute(text(f"ALTER TABLE customers ADD COLUMN {col_name} {col_type}"))
 
             if "owners" in table_names:
                 owner_cols = [c["name"] for c in inspector.get_columns("owners")]
@@ -221,6 +242,8 @@ all_routers = [
     chat.router,
     calls.router,
     media.router,
+    store_subscriptions.router,
+    store_qr.router,
 ]
 for r in all_routers:
     app.include_router(r, prefix=settings.API_V1_STR)

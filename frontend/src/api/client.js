@@ -890,28 +890,6 @@ export async function fetchDiscrepancies() {
   return res.json();
 }
 
-// ----------------------------------------------------------------------------
-// Merchant Notifications & Real-Time Alerts
-// ----------------------------------------------------------------------------
-export async function fetchNotifications() {
-  const res = await fetch(`${API_BASE}/notifications`);
-  if (!res.ok) return { unread_count: 0, discrepancies_count: 0, notifications: [] };
-  return res.json();
-}
-
-export async function markNotificationRead(id) {
-  const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
-    method: "POST",
-  });
-  return res.ok;
-}
-
-export async function markAllNotificationsRead() {
-  const res = await fetch(`${API_BASE}/notifications/read-all`, {
-    method: "POST",
-  });
-  return res.ok;
-}
 
 // ----------------------------------------------------------------------------
 // Guest Orders LocalStorage Management
@@ -1542,6 +1520,205 @@ export async function fetchCallHistory({ conversation_id, store_id, limit = 50 }
   if (!res.ok) return [];
   return res.json();
 }
+
+// ============================================================================
+// CENTRALIZED NOTIFICATIONS & DECISION SUPPORT API
+// ============================================================================
+
+export async function fetchNotifications(options = {}) {
+  try {
+    const {
+      recipient_type = null,
+      recipient_id = null,
+      store_id = null,
+      category = null,
+      limit = 50,
+    } = typeof options === "object" && options !== null ? options : {};
+
+    const query = new URLSearchParams();
+    if (recipient_type) query.set("recipient_type", recipient_type);
+    if (recipient_id) query.set("recipient_id", recipient_id);
+    if (store_id) query.set("store_id", store_id);
+    if (category) query.set("category", category);
+    query.set("limit", limit);
+
+    const res = await fetch(`${API_BASE}/notifications?${query.toString()}`);
+    if (!res.ok) return { unread_count: 0, discrepancies_count: 0, notifications: [] };
+    const data = await res.json();
+    return {
+      unread_count: data.unread_count || 0,
+      discrepancies_count: data.discrepancies_count || 0,
+      notifications: data.notifications || [],
+    };
+  } catch (e) {
+    return { unread_count: 0, discrepancies_count: 0, notifications: [] };
+  }
+}
+
+export async function markNotificationRead(notificationId) {
+  try {
+    const res = await fetch(`${API_BASE}/notifications/${notificationId}/read`, { method: "POST" });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+export async function markAllNotificationsRead({ recipient_type = null, recipient_id = null, store_id = null } = {}) {
+  try {
+    const query = new URLSearchParams();
+    if (recipient_type) query.set("recipient_type", recipient_type);
+    if (recipient_id) query.set("recipient_id", recipient_id);
+    if (store_id) query.set("store_id", store_id);
+
+    const res = await fetch(`${API_BASE}/notifications/read-all?${query.toString()}`, { method: "POST" });
+    if (!res.ok) return { success: false, count: 0 };
+    return await res.json();
+  } catch (e) {
+    return { success: false, count: 0 };
+  }
+}
+
+export async function deleteNotification(notificationId) {
+  try {
+    const res = await fetch(`${API_BASE}/notifications/${notificationId}`, { method: "DELETE" });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+export async function fetchDecisionInsights(storeId) {
+  try {
+    const res = await fetch(`${API_BASE}/notifications/decision-insights/${storeId}`);
+    if (!res.ok) return { insights: [] };
+    return await res.json();
+  } catch (e) {
+    return { insights: [] };
+  }
+}
+
+// ============================================================================
+// STORE SUBSCRIPTIONS & "MES BOUTIQUES" API
+// ============================================================================
+
+export async function subscribeToStore(storeId, customerId = null) {
+  const token = getCustomerToken();
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/stores/${storeId}/subscribe`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ customer_id: customerId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors de l'abonnement à la boutique");
+  }
+  return await res.json();
+}
+
+export async function unsubscribeFromStore(storeId, customerId = null) {
+  const token = getCustomerToken();
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/stores/${storeId}/unsubscribe`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ customer_id: customerId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors du désabonnement");
+  }
+  return await res.json();
+}
+
+export async function fetchSubscriptionStatus(storeId, customerId = null) {
+  try {
+    const token = getCustomerToken();
+    const query = new URLSearchParams();
+    if (customerId) query.set("customer_id", customerId);
+
+    const headers = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE}/stores/${storeId}/subscription-status?${query.toString()}`, { headers });
+    if (!res.ok) return { is_subscribed: false, followers_count: 0 };
+    return await res.json();
+  } catch (e) {
+    return { is_subscribed: false, followers_count: 0 };
+  }
+}
+
+export async function fetchMyStores(customerId = null, guestToken = null) {
+  try {
+    const token = getCustomerToken();
+    const query = new URLSearchParams();
+    if (customerId) query.set("customer_id", customerId);
+    if (guestToken) query.set("guest_token", guestToken);
+
+    const headers = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE}/customer/my-stores?${query.toString()}`, { headers });
+    if (!res.ok) return { subscribed_stores: [], recent_stores: [] };
+    return await res.json();
+  } catch (e) {
+    return { subscribed_stores: [], recent_stores: [] };
+  }
+}
+
+export async function createStoreAnnouncement(storeId, { title, content, announcement_type = "NEWS" }) {
+  const res = await fetch(`${API_BASE}/stores/${storeId}/announcements`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, content, announcement_type }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur publication annonce");
+  }
+  return await res.json();
+}
+
+export async function fetchStoreAnnouncements(storeId) {
+  try {
+    const res = await fetch(`${API_BASE}/stores/${storeId}/announcements`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (e) {
+    return [];
+  }
+}
+
+// ============================================================================
+// STORE QR CODES & PRINT API
+// ============================================================================
+
+export async function fetchStoreQr(storeId) {
+  const res = await fetch(`${API_BASE}/stores/${storeId}/qr`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur chargement QR Code");
+  }
+  return await res.json();
+}
+
+export async function trackQrScan(storeId, customerId = null, guestToken = null) {
+  try {
+    const query = new URLSearchParams();
+    if (customerId) query.set("customer_id", customerId);
+    if (guestToken) query.set("guest_token", guestToken);
+
+    await fetch(`${API_BASE}/stores/${storeId}/qr/scan?${query.toString()}`, { method: "POST" });
+  } catch (e) {
+    // Non-blocking
+  }
+}
+
 
 
 

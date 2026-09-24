@@ -41,7 +41,11 @@ import SubscriptionModal from "./components/SubscriptionModal";
 import StoreExplorerPage from "./components/StoreExplorerPage";
 import ChatPage from "./components/ChatPage";
 import ConversationalOrderModal from "./components/ConversationalOrderModal";
-import { getActiveStoreSlug, setActiveStoreSlug } from "./api/client";
+import NotificationDrawer from "./components/NotificationDrawer";
+import StoreQrModal from "./components/StoreQrModal";
+import MyStoresPage from "./components/MyStoresPage";
+import DecisionSupportWidget from "./components/DecisionSupportWidget";
+import { getActiveStoreSlug, setActiveStoreSlug, trackQrScan } from "./api/client";
 
 export default function App() {
   const [store, setStore] = useState(null);
@@ -115,6 +119,10 @@ export default function App() {
   // Toast state
   const [toastMessage, setToastMessage] = useState("");
   const [toastVisible, setToastVisible] = useState(false);
+
+  // New Features: Notification Drawer & Store QR Modal
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
+  const [isStoreQrModalOpen, setIsStoreQrModalOpen] = useState(false);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -192,10 +200,61 @@ export default function App() {
       trackVisit(srcParam);
     }
 
+    // Auto-track QR scan if open via QR code (?qr=1)
+    const qrParam = urlParams.get("qr");
+    const initialSlug = urlParams.get("store") || urlParams.get("slug") || urlParams.get("s");
+    if (qrParam && initialSlug) {
+      trackQrScan(initialSlug);
+    }
+
+    // Native browser Back/Forward navigation listener (popstate)
+    const handlePopState = () => {
+      const p = new URLSearchParams(window.location.search);
+      const storeSlug = p.get("store") || p.get("slug") || p.get("s");
+      const viewParam = p.get("view");
+      const tabParam = p.get("tab");
+
+      if (viewParam === "super-admin" || window.location.pathname.startsWith("/super-admin")) {
+        setIsSuperAdminOpen(true);
+        return;
+      } else {
+        setIsSuperAdminOpen(false);
+      }
+
+      if (storeSlug) {
+        setViewMode("store");
+        setActiveStoreSlug(storeSlug);
+        loadAllData(storeSlug);
+      } else {
+        const match = window.location.pathname.match(/^\/(?:store|boutique|s)\/([^/]+)/);
+        if (match) {
+          setViewMode("store");
+          setActiveStoreSlug(match[1]);
+          loadAllData(match[1]);
+        } else {
+          setViewMode("explorer");
+        }
+      }
+
+      if (viewParam === "admin") {
+        setAppMode("owner");
+        setActiveTab(tabParam || "commandes");
+      } else {
+        setAppMode("client");
+        setActiveTab(tabParam || "boutique");
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
     checkAuth();
     loadCustomer();
     loadPublicStores();
     loadAllData();
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
   }, []);
 
   const loadPublicStores = async () => {
@@ -279,6 +338,33 @@ export default function App() {
       loadUnreadChatCount();
     }
     setActiveTab(tab);
+    try {
+      const url = new URL(window.location);
+      url.searchParams.set("tab", tab);
+      window.history.pushState({ tab }, "", url);
+    } catch (e) {}
+  };
+
+  const handleNavigateAction = (urlStr) => {
+    if (!urlStr) return;
+    try {
+      const parsed = new URL(urlStr, window.location.origin);
+      const storeSlug = parsed.searchParams.get("store") || (parsed.pathname.match(/^\/(?:store|boutique)\/([^/?]+)/)?.[1]);
+      const tabParam = parsed.searchParams.get("tab");
+      const convParam = parsed.searchParams.get("conv");
+
+      if (storeSlug && storeSlug !== store?.slug) {
+        handleSwitchStore(storeSlug, false);
+      }
+      if (convParam) {
+        setActiveConversationId(convParam);
+        handleSelectTab("chat");
+      } else if (tabParam) {
+        handleSelectTab(tabParam);
+      }
+    } catch (e) {
+      console.warn("Invalid action url:", urlStr);
+    }
   };
 
   const handleToggleMode = () => {
@@ -550,6 +636,24 @@ export default function App() {
           onSuccess={handleStoreRegistered}
         />
 
+        {/* Centralized Notification Drawer */}
+        <NotificationDrawer
+          isOpen={isNotificationDrawerOpen}
+          onClose={() => setIsNotificationDrawerOpen(false)}
+          mode={appMode}
+          customer={customer}
+          store={store}
+          onNavigateAction={handleNavigateAction}
+        />
+
+        {/* Store QR & Professional Print Modal */}
+        <StoreQrModal
+          isOpen={isStoreQrModalOpen}
+          onClose={() => setIsStoreQrModalOpen(false)}
+          store={store}
+          showToast={showToast}
+        />
+
         {/* Interactive Feedback Toast */}
         <div
           className={`fixed top-5 left-1/2 -translate-x-1/2 z-[99999] rounded-full bg-slate-900/95 dark:bg-white/95 text-white dark:text-slate-900 px-4 py-2 text-xs font-semibold shadow-2xl flex items-center gap-2 pointer-events-none transition-all duration-300 border border-white/20 dark:border-black/20 ${
@@ -595,10 +699,37 @@ export default function App() {
           setSubModalMode("RENEWAL");
           setIsSubscriptionModalOpen(true);
         }}
+        onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
+        onOpenQrModal={() => setIsStoreQrModalOpen(true)}
+        onOpenMyStores={() => {
+          setViewMode("store");
+          handleSelectTab("my-stores");
+        }}
       />
 
       {/* Main Screen Container */}
       <main className={`flex flex-col relative w-full pt-16 bg-surface flex-grow ${activeTab === "chat" ? "max-w-4xl px-2 sm:px-4" : "max-w-lg px-margin"} mx-auto`}>
+        {/* Merchant Decision Support & Operational Priorities */}
+        {appMode === "owner" && (activeTab === "commandes" || activeTab === "stats") && (
+          <div className="w-full pt-2">
+            <DecisionSupportWidget
+              store={store}
+              onNavigate={handleNavigateAction}
+            />
+          </div>
+        )}
+
+        {/* Tab: Mes Boutiques (Followed & Recent Access) */}
+        {activeTab === "my-stores" && (
+          <MyStoresPage
+            customer={customer}
+            onSelectStore={handleSelectStoreFromExplorer}
+            onOpenExplorer={handleOpenExplorer}
+            onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
+            showToast={showToast}
+          />
+        )}
+
         {activeTab === "boutique" && (
           <VitrinePage
             store={store}
@@ -618,6 +749,7 @@ export default function App() {
             onProductDeleted={handleProductDeleted}
             onOpenConversationalOrder={handleOpenConversationalOrder}
             onOpenChat={handleOpenChat}
+            onOpenQrModal={() => setIsStoreQrModalOpen(true)}
           />
         )}
 
@@ -628,14 +760,14 @@ export default function App() {
             customer={customer}
             initialChannel={tunnelInitialChannel}
             initialColor={tunnelInitialColor}
-            onClose={() => setActiveTab("boutique")}
+            onClose={() => handleSelectTab("boutique")}
             showToast={showToast}
             onOrderCreated={(intent) => {
               showToast(`Commande #${intent.reference_code} enregistrée en base !`);
               setClientOrdersCount((prev) => prev + 1);
             }}
             onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
-            onNavigateToOrders={() => setActiveTab("commandes")}
+            onNavigateToOrders={() => handleSelectTab("commandes")}
           />
         )}
 
@@ -767,6 +899,7 @@ export default function App() {
           customer={customer}
           onClose={() => setConversationalOrderProduct(null)}
           showToast={showToast}
+          onCustomerAuthenticated={(newCust) => handleCustomerAuthSuccess(newCust)}
           onOrderCreated={(order) => {
             setClientOrdersCount((prev) => prev + 1);
             loadUnreadChatCount();
@@ -832,6 +965,24 @@ export default function App() {
         mode={subModalMode}
         initialStore={store}
         onSuccess={handleStoreRegistered}
+      />
+
+      {/* Centralized Notification Drawer */}
+      <NotificationDrawer
+        isOpen={isNotificationDrawerOpen}
+        onClose={() => setIsNotificationDrawerOpen(false)}
+        mode={appMode}
+        customer={customer}
+        store={store}
+        onNavigateAction={handleNavigateAction}
+      />
+
+      {/* Store QR & Professional Print Modal */}
+      <StoreQrModal
+        isOpen={isStoreQrModalOpen}
+        onClose={() => setIsStoreQrModalOpen(false)}
+        store={store}
+        showToast={showToast}
       />
     </div>
   );

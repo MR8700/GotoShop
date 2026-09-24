@@ -12,7 +12,9 @@ class Customer(Base):
     name = Column(String(100), nullable=False)
     phone = Column(String(50), nullable=False, index=True)
     email = Column(String(150), nullable=True)
-    city = Column(String(100), default="Abidjan")
+    city = Column(String(100), default="Ouagadougou")
+    country = Column(String(100), default="Burkina Faso")
+    delivery_neighborhood = Column(String(255), nullable=True) # Quartier / Repère de livraison
     delivery_address = Column(String(255), nullable=True)
     gps_coordinates = Column(String(100), nullable=True)
     gps_location_url = Column(String(500), nullable=True)
@@ -20,6 +22,7 @@ class Customer(Base):
     preferred_channel = Column(String(50), default="WHATSAPP")
     notes = Column(Text, nullable=True)
     session_token = Column(String(128), nullable=True, index=True)
+    notification_preferences = Column(Text, nullable=True) # JSON toggles for notification categories
     
     # Moderation & Merchant Perks
     is_blocked = Column(Boolean, default=False)

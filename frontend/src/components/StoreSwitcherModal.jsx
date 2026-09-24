@@ -59,7 +59,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
             <div>
               <h3 className="font-semibold text-on-surface text-base">Changer de Boutique</h3>
               <p className="text-xs text-on-surface-variant">
-                100 vitrines certifiées au Burkina Faso et en Afrique
+                Vitrines locales vérifiées et indépendantes
               </p>
             </div>
           </div>
@@ -217,7 +217,7 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
               className="w-full py-2.5 px-4 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-semibold border border-subtle transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
             >
               <Icon name="grid_view" className="text-[16px] text-primary" />
-              <span>Voir la Galerie Complète des 100 Boutiques</span>
+              <span>Voir la Galerie Complète des Boutiques</span>
             </button>
           )}
         </div>

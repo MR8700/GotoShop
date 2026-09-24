@@ -1,6 +1,6 @@
 import Icon from "./Icon";
 import React, { useState } from "react";
-import { createConversationalOrder, getActiveStoreSlug } from "../api/client";
+import { createConversationalOrder, getActiveStoreSlug, setCustomerToken } from "../api/client";
 
 export default function ConversationalOrderModal({
   store,
@@ -10,6 +10,7 @@ export default function ConversationalOrderModal({
   showToast,
   onOrderCreated,
   onOpenChat,
+  onCustomerAuthenticated,
 }) {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState(
@@ -39,9 +40,15 @@ export default function ConversationalOrderModal({
   const [isLocating, setIsLocating] = useState(false);
   const [gpsCaptured, setGpsCaptured] = useState(Boolean(customer?.gps_coordinates));
 
-  // Customer Contact
-  const [customerName, setCustomerName] = useState(customer?.name || "Richard");
-  const [customerPhone, setCustomerPhone] = useState(customer?.phone || "+226 76 00 10 45");
+  // Customer Contact & Seamless Checkout Onboarding
+  const [customerName, setCustomerName] = useState(customer?.name || "");
+  const [customerPhone, setCustomerPhone] = useState(customer?.phone || "");
+  const [customerCountry, setCustomerCountry] = useState(customer?.country || store?.country || "Burkina Faso");
+  const [customerCity, setCustomerCity] = useState(customer?.city || deliveryCity || "Ouagadougou");
+  const [deliveryNeighborhood, setDeliveryNeighborhood] = useState(
+    customer?.delivery_neighborhood || customer?.delivery_address || ""
+  );
+  const [registerAccount, setRegisterAccount] = useState(!customer);
 
   // Flow State: "EDIT" | "SUCCESS"
   const [step, setStep] = useState("EDIT");
@@ -146,10 +153,20 @@ export default function ConversationalOrderModal({
         customer_token: guestToken,
         delivery_fee: deliveryFee,
         notes: isCustomizable ? customizationText : null,
+        register_account: registerAccount,
+        country: customerCountry,
+        city: customerCity,
+        delivery_neighborhood: deliveryNeighborhood || deliveryAddress,
       };
 
       const result = await createConversationalOrder(orderPayload);
       setCreatedOrder(result);
+      if (result?.customer_token) {
+        setCustomerToken(result.customer_token);
+      }
+      if (result?.customer && onCustomerAuthenticated) {
+        onCustomerAuthenticated(result.customer);
+      }
       setStep("SUCCESS");
       showToast?.("Commande transmise avec succès au commerçant !");
       onOrderCreated?.(result);
@@ -416,28 +433,103 @@ export default function ConversationalOrderModal({
                 )}
               </div>
 
-              {/* Customer Contact */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
+              {/* Customer Contact & Seamless Checkout Onboarding */}
+              <div className="space-y-3 pt-1 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-foreground">Coordonnées du Client</p>
+                  {customer && (
+                    <span className="text-[10px] bg-secondary/15 text-secondary px-2 py-0.5 rounded-full font-medium">
+                      Compte connecté
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* 1. Nom & Prénom */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                      1. Nom &amp; Prénom <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      placeholder="Ex: Richard Compaoré"
+                    />
+                  </div>
+
+                  {/* 2. Numéro WhatsApp / Téléphone */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                      2. Téléphone / WhatsApp <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      placeholder="Ex: +226 70 00 00 00"
+                    />
+                  </div>
+
+                  {/* 3. Pays */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                      3. Pays de résidence
+                    </label>
+                    <input
+                      type="text"
+                      value={customerCountry}
+                      onChange={(e) => setCustomerCountry(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      placeholder="Ex: Burkina Faso"
+                    />
+                  </div>
+
+                  {/* 4. Ville Principale */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                      4. Ville Principale
+                    </label>
+                    <input
+                      type="text"
+                      value={customerCity}
+                      onChange={(e) => setCustomerCity(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      placeholder="Ex: Ouagadougou"
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Quartier / Repère de livraison */}
                 <div>
-                  <label className="block text-xs font-medium text-foreground-muted mb-1">Votre Nom :</label>
+                  <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                    5. Quartier / Repère de livraison précis
+                  </label>
                   <input
                     type="text"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    value={deliveryNeighborhood}
+                    onChange={(e) => setDeliveryNeighborhood(e.target.value)}
                     className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
-                    placeholder="Ex: Richard"
+                    placeholder="Ex: Kossodo, Cité U Pavillon B, pharmacie en face"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-foreground-muted mb-1">Téléphone :</label>
-                  <input
-                    type="text"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
-                    placeholder="+226 70 00 00 00"
-                  />
-                </div>
+
+                {/* Seamless Account Creation Checkbox */}
+                {!customer && (
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-primary/5 border border-primary/20 text-xs text-foreground cursor-pointer hover:bg-primary/10 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={registerAccount}
+                      onChange={(e) => setRegisterAccount(e.target.checked)}
+                      className="w-4 h-4 rounded text-primary focus:ring-primary/40 accent-primary"
+                    />
+                    <span className="leading-snug">
+                      <strong>Mémoriser mes coordonnées</strong> et créer mon compte client automatiquement (accès permanent sans mot de passe).
+                    </span>
+                  </label>
+                )}
               </div>
 
               {/* Order Breakdown / Totals */}

@@ -40,6 +40,10 @@ class CreateOrderRequest(BaseModel):
     customer_token: Optional[str] = None
     delivery_fee: int = 500
     notes: Optional[str] = None
+    register_account: Optional[bool] = False
+    country: Optional[str] = "Burkina Faso"
+    city: Optional[str] = "Ouagadougou"
+    delivery_neighborhood: Optional[str] = None
 
 class AcceptOrderRequest(BaseModel):
     seller_name: Optional[str] = "Commerçant"
@@ -87,7 +91,11 @@ def create_order(req: CreateOrderRequest, db: Session = Depends(get_db)):
             customer_id=req.customer_id,
             customer_token=req.customer_token,
             delivery_fee=req.delivery_fee,
-            notes=req.notes
+            notes=req.notes,
+            register_account=bool(req.register_account),
+            country=req.country or "Burkina Faso",
+            city=req.city or req.delivery.delivery_city or "Ouagadougou",
+            delivery_neighborhood=req.delivery_neighborhood or req.delivery.delivery_address
         )
         return result
     except Exception as e:

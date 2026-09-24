@@ -159,17 +159,21 @@ export default function SubscriptionModal({
 
   if (!isOpen) return null;
 
-  // Selected Plan Object
+  // Selected Plan Object with bulletproof fallbacks
+  const defaultFallbackPlanWithUssd = FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans_with_ussd[0];
   const currentPlanInfo =
-    plansWithUssd.find((p) => p.plan.code === selectedPlanCode) ||
-    plansWithUssd[0];
-  const activePlan = currentPlanInfo?.plan;
+    (plansWithUssd && plansWithUssd.length > 0 && plansWithUssd.find((p) => p?.plan?.code === selectedPlanCode)) ||
+    (plansWithUssd && plansWithUssd.length > 0 && plansWithUssd[0]) ||
+    defaultFallbackPlanWithUssd;
 
-  // Current dial option for the selected operator
+  const activePlan = currentPlanInfo?.plan || (plans && plans.length > 0 && plans[0]) || FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans[0];
+  const activePlanPrice = Number(activePlan?.price || 1000);
+
+  // Current dial option for the selected operator with bulletproof fallback
   const currentDialOption =
     currentPlanInfo?.payment_options?.find(
       (opt) => opt.operator_code === selectedOperator
-    ) || currentPlanInfo?.payment_options?.[0];
+    ) || currentPlanInfo?.payment_options?.[0] || defaultFallbackPlanWithUssd.payment_options[0];
 
   // Handle Screenshot compression and reading
   const handleFileChange = (e) => {
@@ -757,7 +761,7 @@ export default function SubscriptionModal({
                       <span>Formule d'Abonnement & Paiement USSD</span>
                     </label>
                     <span className="text-xs font-semibold text-on-surface px-2.5 py-1 rounded-lg bg-surface-secondary border border-subtle">
-                      Montant : {activePlan?.price.toLocaleString("fr-FR")} FCFA
+                      Montant : {activePlanPrice.toLocaleString("fr-FR")} FCFA
                     </span>
                   </div>
 
@@ -799,7 +803,7 @@ export default function SubscriptionModal({
                               </div>
                             </div>
                             <div className="text-base font-bold text-on-surface my-0.5">
-                              {p.price.toLocaleString("fr-FR")}{" "}
+                              {Number(p?.price || 0).toLocaleString("fr-FR")}{" "}
                               <span className="text-[10px] font-normal text-on-surface-variant">
                                 FCFA / mois
                               </span>
@@ -869,7 +873,7 @@ export default function SubscriptionModal({
                     <div className="bg-surface-secondary border border-subtle p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                       <div>
                         <span className="text-[10px] font-medium text-on-surface-variant block">
-                          Code USSD pour {activePlan?.name} :
+                          Code USSD pour {activePlan?.name || "votre formule"} :
                         </span>
                         <span className="font-mono text-sm font-bold text-primary select-all">
                           {currentDialOption.ussd_code}

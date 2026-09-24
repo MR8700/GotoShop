@@ -2,6 +2,7 @@ import Icon from "./Icon";
 import React, { useState } from "react";
 import { getMediaUrl } from "../api/client";
 import ThemeToggle from "./ThemeToggle";
+import NotificationBell from "./NotificationBell";
 
 export default function Header({
   store,
@@ -21,6 +22,9 @@ export default function Header({
   onOpenRegisterStore,
   onOpenSubscription,
   onOpenExplorer,
+  onOpenNotifications,
+  onOpenQrModal,
+  onOpenMyStores,
 }) {
   const isTunnel = activeTab === "tunnel";
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -214,6 +218,17 @@ export default function Header({
                       <button
                         onClick={() => {
                           setShowProfileMenu(false);
+                          if (onOpenQrModal) onOpenQrModal();
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
+                      >
+                        <Icon name="qr_code_2" className="text-[16px] text-primary" />
+                        <span>QR Code &amp; Impression</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowProfileMenu(false);
                           if (onOpenSubscription) onOpenSubscription();
                         }}
                         className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
@@ -262,6 +277,16 @@ export default function Header({
               </div>
             )}
 
+            {/* Notification Bell with unread counter */}
+            {onOpenNotifications && (
+              <NotificationBell
+                mode={mode}
+                customer={customer}
+                store={store}
+                onClick={onOpenNotifications}
+              />
+            )}
+
             {/* Direct Theme Toggle button in header - hidden on extra narrow devices to prevent overflow */}
             <div className="hidden xs:flex">
               <ThemeToggle />
@@ -302,6 +327,32 @@ export default function Header({
                       <span>Partager la vitrine</span>
                     </button>
 
+                    {onOpenMyStores && (
+                      <button
+                        onClick={() => {
+                          setShowToolsMenu(false);
+                          onOpenMyStores();
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface transition-colors"
+                      >
+                        <Icon name="loyalty" className="text-[16px] text-primary" />
+                        <span>Mes Boutiques</span>
+                      </button>
+                    )}
+
+                    {onOpenQrModal && (
+                      <button
+                        onClick={() => {
+                          setShowToolsMenu(false);
+                          onOpenQrModal();
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface transition-colors"
+                      >
+                        <Icon name="qr_code_2" className="text-[16px] text-secondary" />
+                        <span>QR Code &amp; Impression</span>
+                      </button>
+                    )}
+
                     {onOpenExplorer && (
                       <button
                         onClick={() => {
@@ -311,7 +362,7 @@ export default function Header({
                         className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface transition-colors"
                       >
                         <Icon name="grid_view" className="text-[16px] text-primary" />
-                        <span>Galerie des 100 boutiques</span>
+                        <span>Galerie des boutiques</span>
                       </button>
                     )}
 

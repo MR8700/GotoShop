@@ -1,6 +1,6 @@
 import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
-import { getMediaUrl, fetchStoreReviews } from "../api/client";
+import { getMediaUrl, fetchStoreReviews, subscribeToStore, unsubscribeFromStore, fetchSubscriptionStatus } from "../api/client";
 import ProductManageModal from "./ProductManageModal";
 import NewProductModal from "./NewProductModal";
 import Footer from "./Footer";
@@ -23,6 +23,7 @@ export default function VitrinePage({
   onProductDeleted,
   onOpenConversationalOrder,
   onOpenChat,
+  onOpenQrModal,
 }) {
   const [selectedHeroColor, setSelectedHeroColor] = useState("Bleu Nuit");
   const [countdownSeconds, setCountdownSeconds] = useState(store?.flash_remaining_seconds || 15502);
@@ -30,6 +31,42 @@ export default function VitrinePage({
   const [isNewProductOpen, setIsNewProductOpen] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [followersCount, setFollowersCount] = useState(store?.followers_count || 0);
+
+  useEffect(() => {
+    if (store?.id) {
+      setFollowersCount(store?.followers_count || 0);
+      fetchSubscriptionStatus(store.id, customer?.id)
+        .then((res) => {
+          setIsSubscribed(res.is_subscribed);
+          if (res.followers_count !== undefined) setFollowersCount(res.followers_count);
+        })
+        .catch(() => {});
+    }
+  }, [store?.id, customer?.id]);
+
+  const handleToggleSubscribe = async () => {
+    if (!customer) {
+      if (onOpenCustomerAuth) onOpenCustomerAuth();
+      return;
+    }
+    try {
+      if (isSubscribed) {
+        await unsubscribeFromStore(store.id, customer.id);
+        setIsSubscribed(false);
+        setFollowersCount((prev) => Math.max(0, prev - 1));
+        showToast?.("Vous ne suivez plus cette boutique");
+      } else {
+        await subscribeToStore(store.id, customer.id);
+        setIsSubscribed(true);
+        setFollowersCount((prev) => prev + 1);
+        showToast?.("Abonné avec succès ! Vous recevrez les actualités.");
+      }
+    } catch (e) {
+      showToast?.("Erreur lors de l'abonnement");
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -218,15 +255,44 @@ export default function VitrinePage({
             </div>
           </div>
 
-          {/* Quick Direct Chat Icon */}
-          <button
-            onClick={() => onOpenChat ? onOpenChat() : onOpenTunnel(heroProduct, "WHATSAPP")}
-            aria-label="Discuter avec le vendeur"
-            className="w-10 h-10 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border-2 border-primary/30 flex items-center justify-center transition-all shrink-0 active:scale-95 cursor-pointer shadow-xs"
-            title="Discuter en direct avec le commerçant"
-          >
-            <Icon name="forum" className="text-[20px]" />
-          </button>
+          {/* Action cluster: Subscribe, QR Code, Direct Chat */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {mode === "client" && (
+              <button
+                onClick={handleToggleSubscribe}
+                className={`h-9 px-2.5 sm:px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                  isSubscribed
+                    ? "bg-secondary/15 text-secondary border-secondary/30"
+                    : "bg-surface-secondary hover:bg-surface-elevated text-on-surface border-subtle"
+                }`}
+                title={isSubscribed ? "Vous suivez cette boutique" : "S'abonner aux nouveautés"}
+              >
+                <Icon name={isSubscribed ? "notifications_active" : "notifications_none"} className="text-[16px]" />
+                <span className="hidden xs:inline">{isSubscribed ? "Suivi" : "Suivre"}</span>
+                {followersCount > 0 && <span className="opacity-70 text-[10px]">({followersCount})</span>}
+              </button>
+            )}
+
+            {onOpenQrModal && (
+              <button
+                onClick={onOpenQrModal}
+                className="w-9 h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-on-surface border border-subtle flex items-center justify-center transition-all cursor-pointer"
+                title="Afficher le QR code et imprimer les supports"
+                aria-label="QR Code"
+              >
+                <Icon name="qr_code_2" className="text-[18px]" />
+              </button>
+            )}
+
+            <button
+              onClick={() => onOpenChat ? onOpenChat() : onOpenTunnel(heroProduct, "WHATSAPP")}
+              aria-label="Discuter avec le vendeur"
+              className="w-9 h-9 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 flex items-center justify-center transition-all shrink-0 active:scale-95 cursor-pointer shadow-xs"
+              title="Discuter en direct avec le commerçant"
+            >
+              <Icon name="forum" className="text-[18px]" />
+            </button>
+          </div>
         </div>
 
         {/* Owner Note / Bio (Dual-Tone Superimposed Layer) */}

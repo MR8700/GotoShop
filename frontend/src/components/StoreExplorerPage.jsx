@@ -218,17 +218,17 @@ export default function StoreExplorerPage({
             {/* Eyebrow Label */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary">
               <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-              <span>Réseau Multi-Commerçants Direct WhatsApp</span>
+              <span>Commerce Conversationnel &amp; Boutiques Locales</span>
             </div>
 
             {/* Main Headline */}
             <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold text-on-surface tracking-tight leading-[1.15]">
-              Les commerçants certifiés d'Afrique, en direct sur WhatsApp.
+              Découvrez, commandez et échangez avec vos boutiques préférées.
             </h1>
 
             {/* Short Paragraph (max 65-75 chars per line) */}
             <p className="text-sm sm:text-base text-on-surface-secondary leading-relaxed max-w-xl">
-              Accédez à 100 vitrines authentiques au Burkina Faso et dans la sous-région. Discutez sans intermédiaire avec les commerçants et payez en toute confiance à la livraison.
+              Accédez aux vitrines locales, consultez les catalogues et menus, discutez en direct et commandez en toute confiance.
             </p>
 
             {/* Action Buttons */}
@@ -237,7 +237,7 @@ export default function StoreExplorerPage({
                 href="#stores-directory"
                 className="h-11 px-5 rounded-xl bg-primary hover:brightness-105 text-white text-sm font-semibold flex items-center gap-2 shadow-sm transition-all active:scale-[0.98]"
               >
-                <span>Explorer les 100 boutiques</span>
+                <span>Explorer les boutiques</span>
                 <Icon name="arrow_downward" className="text-[18px]" />
               </a>
 
@@ -259,7 +259,7 @@ export default function StoreExplorerPage({
               </div>
               <div>
                 <p className="text-sm font-semibold text-on-surface">100% Direct</p>
-                <p className="text-xs text-on-surface-variant">Échange direct WhatsApp &amp; Messenger</p>
+                <p className="text-xs text-on-surface-variant">Messagerie intégrée &amp; canaux directs</p>
               </div>
             </div>
 
@@ -278,8 +278,8 @@ export default function StoreExplorerPage({
                 <Icon name="badge" className="text-[18px]" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-on-surface">1 Seul Compte</p>
-                <p className="text-xs text-on-surface-variant">Reconnu sur l'ensemble du réseau</p>
+                <p className="text-sm font-semibold text-on-surface">Compte Unifié</p>
+                <p className="text-xs text-on-surface-variant">Vos commandes et boutiques au même endroit</p>
               </div>
             </div>
           </div>

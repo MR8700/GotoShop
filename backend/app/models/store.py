@@ -64,6 +64,18 @@ class Store(Base):
     show_sales_count_publicly = Column(Boolean, default=True)
     show_reviews_publicly = Column(Boolean, default=True)
 
+    # Polymorphic Architecture & Capabilities
+    activity_type = Column(String(50), default="GENERAL_COMMERCE")
+    capabilities = Column(Text, nullable=True)  # JSON list of active capabilities
+    country = Column(String(100), default="Burkina Faso")
+    city = Column(String(100), default="Ouagadougou")
+    business_preferences = Column(Text, nullable=True)  # JSON configuration
+    notification_profile = Column(Text, nullable=True)  # JSON configuration
+    commerce_profile = Column(Text, nullable=True)      # JSON configuration
+    communication_profile = Column(Text, nullable=True) # JSON configuration
+    qr_code_svg = Column(Text, nullable=True)           # Cached QR Code SVG
+    followers_count = Column(Integer, default=0)
+
     # Multi-Tenant & SaaS Subscription Settings
     subscription_status = Column(String(30), default="ACTIVE")  # ACTIVE, TRIAL, SUSPENDED, EXPIRED
     subscription_plan = Column(String(30), default="PRO")       # STARTER, PRO, VIP
@@ -83,6 +95,8 @@ class Store(Base):
     trust_badges = relationship("TrustBadge", back_populates="store", cascade="all, delete-orphan")
     delivery_cities = relationship("DeliveryCity", back_populates="store", cascade="all, delete-orphan")
     loyalty_tiers = relationship("LoyaltyTier", back_populates="store", cascade="all, delete-orphan", order_by="LoyaltyTier.min_points")
+    subscriptions = relationship("StoreSubscription", back_populates="store", cascade="all, delete-orphan")
+    announcements = relationship("StoreAnnouncement", back_populates="store", cascade="all, delete-orphan")
 
 
 class TrustBadge(Base):
@@ -126,3 +140,60 @@ class LoyaltyTier(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     store = relationship("Store", back_populates="loyalty_tiers")
+
+
+class StoreSubscription(Base):
+    """
+    Represents an explicit follow/subscription relationship between a customer and a store.
+    Distinct from a purchase (Achat != Abonnement).
+    Statuses: ACTIVE, PAUSED, UNSUBSCRIBED, BLOCKED
+    """
+    __tablename__ = "store_subscriptions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    customer_id = Column(String(36), ForeignKey("customers.id"), nullable=False, index=True)
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
+    status = Column(String(30), default="ACTIVE") # ACTIVE, PAUSED, UNSUBSCRIBED, BLOCKED
+    notification_preferences = Column(Text, nullable=True) # JSON: news, promos, arrivals
+    subscribed_at = Column(DateTime, default=datetime.utcnow)
+    unsubscribed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    store = relationship("Store", back_populates="subscriptions")
+    customer = relationship("Customer")
+
+
+class StoreAccessHistory(Base):
+    """
+    Tracks recent customer interactions (visits, views, order touchpoints)
+    with a configurable TTL for recent access shortcuts.
+    """
+    __tablename__ = "store_access_history"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
+    customer_id = Column(String(36), nullable=True, index=True)
+    guest_token = Column(String(128), nullable=True, index=True)
+    interaction_type = Column(String(50), default="VISIT") # VISIT, ORDER, CHAT, QR_SCAN
+    last_interacted_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    store = relationship("Store")
+
+
+class StoreAnnouncement(Base):
+    """
+    Public broadcast announcement/news from a store to its followers.
+    """
+    __tablename__ = "store_announcements"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    announcement_type = Column(String(50), default="NEWS") # NEWS, PROMO, EVENT, SCHEDULE
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    store = relationship("Store", back_populates="announcements")
+

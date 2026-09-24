@@ -17,6 +17,7 @@ export class ErrorBoundary extends React.Component {
 
   handleReload = () => {
     try {
+      this.setState({ hasError: false, error: null });
       window.location.reload();
     } catch (e) {
       window.location.href = "/";
@@ -25,10 +26,9 @@ export class ErrorBoundary extends React.Component {
 
   handleReset = () => {
     try {
+      this.setState({ hasError: false, error: null });
       if (typeof window !== "undefined") {
-        const url = new URL(window.location.href);
-        url.search = "";
-        window.location.href = url.pathname;
+        window.location.href = window.location.origin + window.location.pathname;
       }
     } catch (e) {
       window.location.href = "/";

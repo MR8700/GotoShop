@@ -1,5 +1,6 @@
 import json
 import uuid
+import secrets
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
@@ -8,13 +9,14 @@ from sqlalchemy import desc
 from app.models.order import Order, OrderItem, OrderDelivery
 from app.models.payment import Payment, PaymentProof
 from app.models.chat import Conversation
-from app.models.store import Store
+from app.models.store import Store, StoreAccessHistory
 from app.models.catalog import Product, ProductVariant
 from app.models.customer import Customer
 from app.models.audit import AuditLog
 from app.models.commerce import OrderIntent
 from app.services.chat_service import ChatService
 from app.services.store_service import StoreService
+from app.services.notification_engine import NotificationEngine
 from app.realtime.connection_manager import manager
 
 class OrderService:
@@ -47,7 +49,11 @@ class OrderService:
         customer_id: Optional[str] = None,
         customer_token: Optional[str] = None,
         delivery_fee: int = 500,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        register_account: bool = False,
+        country: Optional[str] = "Burkina Faso",
+        city: Optional[str] = "Ouagadougou",
+        delivery_neighborhood: Optional[str] = None,
     ) -> Dict[str, Any]:
         try:
             store = StoreService.resolve_store(db, slug=store_id)
@@ -61,12 +67,43 @@ class OrderService:
             if not items_data:
                 raise ValueError("Veuillez ajouter au moins un produit à votre commande.")
 
-            # Validate customer_id against customers table to prevent foreign key errors
+            # Validate or auto-create customer for seamless checkout onboarding
             actual_customer_id = None
+            cust = None
             if customer_id:
                 cust = db.query(Customer).filter(Customer.id == customer_id).first()
-                if cust:
-                    actual_customer_id = cust.id
+            if not cust and customer_phone:
+                cust = db.query(Customer).filter(Customer.phone == customer_phone).first()
+
+            if cust:
+                actual_customer_id = cust.id
+                if not cust.session_token:
+                    cust.session_token = secrets.token_hex(24)
+                customer_token = cust.session_token
+                if country:
+                    cust.country = country
+                if city:
+                    cust.city = city
+                if delivery_neighborhood:
+                    cust.delivery_neighborhood = delivery_neighborhood
+            elif (register_account or customer_phone) and customer_name:
+                new_session_token = secrets.token_hex(24)
+                cust = Customer(
+                    id=str(uuid.uuid4()),
+                    store_id=actual_store_id,
+                    name=customer_name or "Client",
+                    phone=customer_phone or "00000000",
+                    email=customer_email,
+                    country=country or "Burkina Faso",
+                    city=city or "Ouagadougou",
+                    delivery_neighborhood=delivery_neighborhood,
+                    session_token=new_session_token,
+                    created_at=datetime.utcnow()
+                )
+                db.add(cust)
+                db.flush()
+                actual_customer_id = cust.id
+                customer_token = new_session_token
 
             order_number = OrderService.generate_order_number(db, store.slug)
             order_id = str(uuid.uuid4())
@@ -273,8 +310,34 @@ class OrderService:
             )
             db.add(audit)
 
+            # Access history touchpoint
+            try:
+                hist = StoreAccessHistory(
+                    id=str(uuid.uuid4()),
+                    store_id=actual_store_id,
+                    customer_id=actual_customer_id,
+                    guest_token=customer_token,
+                    interaction_type="ORDER",
+                    last_interacted_at=datetime.utcnow()
+                )
+                db.add(hist)
+            except Exception as e_hist:
+                print("Notice: StoreAccessHistory skipped:", e_hist)
+
             db.commit()
             db.refresh(order)
+
+            # Centralized notification dispatch to store owner
+            try:
+                NotificationEngine.notify_order_created(
+                    db=db,
+                    order=order,
+                    store=store,
+                    conversation_id=conv.id
+                )
+                db.commit()
+            except Exception as e_notif:
+                print("Notice: notify_order_created skipped:", e_notif)
 
             # Broadcast via WebSocket to store owner / user
             manager.safe_broadcast_sync(conv.id, {
@@ -288,7 +351,19 @@ class OrderService:
                 "conversation_id": conv.id
             })
 
-            return OrderService.format_order_dict(order, conversation_id=conv.id)
+            formatted = OrderService.format_order_dict(order, conversation_id=conv.id)
+            if cust:
+                formatted["customer_token"] = cust.session_token
+                formatted["customer"] = {
+                    "id": cust.id,
+                    "name": cust.name,
+                    "phone": cust.phone,
+                    "city": cust.city,
+                    "country": cust.country,
+                    "delivery_neighborhood": cust.delivery_neighborhood,
+                    "bonus_points": cust.bonus_points or 0,
+                }
+            return formatted
         except Exception as e:
             db.rollback()
             raise e
@@ -328,6 +403,18 @@ class OrderService:
         db.add(audit)
         db.commit()
         db.refresh(order)
+
+        # Notify customer
+        try:
+            NotificationEngine.notify_order_accepted(
+                db=db,
+                order=order,
+                store=order.store,
+                conversation_id=conv.id if conv else None
+            )
+            db.commit()
+        except Exception as e:
+            print("Notice: notify_order_accepted failed:", e)
 
         # Broadcast
         if conv:
@@ -375,6 +462,19 @@ class OrderService:
         db.add(audit)
         db.commit()
         db.refresh(order)
+
+        # Notify customer
+        try:
+            NotificationEngine.notify_order_rejected(
+                db=db,
+                order=order,
+                store=order.store,
+                reason=order.rejection_reason,
+                conversation_id=conv.id if conv else None
+            )
+            db.commit()
+        except Exception as e:
+            print("Notice: notify_order_rejected failed:", e)
 
         if conv:
             manager.safe_broadcast_sync(conv.id, {
@@ -431,6 +531,19 @@ class OrderService:
         db.add(audit)
         db.commit()
         db.refresh(order)
+
+        # Notify customer
+        try:
+            NotificationEngine.notify_order_status_updated(
+                db=db,
+                order=order,
+                store=order.store,
+                new_status=new_status,
+                conversation_id=conv.id if conv else None
+            )
+            db.commit()
+        except Exception as e:
+            print("Notice: notify_order_status_updated failed:", e)
 
         if conv:
             manager.safe_broadcast_sync(conv.id, {

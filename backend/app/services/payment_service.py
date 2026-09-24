@@ -9,6 +9,7 @@ from app.models.payment import Payment, PaymentProof
 from app.models.chat import Conversation
 from app.models.audit import AuditLog
 from app.services.chat_service import ChatService
+from app.services.notification_engine import NotificationEngine
 from app.realtime.connection_manager import manager
 
 class PaymentService:
@@ -115,6 +116,18 @@ class PaymentService:
         db.add(audit)
         db.commit()
 
+        # Notify merchant of uploaded payment proof
+        try:
+            NotificationEngine.notify_payment_proof_submitted(
+                db=db,
+                order=order,
+                store=order.store,
+                conversation_id=conv.id if conv else None
+            )
+            db.commit()
+        except Exception as e:
+            print("Notice: notify_payment_proof_submitted failed:", e)
+
         # Broadcast via WebSocket
         if conv:
             manager.safe_broadcast_sync(conv.id, {
@@ -190,6 +203,18 @@ class PaymentService:
         db.add(audit)
         db.commit()
 
+        # Notify customer of payment confirmation
+        try:
+            NotificationEngine.notify_payment_verified(
+                db=db,
+                order=order,
+                store=order.store,
+                conversation_id=conv.id if conv else None
+            )
+            db.commit()
+        except Exception as e:
+            print("Notice: notify_payment_verified failed:", e)
+
         if conv:
             manager.safe_broadcast_sync(conv.id, {
                 "type": "payment.confirmed",
@@ -255,6 +280,19 @@ class PaymentService:
         )
         db.add(audit)
         db.commit()
+
+        # Notify customer of payment rejection
+        try:
+            NotificationEngine.notify_payment_rejected(
+                db=db,
+                order=order,
+                store=order.store,
+                reason=reason,
+                conversation_id=conv.id if conv else None
+            )
+            db.commit()
+        except Exception as e:
+            print("Notice: notify_payment_rejected failed:", e)
 
         if conv:
             manager.safe_broadcast_sync(conv.id, {
