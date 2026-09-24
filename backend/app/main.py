@@ -14,12 +14,12 @@ import uuid
 
 _DB_INITIALIZED = False
 
-def ensure_database_initialized():
+def ensure_database_initialized(force: bool = False):
     global _DB_INITIALIZED
-    if _DB_INITIALIZED:
+    if _DB_INITIALIZED and not force:
         return
     flag_file = Path("/tmp/.gotoshop_db_ready") if os.getenv("VERCEL") else None
-    if flag_file and flag_file.exists():
+    if flag_file and flag_file.exists() and not force:
         _DB_INITIALIZED = True
         return
 
@@ -90,10 +90,27 @@ for r in all_routers:
     app.include_router(r, prefix=settings.API_V1_STR)
     app.include_router(r, prefix="")
 
+@app.get("/")
+@app.get("/api")
+@app.get("/api/index.py")
+def api_root():
+    return {
+        "status": "ok",
+        "message": "GotoShop Mobile Engine API is live and healthy",
+        "project": settings.PROJECT_NAME,
+        "active_db": ACTIVE_DATABASE_URL.split("@")[-1] if "@" in ACTIVE_DATABASE_URL else "sqlite",
+    }
+
 @app.get("/health")
 @app.get("/api/health")
+@app.get("/api/index.py/health")
 def health_check():
-    return {"status": "ok", "project": settings.PROJECT_NAME, "storage": "database"}
+    return {
+        "status": "ok",
+        "project": settings.PROJECT_NAME,
+        "storage": "database",
+        "active_db": ACTIVE_DATABASE_URL.split("@")[-1] if "@" in ACTIVE_DATABASE_URL else "sqlite",
+    }
 
 @app.get("/diag")
 @app.get("/api/diag")

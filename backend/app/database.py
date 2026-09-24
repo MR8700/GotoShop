@@ -5,6 +5,12 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import NullPool
 from app.config import settings
 
+def get_sqlite_engine():
+    is_vercel = bool(os.getenv("VERCEL"))
+    fallback_db = Path("/tmp") / "conversastore.db" if is_vercel else settings.DB_PATH
+    fallback_url = f"sqlite:///{fallback_db}"
+    return create_engine(fallback_url, connect_args={"check_same_thread": False}), fallback_url
+
 def init_engine():
     db_url = settings.DATABASE_URL
     is_vercel = bool(os.getenv("VERCEL"))
@@ -12,10 +18,8 @@ def init_engine():
     # 1. If PostgreSQL configured (Supabase, Neon, Railway, etc.)
     if "sqlite" not in db_url:
         try:
-            timeout = 3 if is_vercel else 5
             connect_args = {
-                "connect_timeout": timeout,
-                "options": f"-c statement_timeout={timeout * 1000}"
+                "connect_timeout": 3,
             }
             if "localhost" not in db_url and "127.0.0.1" not in db_url:
                 if "sslmode" not in db_url:
@@ -34,18 +38,11 @@ def init_engine():
                 connect_args=connect_args,
                 **pool_kwargs
             )
-            # Verify connectivity
-            with candidate_engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            print(f"[Database] Successfully connected to remote PostgreSQL ({db_url.split('@')[-1] if '@' in db_url else 'postgres'})")
+            # NEVER connect at module import time! Return candidate engine immediately.
             return candidate_engine, db_url
         except Exception as e_remote:
-            print(f"[Database] Remote PostgreSQL connection failed: {e_remote}")
-            print("[Database] Activating high-resilience SQLite fallback for continuous service...")
-            fallback_db = Path("/tmp") / "conversastore.db" if is_vercel else settings.DB_PATH
-            fallback_url = f"sqlite:///{fallback_db}"
-            fallback_engine = create_engine(fallback_url, connect_args={"check_same_thread": False})
-            return fallback_engine, fallback_url
+            print(f"[Database] PostgreSQL config error: {e_remote}, using SQLite fallback")
+            return get_sqlite_engine()
 
     # 2. SQLite
     candidate_engine = create_engine(
@@ -59,13 +56,32 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def get_db():
+    global engine, ACTIVE_DATABASE_URL, SessionLocal
+
     try:
         from app.main import ensure_database_initialized
         ensure_database_initialized()
     except Exception as e_init:
         print("[Database] Lazy initialization notice:", e_init)
 
-    db = SessionLocal()
+    try:
+        db = SessionLocal()
+        # Verify connection can execute a query
+        db.execute(text("SELECT 1"))
+    except Exception as e_conn:
+        if "sqlite" not in ACTIVE_DATABASE_URL:
+            print(f"[Database] Remote PostgreSQL unavailable: {e_conn}. Activating instant SQLite fallback...")
+            engine, ACTIVE_DATABASE_URL = get_sqlite_engine()
+            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+            try:
+                from app.main import ensure_database_initialized
+                ensure_database_initialized(force=True)
+            except Exception:
+                pass
+            db = SessionLocal()
+        else:
+            raise e_conn
+
     try:
         yield db
     finally:
