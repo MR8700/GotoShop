@@ -24,6 +24,19 @@ def ensure_database_initialized(force: bool = False):
         return
 
     try:
+        import app.database as db_mod
+        from sqlalchemy.orm import sessionmaker
+
+        # Test if active engine is reachable; if not, switch to SQLite immediately
+        try:
+            with db_mod.engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+        except Exception as e_unreachable:
+            if "sqlite" not in db_mod.ACTIVE_DATABASE_URL:
+                print(f"[Database] Remote database unreachable: {e_unreachable}. Activating instant SQLite fallback...")
+                db_mod.engine, db_mod.ACTIVE_DATABASE_URL = db_mod.get_sqlite_engine()
+                db_mod.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_mod.engine)
+
         from app.database import engine, Base
         import app.models
         Base.metadata.create_all(bind=engine)
@@ -42,7 +55,7 @@ def ensure_database_initialized(force: bool = False):
         _DB_INITIALIZED = True
         print("[Database] Schema, migrations, and seeds initialized successfully.")
     except Exception as e:
-        print("[Database] Lazy initialization notice:", e)
+        print("[Database] Safe initialization notice:", e)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -163,21 +176,8 @@ if not os.getenv("VERCEL"):
 
 @app.on_event("startup")
 def startup_event():
-    # If store table is empty, seed automatically
-    from app.database import SessionLocal
-    from app.models.store import Store
-    from app.services.subscription_service import SubscriptionService
-    db = SessionLocal()
     try:
-        count = db.query(Store).count()
-        if count == 0:
-            print("No store found in database. Running automatic seeder...")
-            seed_database()
-        else:
-            print(f"Database ready with {count} store(s).")
-        SubscriptionService.seed_defaults(db)
-        from app.services.catalog_service import CatalogService
-        CatalogService.seed_sales_units_and_profiles(db)
-    finally:
-        db.close()
+        ensure_database_initialized()
+    except Exception as e_start:
+        print("[Startup] Safe startup notice:", e_start)
 
