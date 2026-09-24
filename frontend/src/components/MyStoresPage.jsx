@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Icon from "./Icon";
 import { fetchMyStores, unsubscribeFromStore, getMediaUrl } from "../api/client";
+import { getBusinessContext } from "../utils/businessContext";
 
 export default function MyStoresPage({
   customer,
@@ -149,40 +150,56 @@ export default function MyStoresPage({
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {currentList.map((st) => (
-            <div
-              key={st.id}
-              onClick={() => onSelectStore(st.slug)}
-              className="p-4 rounded-2xl border border-subtle bg-surface-container hover:bg-surface-secondary/70 transition-all cursor-pointer group flex flex-col justify-between gap-3 shadow-xs hover:shadow-card hover:border-primary/30"
-            >
-              <div className="flex items-start gap-3">
-                <img
-                  src={getMediaUrl(st.logo_url) || "/media/store/logo.jpg"}
-                  alt={st.name}
-                  className="w-12 h-12 rounded-xl object-cover border border-subtle shrink-0 group-hover:scale-105 transition-transform"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "/media/store/logo.jpg";
-                  }}
-                />
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-on-surface text-sm truncate group-hover:text-primary transition-colors">
-                    {st.name}
-                  </h4>
-                  <p className="text-xs text-on-surface-variant truncate">
-                    {st.tagline || "Boutique en ligne"}
-                  </p>
-                  <p className="text-[11px] text-on-surface-variant/70 pt-0.5">
-                    {st.delivery_city?.split("(")[0]?.trim() || st.country || "Afrique"}
-                  </p>
+          {currentList.map((st) => {
+            const stCtx = getBusinessContext(st);
+            return (
+              <div
+                key={st.id}
+                onClick={() => onSelectStore(st.slug)}
+                className="p-4 rounded-2xl border border-subtle bg-surface-container hover:bg-surface-secondary/70 transition-all cursor-pointer group flex flex-col justify-between gap-3 shadow-xs hover:shadow-card hover:border-primary/30"
+              >
+                <div className="flex items-start gap-3">
+                  {st.logo_url ? (
+                    <img
+                      src={getMediaUrl(st.logo_url)}
+                      alt={st.name}
+                      className="w-12 h-12 rounded-xl object-cover border border-subtle shrink-0 group-hover:scale-105 transition-transform"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.style.display = "none";
+                        if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className={`w-12 h-12 rounded-xl border border-subtle bg-primary/10 text-primary items-center justify-center font-bold text-base shrink-0 ${st.logo_url ? "hidden" : "flex"}`}
+                  >
+                    <Icon name={stCtx.icon} className="text-xl" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary/10 text-primary font-semibold flex items-center gap-1">
+                        <Icon name={stCtx.icon} className="text-[10px]" />
+                        <span>{stCtx.terms.domain_label}</span>
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-on-surface text-sm truncate group-hover:text-primary transition-colors">
+                      {st.name}
+                    </h4>
+                    <p className="text-xs text-on-surface-variant truncate">
+                      {st.tagline || "Boutique en ligne"}
+                    </p>
+                    <p className="text-[11px] text-on-surface-variant/70 pt-0.5">
+                      {st.delivery_city?.split("(")[0]?.trim() || st.country || "Afrique"}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="pt-2 border-t border-subtle flex items-center justify-between text-xs">
-                <span className="text-primary font-semibold flex items-center gap-1 text-[11px]">
-                  <span>Accéder à la boutique</span>
-                  <Icon name="arrow_forward" className="text-[13px]" />
-                </span>
+                <div className="pt-2 border-t border-subtle flex items-center justify-between text-xs">
+                  <span className="text-primary font-semibold flex items-center gap-1 text-[11px]">
+                    <span>{stCtx.getDiscoverLabel()}</span>
+                    <Icon name="arrow_forward" className="text-[13px]" />
+                  </span>
 
                 {activeTab === "SUBSCRIBED" && (
                   <button
@@ -195,7 +212,8 @@ export default function MyStoresPage({
                 )}
               </div>
             </div>
-          ))}
+          );
+        })}
         </div>
       )}
     </div>

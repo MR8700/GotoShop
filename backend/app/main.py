@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
-from app.database import engine, Base
+from app.database import engine, Base, get_db, ACTIVE_DATABASE_URL
+from fastapi import Depends
 from app.routers import store, catalog, channels, commerce, analytics, auth, customer, notifications, super_admin, subscription, orders, chat, calls, media, store_subscriptions, store_qr
 import app.models  # Ensures all models (Order, Chat, Payment, Media, Call, etc.) are registered
 from app.seed.seeder import seed_database
@@ -220,11 +221,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static media directory
-if not os.path.exists(settings.MEDIA_DIR):
-    os.makedirs(settings.MEDIA_DIR, exist_ok=True)
-
-app.mount("/media", StaticFiles(directory=str(settings.MEDIA_DIR)), name="media")
+# Mount static media directory safely
+try:
+    if not os.path.exists(settings.MEDIA_DIR):
+        os.makedirs(settings.MEDIA_DIR, exist_ok=True)
+    app.mount("/media", StaticFiles(directory=str(settings.MEDIA_DIR)), name="media")
+except Exception as e_media:
+    print("Notice: Static media directory mount skipped or handled:", e_media)
 
 # Include API routers (both under /api and root for Vercel serverless compatibility)
 all_routers = [
@@ -254,19 +257,54 @@ for r in all_routers:
 def health_check():
     return {"status": "ok", "project": settings.PROJECT_NAME, "storage": "database"}
 
-# Serve frontend build if dist directory exists
-FRONTEND_DIST = settings.MEDIA_DIR.parent / "frontend" / "dist"
-if FRONTEND_DIST.exists():
-    from fastapi.responses import FileResponse
+@app.get("/diag")
+@app.get("/api/diag")
+def server_diagnostics(db = Depends(get_db)):
+    from app.models.store import Store
+    from app.models.product import Product
+    from app.models.order import Order
+    
+    store_count = 0
+    product_count = 0
+    order_count = 0
+    db_err = None
+    try:
+        store_count = db.query(Store).count()
+        product_count = db.query(Product).count()
+        order_count = db.query(Order).count()
+    except Exception as e:
+        db_err = str(e)
 
-    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
+    return {
+        "status": "HEALTHY" if not db_err else "DB_DEGRADED",
+        "database_type": "sqlite" if "sqlite" in ACTIVE_DATABASE_URL else "postgresql",
+        "active_database": ACTIVE_DATABASE_URL.split("@")[-1] if "@" in ACTIVE_DATABASE_URL else "sqlite",
+        "db_error": db_err,
+        "stores_count": store_count,
+        "products_count": product_count,
+        "orders_count": order_count,
+        "is_vercel": bool(os.getenv("VERCEL")),
+        "media_dir": str(settings.MEDIA_DIR),
+        "media_exists": os.path.exists(settings.MEDIA_DIR),
+    }
 
-    @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
-        file_path = FRONTEND_DIST / full_path
-        if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
-        return FileResponse(FRONTEND_DIST / "index.html")
+# Serve frontend build if dist directory exists AND not on Vercel
+# (On Vercel, static files and SPA routing are handled natively by Vercel CDN)
+if not os.getenv("VERCEL"):
+    FRONTEND_DIST = settings.BASE_DIR / "frontend" / "dist"
+    if FRONTEND_DIST.exists() and (FRONTEND_DIST / "assets").is_dir():
+        from fastapi.responses import FileResponse
+        try:
+            app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
+
+            @app.get("/{full_path:path}")
+            async def serve_frontend(full_path: str):
+                file_path = FRONTEND_DIST / full_path
+                if file_path.exists() and file_path.is_file():
+                    return FileResponse(file_path)
+                return FileResponse(FRONTEND_DIST / "index.html")
+        except Exception as e_front:
+            print("Notice: frontend dist mount skipped:", e_front)
 
 @app.on_event("startup")
 def startup_event():

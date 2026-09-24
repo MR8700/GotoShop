@@ -1,6 +1,7 @@
 import Icon from "./Icon";
 import React, { useState } from "react";
 import { createConversationalOrder, getActiveStoreSlug, setCustomerToken } from "../api/client";
+import { getBusinessContext } from "../utils/businessContext";
 
 export default function ConversationalOrderModal({
   store,
@@ -12,6 +13,8 @@ export default function ConversationalOrderModal({
   onOpenChat,
   onCustomerAuthenticated,
 }) {
+  const ctx = getBusinessContext(store);
+
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState(
     product?.variants && product.variants.length > 0 ? product.variants[0] : null
@@ -20,17 +23,22 @@ export default function ConversationalOrderModal({
   // Customization state
   const isCustomizable = Boolean(product?.is_customizable);
   const [customizationText, setCustomizationText] = useState("");
+
+  // Domain-specific customization choices
   const [spiceLevel, setSpiceLevel] = useState("Peu de piment");
   const [onionsChoice, setOnionsChoice] = useState("Beaucoup d'oignons");
   const [cookingChoice, setCookingChoice] = useState("Poisson bien grillé et croustillant");
   const [portionsChoice, setPortionsChoice] = useState("1 portion standard");
 
+  // Fashion customization choices
+  const [sizeMeasure, setSizeMeasure] = useState("Standard M / L");
+  const [finishingChoice, setFinishingChoice] = useState("Ourlet soigné standard");
+
   // Delivery Location Mode: "GPS_AND_DESCRIPTION" | "EXACT_GPS" | "ADDRESS_DESCRIPTION"
+  const defaultCity = customer?.city || store?.city || store?.delivery_city || "Ouagadougou";
   const [deliveryMode, setDeliveryMode] = useState("GPS_AND_DESCRIPTION");
-  const [deliveryCity, setDeliveryCity] = useState(customer?.city || "Cité Universitaire Kossodo");
-  const [deliveryAddress, setDeliveryAddress] = useState(
-    customer?.delivery_address || "Cité universitaire de Kossodo, Pavillon B, Chambre 14, près de la porte principale"
-  );
+  const [deliveryCity, setDeliveryCity] = useState(defaultCity);
+  const [deliveryAddress, setDeliveryAddress] = useState(customer?.delivery_address || "");
   const [deliveryNotes, setDeliveryNotes] = useState("");
 
   // GPS coordinates
@@ -44,7 +52,7 @@ export default function ConversationalOrderModal({
   const [customerName, setCustomerName] = useState(customer?.name || "");
   const [customerPhone, setCustomerPhone] = useState(customer?.phone || "");
   const [customerCountry, setCustomerCountry] = useState(customer?.country || store?.country || "Burkina Faso");
-  const [customerCity, setCustomerCity] = useState(customer?.city || deliveryCity || "Ouagadougou");
+  const [customerCity, setCustomerCity] = useState(customer?.city || defaultCity);
   const [deliveryNeighborhood, setDeliveryNeighborhood] = useState(
     customer?.delivery_neighborhood || customer?.delivery_address || ""
   );
@@ -96,7 +104,7 @@ export default function ConversationalOrderModal({
       showToast?.(msg);
       return;
     }
-    if (deliveryMode !== "EXACT_GPS" && !deliveryAddress.trim()) {
+    if (deliveryMode !== "EXACT_GPS" && !deliveryAddress.trim() && !deliveryNeighborhood.trim()) {
       const msg = "Veuillez préciser votre adresse ou repère de livraison";
       setErrorMessage(msg);
       showToast?.(msg);
@@ -105,14 +113,22 @@ export default function ConversationalOrderModal({
 
     setIsSubmitting(true);
     try {
-      const customizationOptions = isCustomizable
-        ? {
+      let customizationOptions = null;
+      if (isCustomizable) {
+        if (ctx.domain === "FOOD") {
+          customizationOptions = {
             spice_level: spiceLevel,
             onions: onionsChoice,
             cooking: cookingChoice,
             attieke_portions: portionsChoice,
-          }
-        : null;
+          };
+        } else if (ctx.domain === "FASHION") {
+          customizationOptions = {
+            size_measure: sizeMeasure,
+            finishing: finishingChoice,
+          };
+        }
+      }
 
       const resolvedStoreId = store?.id || store?.slug || getActiveStoreSlug() || "default-store";
 
@@ -130,7 +146,7 @@ export default function ConversationalOrderModal({
           {
             product_id: product?.id || null,
             variant_id: selectedVariant?.id || null,
-            product_name: product?.name || "Article Spécial",
+            product_name: product?.name || ctx.terms.item_singular,
             variant_name: selectedVariant?.name || null,
             quantity: quantity,
             unit_price: unitPrice,
@@ -140,8 +156,8 @@ export default function ConversationalOrderModal({
         ],
         delivery: {
           delivery_mode: deliveryMode,
-          delivery_city: deliveryCity || "Ouagadougou",
-          delivery_address: deliveryAddress || "En magasin / Point de livraison",
+          delivery_city: deliveryCity || defaultCity,
+          delivery_address: deliveryAddress || deliveryNeighborhood || "En magasin / Point de livraison",
           latitude: deliveryMode !== "ADDRESS_DESCRIPTION" ? latitude : null,
           longitude: deliveryMode !== "ADDRESS_DESCRIPTION" ? longitude : null,
           location_accuracy: locationAccuracy,
@@ -168,11 +184,13 @@ export default function ConversationalOrderModal({
         onCustomerAuthenticated(result.customer);
       }
       setStep("SUCCESS");
-      showToast?.("Commande transmise avec succès au commerçant !");
-      onOrderCreated?.(result);
+      showToast?.(`Commande #${result?.order_number || ""} transmise avec succès !`);
+      if (onOrderCreated) {
+        onOrderCreated(result);
+      }
     } catch (err) {
-      console.error("Erreur transmission commande :", err);
-      const msg = err.message || "Erreur de transmission de la commande. Veuillez vérifier votre connexion et réessayer.";
+      console.error("Order submit failed:", err);
+      const msg = err.message || "Erreur lors de la transmission de la commande. Veuillez réessayer.";
       setErrorMessage(msg);
       showToast?.(msg);
     } finally {
@@ -188,14 +206,14 @@ export default function ConversationalOrderModal({
         <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-surface-elevated/60">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <Icon name="restaurant" />
+              <Icon name={ctx.icon} />
             </div>
             <div>
               <h3 className="font-bold text-base leading-tight">
-                {step === "EDIT" ? "Commander votre plat" : "Commande transmise !"}
+                {ctx.getOrderModalTitle(step)}
               </h3>
               <p className="text-xs text-foreground-muted">
-                {store?.name || "Boutique"} • Cité Kossodo
+                {ctx.storeName} • {ctx.storeLocation}
               </p>
             </div>
           </div>
@@ -243,7 +261,7 @@ export default function ConversationalOrderModal({
                   </div>
                   <h4 className="font-bold text-sm truncate">{product?.name}</h4>
                   <p className="text-xs text-foreground-muted">
-                    {unitPrice.toLocaleString()} {store?.currency || "FCFA"} / portion
+                    {ctx.formatPriceUnit(unitPrice, store?.currency || "FCFA")}
                   </p>
                 </div>
 
@@ -267,96 +285,161 @@ export default function ConversationalOrderModal({
                 </div>
               </div>
 
+              {/* Product Variants Selection (if present) */}
+              {product?.variants && product.variants.length > 0 && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-foreground">
+                    Modèle / Finition :
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {product.variants.map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setSelectedVariant(v)}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                          selectedVariant?.id === v.id
+                            ? "border-primary bg-primary/5 text-primary font-bold shadow-sm"
+                            : "border-border bg-surface hover:bg-surface-elevated text-foreground"
+                        }`}
+                      >
+                        <div className="text-xs truncate">{v.name}</div>
+                        <div className="text-[11px] text-foreground-muted">
+                          {(v.price_override || product.price).toLocaleString()} {store?.currency || "FCFA"}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Product Customization Section */}
               {isCustomizable && (
                 <div className="p-4 bg-primary/5 rounded-xl border border-primary/20 space-y-4">
                   <div className="flex items-center gap-2 text-primary font-bold text-sm">
-                    <Icon name="tune" className="text-lg" />
-                    <span>Personnalisation sur mesure</span>
+                    <Icon name={ctx.icon} className="text-lg" />
+                    <span>{ctx.terms.customization_title}</span>
                   </div>
 
                   {/* Free text prompt */}
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      {product.customization_prompt || "Décris ton plat"} :
+                      {product.customization_prompt || ctx.terms.customization_default_prompt} :
                     </label>
                     <textarea
                       rows={2}
                       value={customizationText}
                       onChange={(e) => setCustomizationText(e.target.value)}
-                      placeholder="Ex: Je veux beaucoup d'oignons, peu de piment, deux portions d'attiéké et un poisson bien grillé..."
+                      placeholder={
+                        ctx.domain === "FOOD"
+                          ? "Ex: Bien cuit, sauce à part, sans trop d'oignons..."
+                          : ctx.domain === "FASHION"
+                          ? "Ex: Tour de taille 84cm, longueur pantalon 102cm, broderie dorée..."
+                          : "Ex: Précisez votre couleur préférée ou toute demande spécifique..."
+                      }
                       className="w-full text-xs p-3 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none transition-colors"
                     />
                   </div>
 
-                  {/* Structured presets */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <span className="font-semibold block mb-1 text-foreground-muted">🌶 Piment :</span>
-                      <select
-                        value={spiceLevel}
-                        onChange={(e) => setSpiceLevel(e.target.value)}
-                        className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
-                      >
-                        <option value="Sans piment">Sans piment</option>
-                        <option value="Peu de piment">Peu de piment (Doux)</option>
-                        <option value="Piment moyen">Piment moyen</option>
-                        <option value="Très pimenté 🔥">Très pimenté 🔥</option>
-                      </select>
-                    </div>
+                  {/* FOOD PRESETS (Food stores only) */}
+                  {ctx.domain === "FOOD" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="font-semibold block mb-1 text-foreground-muted">🌶 Piment :</span>
+                        <select
+                          value={spiceLevel}
+                          onChange={(e) => setSpiceLevel(e.target.value)}
+                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                        >
+                          <option value="Sans piment">Sans piment</option>
+                          <option value="Peu de piment">Peu de piment (Doux)</option>
+                          <option value="Piment moyen">Piment moyen</option>
+                          <option value="Très pimenté 🔥">Très pimenté 🔥</option>
+                        </select>
+                      </div>
 
-                    <div>
-                      <span className="font-semibold block mb-1 text-foreground-muted">🧅 Oignons :</span>
-                      <select
-                        value={onionsChoice}
-                        onChange={(e) => setOnionsChoice(e.target.value)}
-                        className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
-                      >
-                        <option value="Sans oignon">Sans oignon</option>
-                        <option value="Oignons normaux">Oignons normaux</option>
-                        <option value="Beaucoup d'oignons">Beaucoup d'oignons 🧅</option>
-                      </select>
-                    </div>
+                      <div>
+                        <span className="font-semibold block mb-1 text-foreground-muted">🧅 Oignons / Condiments :</span>
+                        <select
+                          value={onionsChoice}
+                          onChange={(e) => setOnionsChoice(e.target.value)}
+                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                        >
+                          <option value="Sans oignon">Sans oignon</option>
+                          <option value="Oignons normaux">Normal</option>
+                          <option value="Beaucoup d'oignons">Généreux 🧅</option>
+                        </select>
+                      </div>
 
-                    <div>
-                      <span className="font-semibold block mb-1 text-foreground-muted">🐟 Cuisson Thon :</span>
-                      <select
-                        value={cookingChoice}
-                        onChange={(e) => setCookingChoice(e.target.value)}
-                        className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
-                      >
-                        <option value="Poisson tendre">Poisson tendre</option>
-                        <option value="Poisson bien grillé et croustillant">Bien grillé & croustillant</option>
-                      </select>
-                    </div>
+                      <div>
+                        <span className="font-semibold block mb-1 text-foreground-muted">🔥 Cuisson :</span>
+                        <select
+                          value={cookingChoice}
+                          onChange={(e) => setCookingChoice(e.target.value)}
+                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                        >
+                          <option value="Tendre et moelleux">Tendre & Moelleux</option>
+                          <option value="Bien grillé et croustillant">Bien grillé & croustillant</option>
+                        </select>
+                      </div>
 
-                    <div>
-                      <span className="font-semibold block mb-1 text-foreground-muted">🍚 Portions Attiéké :</span>
-                      <select
-                        value={portionsChoice}
-                        onChange={(e) => setPortionsChoice(e.target.value)}
-                        className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
-                      >
-                        <option value="1 portion standard">1 portion standard</option>
-                        <option value="2 portions">2 portions</option>
-                        <option value="3 portions maxi">3 portions maxi</option>
-                      </select>
+                      <div>
+                        <span className="font-semibold block mb-1 text-foreground-muted">🍚 Accompagnement :</span>
+                        <select
+                          value={portionsChoice}
+                          onChange={(e) => setPortionsChoice(e.target.value)}
+                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                        >
+                          <option value="1 portion standard">1 portion standard</option>
+                          <option value="2 portions">2 portions</option>
+                          <option value="3 portions maxi">3 portions maxi</option>
+                        </select>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* FASHION PRESETS (Fashion / clothing stores only) */}
+                  {ctx.domain === "FASHION" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="font-semibold block mb-1 text-foreground-muted">📏 Taille & Mensurations :</span>
+                        <select
+                          value={sizeMeasure}
+                          onChange={(e) => setSizeMeasure(e.target.value)}
+                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                        >
+                          <option value="Standard M / L">Standard M / L</option>
+                          <option value="Taille S (Ajustée)">Taille S (Ajustée)</option>
+                          <option value="Taille XL (Ample)">Taille XL (Ample)</option>
+                          <option value="Sur mesure (selon message)">Sur mesure (décrit ci-dessus)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <span className="font-semibold block mb-1 text-foreground-muted">✂️ Finitions :</span>
+                        <select
+                          value={finishingChoice}
+                          onChange={(e) => setFinishingChoice(e.target.value)}
+                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                        >
+                          <option value="Ourlet soigné standard">Ourlet soigné standard</option>
+                          <option value="Broderie artisanale fine">Broderie artisanale fine</option>
+                          <option value="Doublure satinée">Doublure satinée</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Delivery Location Section */}
+              {/* Delivery Mode & Location Section */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-foreground-muted flex items-center gap-1.5">
-                    <Icon name="location_on" className="text-sm text-primary" />
-                    Où souhaitez-vous recevoir votre commande ?
-                  </label>
-                </div>
+                <label className="block text-xs font-semibold text-foreground">
+                  Mode de localisation & livraison :
+                </label>
 
-                {/* 3 Options Tabs */}
-                <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-elevated/70 rounded-xl border border-border text-xs">
+                {/* Delivery Mode Selector */}
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-elevated rounded-xl border border-border text-xs">
                   <button
                     type="button"
                     onClick={() => setDeliveryMode("EXACT_GPS")}
@@ -366,7 +449,7 @@ export default function ConversationalOrderModal({
                         : "text-foreground-muted hover:text-foreground"
                     }`}
                   >
-                    Position GPS
+                    GPS Direct
                   </button>
                   <button
                     type="button"
@@ -419,71 +502,71 @@ export default function ConversationalOrderModal({
                 {/* Described Address text */}
                 {(deliveryMode === "ADDRESS_DESCRIPTION" || deliveryMode === "GPS_AND_DESCRIPTION") && (
                   <div>
-                    <label className="block text-xs font-medium text-foreground-muted mb-1">
-                      Description précise du lieu (Campus / Pavillon / Chambre) :
+                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                      Repère et description d'accès (Bâtiment, porte, carrefour) :
                     </label>
                     <textarea
                       rows={2}
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
-                      placeholder="Ex: Cité universitaire de Kossodo, Pavillon B, Chambre 14, près de la porte principale."
-                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none transition-colors"
+                      placeholder="Ex: Porte bleue à côté de la pharmacie, 1er étage..."
+                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
                     />
                   </div>
                 )}
               </div>
 
-              {/* Customer Contact & Seamless Checkout Onboarding */}
-              <div className="space-y-3 pt-1 border-t border-border">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-foreground">Coordonnées du Client</p>
-                  {customer && (
-                    <span className="text-[10px] bg-secondary/15 text-secondary px-2 py-0.5 rounded-full font-medium">
-                      Compte connecté
-                    </span>
-                  )}
+              {/* CUSTOMER 5 MANDATORY FIELDS (Checkout Onboarding) */}
+              <div className="p-4 bg-surface-elevated/40 rounded-xl border border-border space-y-3">
+                <div className="flex items-center gap-2 text-foreground font-bold text-xs pb-1 border-b border-border">
+                  <Icon name="person" className="text-primary text-base" />
+                  <span>Vos coordonnées de commande & livraison</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* 1. Nom & Prénom */}
                   <div>
                     <label className="block text-[11px] font-medium text-foreground-muted mb-1">
-                      1. Nom &amp; Prénom <span className="text-red-500">*</span>
+                      1. Nom & Prénom <span className="text-primary">*</span>
                     </label>
                     <input
                       type="text"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
-                      placeholder="Ex: Richard Compaoré"
+                      placeholder="Ex: Ousmane Ouédraogo"
+                      required
                     />
                   </div>
 
-                  {/* 2. Numéro WhatsApp / Téléphone */}
+                  {/* 2. Pays */}
                   <div>
                     <label className="block text-[11px] font-medium text-foreground-muted mb-1">
-                      2. Téléphone / WhatsApp <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
-                      placeholder="Ex: +226 70 00 00 00"
-                    />
-                  </div>
-
-                  {/* 3. Pays */}
-                  <div>
-                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
-                      3. Pays de résidence
+                      2. Pays
                     </label>
                     <input
                       type="text"
                       value={customerCountry}
                       onChange={(e) => setCustomerCountry(e.target.value)}
                       className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
-                      placeholder="Ex: Burkina Faso"
+                      placeholder="Ex: Burkina Faso, Côte d'Ivoire..."
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* 3. Téléphone / WhatsApp */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                      3. Téléphone (WhatsApp direct) <span className="text-primary">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      placeholder="Ex: +226 70 00 00 00"
+                      required
                     />
                   </div>
 
@@ -495,9 +578,12 @@ export default function ConversationalOrderModal({
                     <input
                       type="text"
                       value={customerCity}
-                      onChange={(e) => setCustomerCity(e.target.value)}
+                      onChange={(e) => {
+                        setCustomerCity(e.target.value);
+                        setDeliveryCity(e.target.value);
+                      }}
                       className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
-                      placeholder="Ex: Ouagadougou"
+                      placeholder="Ex: Ouagadougou, Bobo-Dioulasso, Abidjan..."
                     />
                   </div>
                 </div>
@@ -512,7 +598,7 @@ export default function ConversationalOrderModal({
                     value={deliveryNeighborhood}
                     onChange={(e) => setDeliveryNeighborhood(e.target.value)}
                     className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
-                    placeholder="Ex: Kossodo, Cité U Pavillon B, pharmacie en face"
+                    placeholder="Ex: Secteur 12, pharmacie en face, portail vert"
                   />
                 </div>
 
@@ -558,7 +644,7 @@ export default function ConversationalOrderModal({
               <div>
                 <h4 className="text-lg font-bold">Commande #{createdOrder?.order_number} créée !</h4>
                 <p className="text-xs text-foreground-muted max-w-sm mx-auto mt-1">
-                  Votre commande a été transmise en direct à <strong>{store?.name}</strong>.
+                  Votre commande a été transmise en direct à <strong>{ctx.storeName}</strong>.
                 </p>
               </div>
 
@@ -579,7 +665,7 @@ export default function ConversationalOrderModal({
               </div>
 
               <div className="p-3.5 bg-primary/10 rounded-xl border-2 border-primary/30 text-xs text-primary max-w-sm mx-auto shadow-xs">
-                💬 <strong>Commerce conversationnel intégré :</strong> Vous pouvez maintenant échanger directement avec le chef, envoyer votre preuve de paiement et suivre la préparation.
+                💬 <strong>Commerce conversationnel intégré :</strong> Vous pouvez maintenant échanger directement avec l'équipe de <strong>{ctx.storeName}</strong>, envoyer votre reçu de paiement et suivre votre commande.
               </div>
             </div>
           )}

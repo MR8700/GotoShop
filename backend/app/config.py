@@ -2,8 +2,18 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-MEDIA_DIR = BASE_DIR / "media"
 DB_PATH = BASE_DIR / "backend" / "conversastore.db"
+
+# Serverless (Vercel) uses /tmp for all write operations
+if os.getenv("VERCEL"):
+    MEDIA_DIR = Path("/tmp/media")
+    try:
+        MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+else:
+    MEDIA_DIR = BASE_DIR / "media"
+
 
 def get_database_url() -> str:
     # 1. Supabase direct or pooler database URL
@@ -46,11 +56,14 @@ def get_database_url() -> str:
 
     return db_url
 
+
 class Settings:
     PROJECT_NAME: str = "ConversaStore Mobile Engine"
     API_V1_STR: str = "/api"
     DATABASE_URL: str = get_database_url()
     MEDIA_DIR: Path = MEDIA_DIR
+    BASE_DIR: Path = BASE_DIR
+    DB_PATH: Path = DB_PATH
     BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
     
@@ -58,5 +71,6 @@ class Settings:
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "") or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     SUPABASE_BUCKET: str = os.getenv("SUPABASE_BUCKET", "media")
+
 
 settings = Settings()

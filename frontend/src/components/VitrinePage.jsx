@@ -4,6 +4,7 @@ import { getMediaUrl, fetchStoreReviews, subscribeToStore, unsubscribeFromStore,
 import ProductManageModal from "./ProductManageModal";
 import NewProductModal from "./NewProductModal";
 import Footer from "./Footer";
+import { getBusinessContext } from "../utils/businessContext";
 
 export default function VitrinePage({
   store,
@@ -25,6 +26,7 @@ export default function VitrinePage({
   onOpenChat,
   onOpenQrModal,
 }) {
+  const ctx = getBusinessContext(store);
   const [selectedHeroColor, setSelectedHeroColor] = useState("Bleu Nuit");
   const [countdownSeconds, setCountdownSeconds] = useState(store?.flash_remaining_seconds || 15502);
   const [managedProduct, setManagedProduct] = useState(null);
@@ -457,11 +459,9 @@ export default function VitrinePage({
                 }
                 className="w-full h-12 rounded-xl bg-primary hover:brightness-105 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99] cursor-pointer"
               >
-                <Icon name={heroProduct.is_customizable ? "tune" : "shopping_bag"} className="text-[20px]" />
+                <Icon name={heroProduct.is_customizable ? "tune" : ctx.iconCatalog} className="text-[20px]" />
                 <span>
-                  {heroProduct.is_customizable
-                    ? "Personnaliser & Commander en direct"
-                    : "Commander en direct (Chat intégré)"}
+                  {ctx.getOrderCtaLabel(heroProduct.is_customizable)}
                 </span>
               </button>
               <div className="grid grid-cols-2 gap-2">
@@ -490,7 +490,7 @@ export default function VitrinePage({
       {/* Catalog Title Strip */}
       <div className="flex items-center justify-between pt-2 px-1">
         <h3 className="text-sm sm:text-base font-semibold text-on-surface">
-          {selectedCategory ? "Articles de la sélection" : "Catalogue & Nouveautés"}
+          {selectedCategory ? ctx.terms.catalog_selection : ctx.terms.catalog_title}
         </h3>
         {selectedCategory ? (
           <button
@@ -502,7 +502,7 @@ export default function VitrinePage({
           </button>
         ) : (
           <span className="text-xs text-on-surface-variant">
-            {products.length} article{products.length > 1 ? "s" : ""}
+            {products.length} {ctx.terms.item_singular.toLowerCase()}{products.length > 1 ? "s" : ""}
           </span>
         )}
       </div>
@@ -511,20 +511,22 @@ export default function VitrinePage({
       {products.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-surface-card border border-subtle text-center space-y-3">
           <div className="w-12 h-12 rounded-xl bg-surface-secondary text-on-surface-variant flex items-center justify-center">
-            <Icon name="inventory_2" className="text-2xl" />
+            <Icon name={ctx.icon} className="text-2xl" />
           </div>
           <div className="space-y-1">
-            <p className="font-semibold text-on-surface text-sm">Aucun article dans cette sélection</p>
+            <p className="font-semibold text-on-surface text-sm">{ctx.terms.empty_catalog}</p>
             <p className="text-xs text-on-surface-variant max-w-xs">
-              De nouveaux arrivages sont préparés en atelier par le commerçant.
+              De nouvelles disponibilités sont en cours d'ajout par l'équipe de {ctx.storeName}.
             </p>
           </div>
-          <button
-            onClick={() => onSelectCategory(null)}
-            className="px-4 py-2 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface border border-subtle text-xs font-medium transition-colors cursor-pointer"
-          >
-            Voir tous les articles
-          </button>
+          {selectedCategory && (
+            <button
+              onClick={() => onSelectCategory(null)}
+              className="px-4 py-2 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface border border-subtle text-xs font-medium transition-colors cursor-pointer"
+            >
+              Voir tout le catalogue
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -620,11 +622,9 @@ export default function VitrinePage({
                       }
                       className="w-full h-10 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 active:scale-[0.99] cursor-pointer"
                     >
-                      <Icon name={p.is_customizable ? "tune" : "shopping_bag"} className="text-[16px]" />
+                      <Icon name={p.is_customizable ? "tune" : ctx.iconCatalog} className="text-[16px]" />
                       <span>
-                        {p.is_customizable
-                          ? "Personnaliser & Commander"
-                          : "Commander en direct"}
+                        {ctx.getOrderCtaLabel(p.is_customizable)}
                       </span>
                     </button>
                     <div className="grid grid-cols-2 gap-1.5">

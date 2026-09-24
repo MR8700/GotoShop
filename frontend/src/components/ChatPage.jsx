@@ -1186,7 +1186,7 @@ export default function ChatPage({
 
                           <div className="text-xs space-y-1">
                             <p className="font-semibold text-foreground">
-                              {meta.items_summary || "Portions commandées"}
+                              {meta.items_summary || "Articles commandés"}
                             </p>
                             <p className="text-primary font-bold text-sm">
                               Total : {meta.total_amount?.toLocaleString() || activeConv.order?.total_amount?.toLocaleString()} {meta.currency || "FCFA"}

@@ -3,6 +3,7 @@ import React, { useState, useMemo } from "react";
 import { getMediaUrl } from "../api/client";
 import ThemeToggle from "./ThemeToggle";
 import Footer from "./Footer";
+import { getBusinessContext } from "../utils/businessContext";
 
 export default function StoreExplorerPage({
   stores = [],
@@ -376,6 +377,7 @@ export default function StoreExplorerPage({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {paginatedStores.map((st) => {
+              const stCtx = getBusinessContext(st);
               return (
                 <div
                   key={st.id}
@@ -386,17 +388,25 @@ export default function StoreExplorerPage({
                     {/* Top Identity Row */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        {/* Store Logo */}
+                        {/* Store Logo with contextual fallback */}
                         <div className="relative shrink-0">
-                          <img
-                            src={getMediaUrl(st.logo_url) || "/media/store/logo.jpg"}
-                            alt=""
-                            className="w-12 h-12 rounded-xl object-cover border-2 border-slate-200 dark:border-slate-700 bg-surface shadow-xs"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = "/media/store/logo.jpg";
-                            }}
-                          />
+                          {st.logo_url ? (
+                            <img
+                              src={getMediaUrl(st.logo_url)}
+                              alt=""
+                              className="w-12 h-12 rounded-xl object-cover border-2 border-slate-200 dark:border-slate-700 bg-surface shadow-xs"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.style.display = "none";
+                                if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className={`w-12 h-12 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-primary/10 text-primary items-center justify-center font-bold text-base shadow-xs ${st.logo_url ? "hidden" : "flex"}`}
+                          >
+                            <Icon name={stCtx.icon} className="text-xl" />
+                          </div>
                           {st.is_verified && (
                             <span
                               className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-secondary text-white flex items-center justify-center text-[10px] font-bold shadow ring-2 ring-surface select-none"
@@ -407,8 +417,14 @@ export default function StoreExplorerPage({
                           )}
                         </div>
 
-                        {/* Title & Location */}
+                        {/* Title, Location & Domain badge */}
                         <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold flex items-center gap-1">
+                              <Icon name={stCtx.icon} className="text-[10px]" />
+                              <span>{stCtx.terms.domain_label}</span>
+                            </span>
+                          </div>
                           <h3 className="font-semibold text-base text-on-surface group-hover:text-primary transition-colors truncate">
                             {st.name}
                           </h3>
@@ -443,10 +459,10 @@ export default function StoreExplorerPage({
                   {/* Card Action Footer (Dual-Tone Superimposed Bar) */}
                   <div className="px-5 py-3 border-t-2 border-slate-200 dark:border-slate-800 bg-surface-secondary/80 flex items-center justify-between text-xs">
                     <span className="text-on-surface-variant font-medium">
-                      Paiement à la livraison
+                      {stCtx.terms.catalog_title}
                     </span>
                     <span className="text-primary font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                      <span>Visiter la vitrine</span>
+                      <span>{stCtx.getDiscoverLabel()}</span>
                       <Icon name="arrow_forward" className="text-[14px]" />
                     </span>
                   </div>
