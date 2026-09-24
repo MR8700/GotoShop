@@ -5,6 +5,13 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import NullPool
 from app.config import settings
 
+try:
+    import psycopg2
+    HAS_PSYCOPG2 = True
+except Exception as _e_pg:
+    HAS_PSYCOPG2 = False
+    print(f"[Database] Notice: psycopg2 driver not loaded: {_e_pg}")
+
 def get_sqlite_engine():
     is_vercel = bool(os.getenv("VERCEL"))
     fallback_db = Path("/tmp") / "conversastore.db" if is_vercel else settings.DB_PATH
@@ -16,7 +23,7 @@ def init_engine():
     is_vercel = bool(os.getenv("VERCEL"))
     
     # 1. If PostgreSQL configured (Supabase, Neon, Railway, etc.)
-    if "sqlite" not in db_url:
+    if "sqlite" not in db_url and HAS_PSYCOPG2:
         try:
             connect_args = {
                 "connect_timeout": 3,
