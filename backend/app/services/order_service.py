@@ -109,13 +109,15 @@ class OrderService:
             order_id = str(uuid.uuid4())
 
             # Calculate items subtotal
+            # Calculate items subtotal
             subtotal = 0
             order_items = []
             for it in items_data:
                 product_id = it.get("product_id")
                 variant_id = it.get("variant_id")
-                qty = max(1, int(it.get("quantity", 1)))
-                unit_price = int(it.get("unit_price", 0))
+                qty = float(it.get("quantity", 1.0))
+                if qty <= 0:
+                    qty = 1.0
 
                 product = None
                 if product_id:
@@ -126,7 +128,27 @@ class OrderService:
                 if not product:
                     product = db.query(Product).filter(Product.store_id == actual_store_id).first()
 
+                # Polymorphic unit and pricing model resolution
+                unit = it.get("unit") or (getattr(product, "sales_unit", None) or "PIECE")
+                unit_label = it.get("unit_label") or (getattr(product, "sales_unit_label", None) or "pièce")
+                pricing_model = it.get("pricing_model") or (getattr(product, "pricing_model", None) or "FIXED_PER_UNIT")
+
+                # Validate constraints against product sales configuration if configured
+                if product:
+                    min_q = getattr(product, "min_quantity", 0.1) or 0.1
+                    max_q = getattr(product, "max_quantity", 9999.0) or 9999.0
+                    step_q = getattr(product, "quantity_step", 1.0) or 1.0
+                    if qty < min_q:
+                        raise ValueError(f"La quantité minimale pour {product.name} est de {min_q} {unit_label}.")
+                    if qty > max_q:
+                        raise ValueError(f"La quantité maximale pour {product.name} est de {max_q} {unit_label}.")
+                    # Tolerant step validation
+                    quotient = qty / step_q
+                    if abs(quotient - round(quotient)) > 1e-3:
+                        raise ValueError(f"La quantité ({qty}) doit être un multiple de {step_q} {unit_label} pour {product.name}.")
+
                 product_name = it.get("product_name") or (product.name if product else "Produit")
+                unit_price = int(it.get("unit_price", 0)) if it.get("unit_price") is not None else 0
                 if not unit_price and product:
                     unit_price = product.price
 
@@ -139,7 +161,7 @@ class OrderService:
                         if var.price_override:
                             unit_price = var.price_override
 
-                total_price = unit_price * qty
+                total_price = int(round(unit_price * qty))
                 subtotal += total_price
 
                 customization_text = it.get("customization_text")
@@ -147,7 +169,28 @@ class OrderService:
                 if isinstance(customization_options, (dict, list)):
                     customization_options = json.dumps(customization_options, ensure_ascii=False)
 
-                is_customized = bool(customization_text or customization_options)
+                measurements = it.get("measurements")
+                if isinstance(measurements, (dict, list)):
+                    measurements = json.dumps(measurements, ensure_ascii=False)
+
+                is_customized = bool(customization_text or customization_options or measurements)
+
+                # Store snapshot of sales configuration
+                sales_config_snapshot = json.dumps({
+                    "sales_unit": unit,
+                    "sales_unit_label": unit_label,
+                    "measurement_type": getattr(product, "measurement_type", "COUNT") if product else "COUNT",
+                    "pricing_model": pricing_model,
+                    "quantity_step": getattr(product, "quantity_step", 1.0) if product else 1.0,
+                    "quantity_precision": getattr(product, "quantity_precision", 0) if product else 0,
+                    "min_quantity": getattr(product, "min_quantity", 1.0) if product else 1.0,
+                    "max_quantity": getattr(product, "max_quantity", 9999.0) if product else 9999.0,
+                }, ensure_ascii=False)
+
+                # Atomically decrement stock if tracked
+                if product and product.stock is not None:
+                    product.stock = max(0.0, round(float(product.stock) - qty, 3))
+                    product.stock_label = f"Stock: {product.stock} {unit_label}".strip()
 
                 # Store only valid ForeignKeys
                 actual_product_id = product.id if product else None
@@ -161,8 +204,13 @@ class OrderService:
                     product_name=product_name,
                     variant_name=variant_name,
                     quantity=qty,
+                    unit=unit,
+                    unit_label=unit_label,
                     unit_price=unit_price,
                     total_price=total_price,
+                    pricing_model=pricing_model,
+                    measurements=measurements,
+                    sales_config_snapshot=sales_config_snapshot,
                     is_customized=is_customized,
                     customization_text=customization_text,
                     customization_options=customization_options
@@ -269,7 +317,19 @@ class OrderService:
             )
 
             # Post initial interactive Order Card into conversation
-            items_summary = ", ".join([f"{it.product_name} × {it.quantity}" for it in order_items])
+            def format_item_summary(it):
+                qty = it.quantity
+                qty_str = f"{int(qty)}" if qty == int(qty) else f"{qty:g}".replace(".", ",")
+                unit = (it.unit_label or "").strip()
+                if unit and unit != "pièce" and unit != "pcs":
+                    if qty > 1 and not unit.endswith("s") and not unit.endswith("x") and unit not in ["m", "cm", "kg", "g", "L", "ml", "h", "j"]:
+                        unit = f"{unit}s"
+                    return f"{it.product_name} ({qty_str} {unit})"
+                elif qty > 1:
+                    return f"{it.product_name} ({qty_str} pcs)"
+                return f"{it.product_name} ({qty_str})"
+
+            items_summary = ", ".join([format_item_summary(it) for it in order_items])
             order_card_metadata = {
                 "order_id": order.id,
                 "order_number": order.order_number,
@@ -277,6 +337,17 @@ class OrderService:
                 "currency": order.currency,
                 "items_count": len(order_items),
                 "items_summary": items_summary,
+                "items": [
+                    {
+                        "product_name": it.product_name,
+                        "quantity": it.quantity,
+                        "unit": it.unit,
+                        "unit_label": it.unit_label,
+                        "unit_price": it.unit_price,
+                        "total_price": it.total_price,
+                    }
+                    for it in order_items
+                ],
                 "status": order.status,
                 "payment_status": order.payment_status,
                 "delivery_address": delivery.delivery_address,
@@ -617,6 +688,20 @@ class OrderService:
                 except Exception:
                     opts = it.customization_options
 
+            measurements = None
+            if getattr(it, "measurements", None):
+                try:
+                    measurements = json.loads(it.measurements)
+                except Exception:
+                    measurements = it.measurements
+
+            snapshot = None
+            if getattr(it, "sales_config_snapshot", None):
+                try:
+                    snapshot = json.loads(it.sales_config_snapshot)
+                except Exception:
+                    snapshot = it.sales_config_snapshot
+
             items_info.append({
                 "id": it.id,
                 "product_id": it.product_id,
@@ -624,8 +709,13 @@ class OrderService:
                 "product_name": it.product_name,
                 "variant_name": it.variant_name,
                 "quantity": it.quantity,
+                "unit": getattr(it, "unit", "PIECE") or "PIECE",
+                "unit_label": getattr(it, "unit_label", "pièce") or "pièce",
                 "unit_price": it.unit_price,
                 "total_price": it.total_price,
+                "pricing_model": getattr(it, "pricing_model", "FIXED_PER_UNIT") or "FIXED_PER_UNIT",
+                "measurements": measurements,
+                "sales_config_snapshot": snapshot,
                 "is_customized": it.is_customized,
                 "customization_text": it.customization_text,
                 "customization_options": opts

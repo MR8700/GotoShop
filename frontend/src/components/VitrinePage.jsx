@@ -5,6 +5,7 @@ import ProductManageModal from "./ProductManageModal";
 import NewProductModal from "./NewProductModal";
 import Footer from "./Footer";
 import { getBusinessContext } from "../utils/businessContext";
+import { formatSalesUnitPrice } from "../utils/salesEngine";
 
 export default function VitrinePage({
   store,
@@ -415,11 +416,11 @@ export default function VitrinePage({
             {/* Price */}
             <div className="flex items-baseline gap-2 pt-2">
               <span className="text-2xl font-bold text-on-surface tracking-tight">
-                {heroProduct.price.toLocaleString("fr-FR")} {heroProduct.currency}
+                {formatSalesUnitPrice(heroProduct.price, heroProduct.sales_unit_label, heroProduct.currency)}
               </span>
               {heroProduct.old_price && (
                 <span className="text-sm text-on-surface-variant/60 line-through">
-                  {heroProduct.old_price.toLocaleString("fr-FR")} {heroProduct.currency}
+                  {formatSalesUnitPrice(heroProduct.old_price, heroProduct.sales_unit_label, heroProduct.currency)}
                 </span>
               )}
             </div>
@@ -569,12 +570,12 @@ export default function VitrinePage({
                 </div>
 
                 <div className="flex items-baseline justify-between pt-1">
-                  <div className="flex items-baseline gap-1.5">
+                  <div className="flex items-baseline gap-1">
                     <span className="text-base font-bold text-on-surface">
                       {p.price.toLocaleString("fr-FR")}
                     </span>
                     <span className="text-xs text-on-surface-variant font-medium">
-                      {p.currency}
+                      {p.currency}{p.sales_unit_label && p.sales_unit_label !== "pièce" && p.sales_unit_label !== "pcs" ? ` / ${p.sales_unit_label}` : ""}
                     </span>
                   </div>
 

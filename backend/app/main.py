@@ -113,12 +113,36 @@ def run_migrations():
                 prod_cols = [c["name"] for c in inspector.get_columns("products")]
                 cols_to_add = [
                     ("is_customizable", "BOOLEAN DEFAULT FALSE"),
-                    ("customization_prompt", "VARCHAR(150) DEFAULT 'Décris ton plat'"),
+                    ("customization_prompt", "VARCHAR(150) DEFAULT 'Précisez vos souhaits'"),
                     ("customization_options", "TEXT"),
+                    ("sales_unit", "VARCHAR(50) DEFAULT 'PIECE'"),
+                    ("sales_unit_label", "VARCHAR(50) DEFAULT 'pièce'"),
+                    ("measurement_type", "VARCHAR(50) DEFAULT 'COUNT'"),
+                    ("pricing_model", "VARCHAR(50) DEFAULT 'FIXED_PER_UNIT'"),
+                    ("min_quantity", "FLOAT DEFAULT 1.0"),
+                    ("max_quantity", "FLOAT DEFAULT 9999.0"),
+                    ("quantity_step", "FLOAT DEFAULT 1.0"),
+                    ("quantity_precision", "INTEGER DEFAULT 0"),
+                    ("pack_size", "FLOAT DEFAULT 1.0"),
+                    ("allow_custom_measurements", "BOOLEAN DEFAULT FALSE"),
+                    ("measurement_specs", "TEXT"),
                 ]
                 for col_name, col_type in cols_to_add:
                     if col_name not in prod_cols:
                         conn.execute(text(f"ALTER TABLE products ADD COLUMN {col_name} {col_type}"))
+
+            if "order_items" in table_names:
+                item_cols = [c["name"] for c in inspector.get_columns("order_items")]
+                item_cols_to_add = [
+                    ("unit", "VARCHAR(50) DEFAULT 'PIECE'"),
+                    ("unit_label", "VARCHAR(50) DEFAULT 'pièce'"),
+                    ("pricing_model", "VARCHAR(50) DEFAULT 'FIXED_PER_UNIT'"),
+                    ("measurements", "TEXT"),
+                    ("sales_config_snapshot", "TEXT"),
+                ]
+                for col_name, col_type in item_cols_to_add:
+                    if col_name not in item_cols:
+                        conn.execute(text(f"ALTER TABLE order_items ADD COLUMN {col_name} {col_type}"))
 
         # 2. Seed default data if empty using ORM (pure Python/SQLAlchemy, 100% DB-agnostic)
         from app.database import SessionLocal
@@ -261,7 +285,7 @@ def health_check():
 @app.get("/api/diag")
 def server_diagnostics(db = Depends(get_db)):
     from app.models.store import Store
-    from app.models.product import Product
+    from app.models.catalog import Product
     from app.models.order import Order
     
     store_count = 0
@@ -321,6 +345,8 @@ def startup_event():
         else:
             print(f"Database ready with {count} store(s).")
         SubscriptionService.seed_defaults(db)
+        from app.services.catalog_service import CatalogService
+        CatalogService.seed_sales_units_and_profiles(db)
     finally:
         db.close()
 

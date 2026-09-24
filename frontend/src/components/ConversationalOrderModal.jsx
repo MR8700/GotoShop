@@ -2,6 +2,12 @@ import Icon from "./Icon";
 import React, { useState } from "react";
 import { createConversationalOrder, getActiveStoreSlug, setCustomerToken } from "../api/client";
 import { getBusinessContext } from "../utils/businessContext";
+import {
+  getProductSalesConfig,
+  formatSalesQuantity,
+  formatSalesUnitPrice,
+  validateSalesQuantity,
+} from "../utils/salesEngine";
 
 export default function ConversationalOrderModal({
   store,
@@ -14,8 +20,11 @@ export default function ConversationalOrderModal({
   onCustomerAuthenticated,
 }) {
   const ctx = getBusinessContext(store);
+  const salesConfig = getProductSalesConfig(product);
 
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(salesConfig.minQuantity);
+  const [customWidth, setCustomWidth] = useState("");
+  const [customHeight, setCustomHeight] = useState("");
   const [selectedVariant, setSelectedVariant] = useState(
     product?.variants && product.variants.length > 0 ? product.variants[0] : null
   );
@@ -66,8 +75,18 @@ export default function ConversationalOrderModal({
 
   const deliveryFee = 500;
   const unitPrice = selectedVariant?.price_override || product?.price || 0;
-  const subtotal = unitPrice * quantity;
+  const subtotal = Math.round(unitPrice * quantity);
   const totalAmount = subtotal + deliveryFee;
+
+  const handleStepQuantity = (delta) => {
+    setQuantity((prev) => {
+      const step = salesConfig.quantityStep || 1;
+      const next = parseFloat((Number(prev) + delta * step).toFixed(salesConfig.precision || 2));
+      if (next < salesConfig.minQuantity) return salesConfig.minQuantity;
+      if (next > salesConfig.maxQuantity) return salesConfig.maxQuantity;
+      return next;
+    });
+  };
 
   const handleCaptureGps = () => {
     if (!navigator.geolocation) {
@@ -98,6 +117,15 @@ export default function ConversationalOrderModal({
 
   const handleSubmitOrder = async () => {
     setErrorMessage("");
+
+    // Validate polymorphic sales quantity against rules
+    const valResult = validateSalesQuantity(quantity, salesConfig);
+    if (!valResult.valid) {
+      setErrorMessage(valResult.message);
+      showToast?.(valResult.message);
+      return;
+    }
+
     if (!customerName.trim()) {
       const msg = "Veuillez renseigner votre nom";
       setErrorMessage(msg);
@@ -130,6 +158,11 @@ export default function ConversationalOrderModal({
         }
       }
 
+      const customMeasurements = salesConfig.allowCustomMeasurements && (customWidth || customHeight) ? {
+        width: customWidth ? parseFloat(customWidth) : null,
+        height: customHeight ? parseFloat(customHeight) : null,
+      } : null;
+
       const resolvedStoreId = store?.id || store?.slug || getActiveStoreSlug() || "default-store";
 
       let guestToken = customer?.session_token || localStorage.getItem("conversastore_guest_token");
@@ -150,6 +183,10 @@ export default function ConversationalOrderModal({
             variant_name: selectedVariant?.name || null,
             quantity: quantity,
             unit_price: unitPrice,
+            unit: salesConfig.unit,
+            unit_label: salesConfig.unitLabel,
+            pricing_model: salesConfig.pricingModel,
+            measurements: customMeasurements,
             customization_text: isCustomizable ? customizationText : null,
             customization_options: customizationOptions,
           },
@@ -260,29 +297,107 @@ export default function ConversationalOrderModal({
                     )}
                   </div>
                   <h4 className="font-bold text-sm truncate">{product?.name}</h4>
-                  <p className="text-xs text-foreground-muted">
-                    {ctx.formatPriceUnit(unitPrice, store?.currency || "FCFA")}
+                  <p className="text-xs font-bold text-primary">
+                    {formatSalesUnitPrice(unitPrice, salesConfig.unitLabel, store?.currency || "FCFA")}
                   </p>
                 </div>
+              </div>
 
-                {/* Quantity Stepper */}
-                <div className="flex items-center gap-2 bg-surface border border-border rounded-lg p-1">
-                  <button
-                    type="button"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-7 h-7 rounded flex items-center justify-center hover:bg-surface-elevated text-sm font-bold text-foreground"
-                  >
-                    -
-                  </button>
-                  <span className="w-5 text-center font-bold text-sm">{quantity}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="w-7 h-7 rounded flex items-center justify-center hover:bg-surface-elevated text-sm font-bold text-foreground"
-                  >
-                    +
-                  </button>
+              {/* Polymorphic Quantity & Measurement Selector */}
+              <div className="p-3.5 bg-surface-elevated/40 rounded-xl border border-border space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <label className="block text-xs font-bold text-foreground">
+                      Quantité / Mesure :
+                    </label>
+                    <span className="text-xs font-semibold text-primary">
+                      {formatSalesQuantity(quantity, salesConfig.unitLabel, salesConfig.precision)}
+                    </span>
+                  </div>
+
+                  {/* Stepper with Decimal Numerical Input */}
+                  <div className="flex items-center gap-1 bg-surface border-2 border-slate-200 dark:border-slate-700 rounded-xl p-1 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => handleStepQuantity(-1)}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-elevated active:scale-95 text-base font-bold text-foreground transition-all"
+                      title={`Diminuer de ${salesConfig.quantityStep}`}
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      step={salesConfig.quantityStep}
+                      min={salesConfig.minQuantity}
+                      max={salesConfig.maxQuantity}
+                      value={quantity}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) setQuantity(val);
+                      }}
+                      className="w-16 text-center font-bold text-sm bg-transparent focus:outline-none text-foreground"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleStepQuantity(1)}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-elevated active:scale-95 text-base font-bold text-foreground transition-all"
+                      title={`Augmenter de ${salesConfig.quantityStep}`}
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
+
+                {/* Quick Selection Chips */}
+                {salesConfig.quickChips && salesConfig.quickChips.length > 1 && (
+                  <div className="pt-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] text-foreground-muted mr-0.5">Choix rapide :</span>
+                      {salesConfig.quickChips.map((chipVal) => (
+                        <button
+                          key={chipVal}
+                          type="button"
+                          onClick={() => setQuantity(chipVal)}
+                          className={`px-2 py-0.5 rounded-lg text-xs font-semibold transition-all ${
+                            quantity === chipVal
+                              ? "bg-primary text-white shadow-xs"
+                              : "bg-surface border border-border text-foreground hover:bg-surface-elevated"
+                          }`}
+                        >
+                          {formatSalesQuantity(chipVal, salesConfig.unitLabel, salesConfig.precision)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom dimensions if allowed */}
+                {salesConfig.allowCustomMeasurements && (
+                  <div className="pt-2 border-t border-border grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-medium text-foreground-muted mb-0.5">Largeur (mètres) :</label>
+                      <input
+                        type="number"
+                        step="0.05"
+                        placeholder="Ex: 2.50"
+                        value={customWidth}
+                        onChange={(e) => setCustomWidth(e.target.value)}
+                        className="w-full text-xs p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-foreground-muted mb-0.5">Hauteur / Longueur (m) :</label>
+                      <input
+                        type="number"
+                        step="0.05"
+                        placeholder="Ex: 2.20"
+                        value={customHeight}
+                        onChange={(e) => setCustomHeight(e.target.value)}
+                        className="w-full text-xs p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Product Variants Selection (if present) */}
@@ -621,8 +736,10 @@ export default function ConversationalOrderModal({
               {/* Order Breakdown / Totals */}
               <div className="p-3.5 bg-surface-elevated/70 rounded-xl border border-border space-y-1.5 text-xs">
                 <div className="flex justify-between text-foreground-muted">
-                  <span>{product?.name} × {quantity}</span>
-                  <span className="font-semibold text-foreground">{subtotal.toLocaleString()} {store?.currency || "FCFA"}</span>
+                  <span className="truncate pr-2">
+                    {product?.name} ({formatSalesQuantity(quantity, salesConfig.unitLabel, salesConfig.precision)})
+                  </span>
+                  <span className="font-semibold text-foreground whitespace-nowrap">{subtotal.toLocaleString()} {store?.currency || "FCFA"}</span>
                 </div>
                 <div className="flex justify-between text-foreground-muted">
                   <span>Frais de livraison ({deliveryCity})</span>
@@ -658,6 +775,14 @@ export default function ConversationalOrderModal({
                   <span className="text-foreground-muted">Total :</span>
                   <span className="font-bold text-primary">{createdOrder?.total_amount?.toLocaleString()} {createdOrder?.currency}</span>
                 </div>
+                {createdOrder?.items && createdOrder.items.length > 0 && (
+                  <div className="text-foreground-muted border-t border-slate-200 dark:border-slate-700/60 pt-1.5">
+                    <span>Détails : </span>
+                    <span className="text-foreground font-medium">
+                      {createdOrder.items.map((it) => `${it.product_name} • ${formatSalesQuantity(it.quantity, it.unit_label)}`).join(", ")}
+                    </span>
+                  </div>
+                )}
                 <div className="text-foreground-muted">
                   <span>Livraison : </span>
                   <span className="text-foreground font-medium">{createdOrder?.delivery?.delivery_address}</span>

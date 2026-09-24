@@ -4,9 +4,17 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.catalog_service import CatalogService
 from app.services.store_service import StoreService
-from app.schemas.catalog import CategorySchema, ProductSchema, ProductCreateSchema, ProductUpdateSchema
+from app.schemas.catalog import CategorySchema, ProductSchema, ProductCreateSchema, ProductUpdateSchema, SalesUnitSchema, SalesProfileSchema
 
 router = APIRouter(prefix="/catalog", tags=["Catalog"])
+
+@router.get("/sales-units", response_model=List[SalesUnitSchema])
+def list_sales_units(db: Session = Depends(get_db)):
+    return CatalogService.get_sales_units(db)
+
+@router.get("/sales-profiles", response_model=List[SalesProfileSchema])
+def list_sales_profiles(domain: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    return CatalogService.get_sales_profiles(db, domain=domain)
 
 @router.get("/categories", response_model=List[CategorySchema])
 def list_categories(

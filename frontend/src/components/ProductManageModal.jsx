@@ -1,6 +1,7 @@
 import Icon from "./Icon";
 import React, { useState, useRef } from "react";
 import { getMediaUrl, updateProduct, deleteProduct } from "../api/client";
+import { STANDARD_SALES_PRESETS, formatSalesQuantity, formatSalesUnitPrice } from "../utils/salesEngine";
 
 export default function ProductManageModal({
   product,
@@ -23,6 +24,39 @@ export default function ProductManageModal({
   const [imagePreview, setImagePreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Polymorphic sales configuration
+  const getInitialPresetId = () => {
+    if (!product) return "PIECE";
+    const found = STANDARD_SALES_PRESETS.find(
+      (p) => p.unit === product.sales_unit && Math.abs(p.quantity_step - (product.quantity_step || 1)) < 0.001
+    );
+    return found ? found.id : "PIECE";
+  };
+
+  const [selectedPresetId, setSelectedPresetId] = useState(getInitialPresetId());
+  const [salesUnit, setSalesUnit] = useState(product?.sales_unit || "PIECE");
+  const [salesUnitLabel, setSalesUnitLabel] = useState(product?.sales_unit_label || "pièce");
+  const [minQuantity, setMinQuantity] = useState(product?.min_quantity ?? 1);
+  const [quantityStep, setQuantityStep] = useState(product?.quantity_step ?? 1);
+  const [quantityPrecision, setQuantityPrecision] = useState(product?.quantity_precision ?? 0);
+  const [pricingModel, setPricingModel] = useState(product?.pricing_model || "FIXED_PER_UNIT");
+  const [allowCustomMeasurements, setAllowCustomMeasurements] = useState(Boolean(product?.allow_custom_measurements));
+  const [showAdvancedSales, setShowAdvancedSales] = useState(false);
+
+  const handleSelectPreset = (presetId) => {
+    setSelectedPresetId(presetId);
+    const p = STANDARD_SALES_PRESETS.find((x) => x.id === presetId);
+    if (p) {
+      setSalesUnit(p.unit);
+      setSalesUnitLabel(p.unit_label);
+      setMinQuantity(p.min_quantity);
+      setQuantityStep(p.quantity_step);
+      setQuantityPrecision(p.quantity_precision);
+      setPricingModel(p.pricing_model);
+      setAllowCustomMeasurements(Boolean(p.allow_custom_measurements));
+    }
+  };
 
   const fileInputRef = useRef(null);
 
@@ -79,11 +113,19 @@ export default function ProductManageModal({
         category_id: categoryId || null,
         price: parseInt(price, 10),
         old_price: oldPrice ? parseInt(oldPrice, 10) : null,
-        stock: parseInt(stock, 10),
+        stock: parseFloat(stock) || 0,
         description,
         short_description: shortDescription,
         badge_tag: badgeTag,
         is_hero_deal: isHeroDeal,
+        sales_unit: salesUnit,
+        sales_unit_label: salesUnitLabel,
+        measurement_type: STANDARD_SALES_PRESETS.find((x) => x.id === selectedPresetId)?.measurement_type || product.measurement_type || "COUNT",
+        pricing_model: pricingModel,
+        min_quantity: parseFloat(minQuantity) || 1,
+        quantity_step: parseFloat(quantityStep) || 1,
+        quantity_precision: parseInt(quantityPrecision, 10) || 0,
+        allow_custom_measurements: allowCustomMeasurements,
       };
       if (imagePreview) {
         payload.image_data = imagePreview;
@@ -181,7 +223,7 @@ export default function ProductManageModal({
                 </span>
               )}
               <span className="absolute bottom-2 right-2 rounded-lg bg-surface/90 backdrop-blur-md px-2.5 py-1 text-on-surface font-label-sm text-xs font-semibold">
-                Stock: {product.stock}
+                Stock: {formatSalesQuantity(product.stock, product.sales_unit_label)}
               </span>
             </div>
 
@@ -192,13 +234,24 @@ export default function ProductManageModal({
               </h2>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="font-headline-md text-xl text-primary font-bold">
-                  {product.price.toLocaleString("fr-FR")} {product.currency || "FCFA"}
+                  {formatSalesUnitPrice(product.price, product.sales_unit_label, product.currency || "FCFA")}
                 </span>
                 {product.old_price && (
                   <span className="font-body-sm text-xs text-outline line-through">
                     {product.old_price.toLocaleString("fr-FR")} {product.currency || "FCFA"}
                   </span>
                 )}
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-1.5 text-xs text-on-surface-variant font-medium">
+                <span className="px-2 py-0.5 rounded-md bg-surface-container border border-outline-variant/30">
+                  Unité : <strong>{product.sales_unit_label || "pièce"}</strong>
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-surface-container border border-outline-variant/30">
+                  Pas : <strong>{product.quantity_step || 1}</strong>
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-surface-container border border-outline-variant/30">
+                  Min : <strong>{product.min_quantity || 1}</strong>
+                </span>
               </div>
               <p className="font-body-sm text-xs text-on-surface-variant mt-2 leading-relaxed">
                 {product.description || product.short_description || "Aucune description renseignée."}
@@ -357,14 +410,85 @@ export default function ProductManageModal({
               </div>
             </div>
 
+            {/* Mode de vente & Mesure */}
+            <div className="p-3 rounded-xl bg-surface-container/60 border border-outline-variant/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="font-label-sm text-xs text-on-surface uppercase font-bold flex items-center gap-1.5">
+                  <Icon name="straighten" className="text-primary text-[16px]" />
+                  <span>Mode de vente & Mesure</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedSales(!showAdvancedSales)}
+                  className="text-[11px] text-primary hover:underline font-semibold"
+                >
+                  {showAdvancedSales ? "Masquer détails" : "Personnaliser le pas"}
+                </button>
+              </div>
+
+              <select
+                value={selectedPresetId}
+                onChange={(e) => handleSelectPreset(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg bg-surface-container border border-outline-variant/40 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary text-xs font-medium"
+              >
+                {STANDARD_SALES_PRESETS.map((pr) => (
+                  <option key={pr.id} value={pr.id}>
+                    {pr.label}
+                  </option>
+                ))}
+              </select>
+
+              <div className="text-[11px] text-on-surface-variant flex items-center justify-between px-1">
+                <span>Unité : <strong>{salesUnitLabel}</strong></span>
+                <span>Min : <strong>{minQuantity}</strong></span>
+                <span>Pas : <strong>{quantityStep}</strong></span>
+              </div>
+
+              {showAdvancedSales && (
+                <div className="pt-2 border-t border-outline-variant/20 grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] text-on-surface-variant block mb-0.5">Libellé unité</label>
+                    <input
+                      type="text"
+                      value={salesUnitLabel}
+                      onChange={(e) => setSalesUnitLabel(e.target.value)}
+                      className="w-full h-9 px-2 rounded-lg bg-surface-container border border-outline-variant/30 text-xs"
+                      placeholder="ex: pagne, m, kg..."
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-on-surface-variant block mb-0.5">Quantité min</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={minQuantity}
+                      onChange={(e) => setMinQuantity(e.target.value)}
+                      className="w-full h-9 px-2 rounded-lg bg-surface-container border border-outline-variant/30 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-on-surface-variant block mb-0.5">Pas d'incrément</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={quantityStep}
+                      onChange={(e) => setQuantityStep(e.target.value)}
+                      className="w-full h-9 px-2 rounded-lg bg-surface-container border border-outline-variant/30 text-xs"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Stock & Badge */}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="font-label-sm text-xs text-on-surface-variant uppercase font-bold block mb-1">
-                  Quantité en Stock *
+                  Quantité en Stock ({salesUnitLabel || "unités"}) *
                 </label>
                 <input
                   type="number"
+                  step="0.01"
                   value={stock}
                   onChange={(e) => setStock(e.target.value)}
                   className="w-full h-10 px-3 rounded-lg bg-surface-container border border-outline-variant/30 text-on-surface focus:ring-2 focus:ring-primary font-body-md text-sm"

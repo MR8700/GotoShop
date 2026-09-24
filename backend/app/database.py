@@ -54,6 +54,12 @@ engine, ACTIVE_DATABASE_URL = init_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+try:
+    from app.migrations import run_migrations
+    run_migrations(engine)
+except Exception as e_mig:
+    print("[Database] Auto-migration notice:", e_mig)
+
 def get_db():
     db = SessionLocal()
     try:

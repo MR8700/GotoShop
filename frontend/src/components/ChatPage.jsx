@@ -21,6 +21,7 @@ import {
   fetchCallHistory,
   getMediaUrl,
 } from "../api/client";
+import { formatSalesQuantity } from "../utils/salesEngine";
 
 export default function ChatPage({
   store,
@@ -1569,9 +1570,11 @@ export default function ChatPage({
                   <div className="border-t border-border pt-2 space-y-1">
                     {activeConv.order.items?.map((it) => (
                       <div key={it.id} className="space-y-0.5">
-                        <div className="flex justify-between">
-                          <span>{it.product_name} × {it.quantity}</span>
-                          <span className="font-semibold">{it.total_price?.toLocaleString()} F</span>
+                        <div className="flex justify-between items-baseline gap-2">
+                          <span className="font-medium text-foreground truncate">
+                            {it.product_name} • {formatSalesQuantity(it.quantity, it.unit_label)}
+                          </span>
+                          <span className="font-semibold text-primary whitespace-nowrap">{it.total_price?.toLocaleString()} F</span>
                         </div>
                         {it.customization_text && (
                           <p className="text-[10px] text-primary italic pl-2 border-l border-primary">

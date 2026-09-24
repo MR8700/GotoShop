@@ -15,6 +15,7 @@ import {
 } from "../api/client";
 import NewProductModal from "./NewProductModal";
 import ShareSocialModal from "./ShareSocialModal";
+import { formatSalesQuantity } from "../utils/salesEngine";
 
 export default function CommandesPage({ store, categories, showToast, onSaleConfirmed, onProductCreated, onOpenChat }) {
   const [pendingList, setPendingList] = useState([]);
@@ -907,7 +908,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                     {selectedIntentDetail.total_amount?.toLocaleString("fr-FR")} {selectedIntentDetail.currency}
                   </span>
                   <span className="text-on-surface-variant text-[11px]">
-                    Quantité : {selectedIntentDetail.quantity || 1} • {selectedIntentDetail.selected_color || "Standard"}
+                    Quantité : {formatSalesQuantity(selectedIntentDetail.quantity, selectedIntentDetail.unit_label)} • {selectedIntentDetail.selected_color || "Standard"}
                   </span>
                 </div>
               </div>

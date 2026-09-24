@@ -57,13 +57,18 @@ class OrderItem(Base):
 
     product_name = Column(String(150), nullable=False)
     variant_name = Column(String(100), nullable=True)
-    quantity = Column(Integer, default=1, nullable=False)
-    unit_price = Column(Integer, nullable=False)
-    total_price = Column(Integer, nullable=False)
+    quantity = Column(Float, default=1.0, nullable=False)
+    unit = Column(String(50), default="PIECE")
+    unit_label = Column(String(50), default="pièce")
+    unit_price = Column(Float, default=0.0, nullable=False)
+    total_price = Column(Float, default=0.0, nullable=False)
+    pricing_model = Column(String(50), default="FIXED_PER_UNIT")
+    measurements = Column(Text, nullable=True) # JSON measurements e.g. {"width": 2.5, "height": 2.2}
+    sales_config_snapshot = Column(Text, nullable=True) # Complete snapshot of sales rules at purchase time
 
     # Customization (Standard vs Customizable)
     is_customized = Column(Boolean, default=False)
-    customization_text = Column(Text, nullable=True) # e.g. "Je veux beaucoup d'oignons, peu de piment, deux portions d'attiéké et un poisson bien grillé."
+    customization_text = Column(Text, nullable=True)
     customization_options = Column(Text, nullable=True) # JSON structured string
 
     order = relationship("Order", back_populates="items")

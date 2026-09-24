@@ -8,6 +8,7 @@ import {
   fetchBatchOrders,
   recordClientOrderAction,
 } from "../api/client";
+import { formatSalesQuantity } from "../utils/salesEngine";
 import Footer from "./Footer";
 
 export default function ClientCommandesPage({

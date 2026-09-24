@@ -15,8 +15,12 @@ class OrderItemSchema(BaseModel):
     variant_id: Optional[str] = None
     product_name: Optional[str] = None
     variant_name: Optional[str] = None
-    quantity: int = 1
-    unit_price: int = 0
+    quantity: float = 1.0
+    unit_price: Optional[float] = None
+    unit: Optional[str] = "PIECE"
+    unit_label: Optional[str] = "pièce"
+    pricing_model: Optional[str] = "FIXED_PER_UNIT"
+    measurements: Optional[Any] = None
     customization_text: Optional[str] = None
     customization_options: Optional[Any] = None
 
