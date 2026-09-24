@@ -12,7 +12,11 @@ def init_engine():
     # 1. If PostgreSQL configured (Supabase, Neon, Railway, etc.)
     if "sqlite" not in db_url:
         try:
-            connect_args = {"connect_timeout": 5}
+            timeout = 3 if is_vercel else 5
+            connect_args = {
+                "connect_timeout": timeout,
+                "options": f"-c statement_timeout={timeout * 1000}"
+            }
             if "localhost" not in db_url and "127.0.0.1" not in db_url:
                 if "sslmode" not in db_url:
                     connect_args["sslmode"] = "require"
@@ -36,7 +40,7 @@ def init_engine():
             print(f"[Database] Successfully connected to remote PostgreSQL ({db_url.split('@')[-1] if '@' in db_url else 'postgres'})")
             return candidate_engine, db_url
         except Exception as e_remote:
-            print(f"[Database] Warning: Remote PostgreSQL connection failed: {e_remote}")
+            print(f"[Database] Remote PostgreSQL connection failed: {e_remote}")
             print("[Database] Activating high-resilience SQLite fallback for continuous service...")
             fallback_db = Path("/tmp") / "conversastore.db" if is_vercel else settings.DB_PATH
             fallback_url = f"sqlite:///{fallback_db}"
@@ -54,13 +58,13 @@ engine, ACTIVE_DATABASE_URL = init_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-try:
-    from app.migrations import run_migrations
-    run_migrations(engine)
-except Exception as e_mig:
-    print("[Database] Auto-migration notice:", e_mig)
-
 def get_db():
+    try:
+        from app.main import ensure_database_initialized
+        ensure_database_initialized()
+    except Exception as e_init:
+        print("[Database] Lazy initialization notice:", e_init)
+
     db = SessionLocal()
     try:
         yield db
