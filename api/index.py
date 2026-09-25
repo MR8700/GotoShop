@@ -64,6 +64,21 @@ except Exception as e:
 
         fallback_app = FastAPI(title="GotoShop Serverless Error Handler")
 
+        @fallback_app.get("/api/health")
+        @fallback_app.get("/health")
+        @fallback_app.get("/")
+        @fallback_app.get("/api/error-info")
+        def error_health():
+            return {
+                "status": "backend_init_error",
+                "type": err_type,
+                "message": err_msg,
+                "traceback": tb.split("\n"),
+                "cwd": os.getcwd(),
+                "backend_dir": str(backend_dir),
+                "backend_exists": backend_dir.exists(),
+            }
+
         @fallback_app.api_route("/{path_name:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
         async def error_handler(path_name: str = ""):
             return JSONResponse(
@@ -72,7 +87,7 @@ except Exception as e:
                     "error": "BACKEND_INITIALIZATION_ERROR",
                     "message": f"Le serveur n'a pas pu démarrer : {err_type} - {err_msg}",
                     "type": err_type,
-                    "traceback": tb,
+                    "traceback": tb.split("\n"),
                     "cwd": os.getcwd(),
                     "sys_path": sys.path,
                     "root_dir_contents": os.listdir(str(root_dir)) if root_dir.exists() else [],

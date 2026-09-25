@@ -11,9 +11,23 @@ export class ErrorBoundary extends React.Component {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error, errorInfo) {
-    console.error("ErrorBoundary caught an unhandled render error:", error, errorInfo);
+  componentDidMount() {
+    if (typeof window !== "undefined") {
+      window.addEventListener("popstate", this.handlePopState);
+    }
   }
+
+  componentWillUnmount() {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("popstate", this.handlePopState);
+    }
+  }
+
+  handlePopState = () => {
+    if (this.state.hasError) {
+      this.setState({ hasError: false, error: null });
+    }
+  };
 
   handleReload = () => {
     try {
@@ -28,7 +42,9 @@ export class ErrorBoundary extends React.Component {
     try {
       this.setState({ hasError: false, error: null });
       if (typeof window !== "undefined") {
-        window.location.href = window.location.origin + window.location.pathname;
+        window.location.href = window.location.origin;
+      } else {
+        window.location.href = "/";
       }
     } catch (e) {
       window.location.href = "/";

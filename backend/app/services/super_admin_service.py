@@ -35,11 +35,14 @@ def slugify(text: str) -> str:
 class SuperAdminService:
     @staticmethod
     def hash_password(password: str, salt: str) -> str:
-        return hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
+        from app.core.security import hash_password as core_hash_password
+        h, _ = core_hash_password(password, salt)
+        return h
 
     @staticmethod
     def verify_password(password: str, salt: str, password_hash: str) -> bool:
-        return SuperAdminService.hash_password(password, salt) == password_hash
+        from app.core.security import verify_password as core_verify_password
+        return core_verify_password(password, password_hash, salt)
 
     @staticmethod
     def login(db: Session, email: str, password: str) -> Optional[dict]:

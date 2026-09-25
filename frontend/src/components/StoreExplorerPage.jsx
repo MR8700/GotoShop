@@ -14,10 +14,12 @@ export default function StoreExplorerPage({
   onOpenRegisterStore,
   onOpenOwnerLogin,
   onOpenSuperAdmin,
+  lastVisitedStore,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  const [showReturnBubble, setShowReturnBubble] = useState(true);
   const itemsPerPage = 12;
 
   // Filter categories
@@ -153,16 +155,21 @@ export default function StoreExplorerPage({
       {/* Top Header */}
       <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-subtle px-4 sm:px-6">
         <div className="max-w-5xl mx-auto h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-bold shadow-sm">
-              <Icon name="storefront" className="text-[20px]" />
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 rounded-xl bg-surface-container border border-slate-300 dark:border-slate-700 p-0.5 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+              <img
+                src="/media/store/logo.png"
+                alt="Logo GotoShop"
+                className="w-full h-full object-cover rounded-lg"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/media/store/logo.jpg";
+                }}
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-base sm:text-lg text-on-surface tracking-tight">GotoShop</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-surface-secondary text-on-surface-variant border border-subtle">
-                  Afrique de l'Ouest
-                </span>
+                <span className="font-bold text-base sm:text-lg text-on-surface tracking-tight">GotoShop</span>
               </div>
             </div>
           </div>
@@ -205,14 +212,15 @@ export default function StoreExplorerPage({
       {/* Hero Section */}
       <section className="px-4 sm:px-6 pt-6 sm:pt-10 pb-6 max-w-5xl mx-auto w-full">
         <div className="relative overflow-hidden rounded-3xl border border-subtle bg-surface-container p-6 sm:p-10 shadow-card">
-          {/* Subtle Photographic Overlay */}
-          <div className="absolute inset-0 pointer-events-none">
+          {/* Photographic Background - Clearly visible in light mode */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
             <img
               src="https://images.unsplash.com/photo-1544816155-12df9643f363?w=1600&auto=format&fit=crop&q=80"
-              alt="Boutiques d'Afrique"
-              className="w-full h-full object-cover opacity-15 dark:opacity-25"
+              alt="Boutiques & Marché"
+              className="w-full h-full object-cover object-right sm:object-center opacity-45 sm:opacity-55 dark:opacity-25 transition-opacity duration-300 filter contrast-[1.08] saturate-[1.15]"
             />
-            <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-surface-container via-surface-container/95 to-surface-container/80" />
+            {/* Gradient mask: solid behind text on left, translucent on right to showcase image */}
+            <div className="absolute inset-0 bg-gradient-to-t from-surface-container via-surface-container/85 to-surface-container/40 sm:bg-gradient-to-r sm:from-surface-container sm:via-surface-container/85 sm:to-transparent dark:from-surface-container dark:via-surface-container/95 dark:to-surface-container/80" />
           </div>
 
           <div className="relative z-10 space-y-4 max-w-2xl">
@@ -516,6 +524,66 @@ export default function StoreExplorerPage({
           </button>
         </div>
       </div>
+
+      {/* Floating Incentive Bubble to Return to Last Visited Store */}
+      {lastVisitedStore && showReturnBubble && (
+        <aside
+          role="complementary"
+          aria-label="Reprendre votre visite"
+          className="fixed bottom-6 right-4 sm:right-6 z-50 max-w-sm w-[calc(100%-2rem)] sm:w-auto bg-surface/95 backdrop-blur-md border-2 border-primary/30 hover:border-primary/60 rounded-2xl shadow-elevated p-3 sm:p-3.5 flex items-center gap-3 animate-fade-in transition-all duration-300"
+        >
+          {/* Avatar with subtle live indicator */}
+          <div className="relative shrink-0">
+            <img
+              src={getMediaUrl(lastVisitedStore.logo_url) || "/media/store/logo.jpg"}
+              alt={lastVisitedStore.name}
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl object-cover border border-slate-300 dark:border-slate-700 bg-surface-container shadow-xs"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "/media/store/logo.jpg";
+              }}
+            />
+            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-secondary ring-2 ring-surface flex items-center justify-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+            </span>
+          </div>
+
+          {/* Info & return action */}
+          <div className="flex-grow min-w-0 pr-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                Boutique visitée
+              </span>
+            </div>
+            <p className="font-semibold text-xs sm:text-sm text-on-surface truncate">
+              {lastVisitedStore.name}
+            </p>
+            <p className="text-[11px] text-on-surface-variant truncate">
+              Reprendre vos achats là où vous vous étiez arrêté
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => onSelectStore(lastVisitedStore.slug)}
+              className="px-3 py-2 rounded-xl bg-primary hover:brightness-105 text-white font-semibold text-xs shadow-sm flex items-center gap-1 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+              title={`Repartir sur ${lastVisitedStore.name}`}
+            >
+              <span>Repartir</span>
+              <Icon name="arrow_forward" className="text-[14px]" />
+            </button>
+
+            <button
+              onClick={() => setShowReturnBubble(false)}
+              className="w-7 h-7 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-secondary flex items-center justify-center transition-colors cursor-pointer"
+              title="Masquer cette suggestion"
+              aria-label="Fermer"
+            >
+              <Icon name="close" className="text-[16px]" />
+            </button>
+          </div>
+        </aside>
+      )}
 
       <Footer />
     </div>

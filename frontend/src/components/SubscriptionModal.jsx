@@ -267,7 +267,7 @@ export default function SubscriptionModal({
           plan_code: onboardingTrack === "TRIAL" ? "STARTER" : selectedPlanCode,
           operator_code: selectedOperator,
           payment_proof_data: proofData || undefined,
-          notes: notes.trim() || undefined,
+          notes: notes.trim() || (onboardingTrack === "PAID" ? `Souscription Mobile Money ${selectedOperator} - Formule ${selectedPlanCode}` : "TRIAL"),
         };
 
         const result = await registerMerchantStore(payload);
@@ -311,10 +311,14 @@ export default function SubscriptionModal({
   // Safe parse features
   const parseFeatures = (featStr) => {
     if (!featStr) return [];
+    if (Array.isArray(featStr)) return featStr;
     try {
-      return JSON.parse(featStr);
+      const parsed = JSON.parse(featStr);
+      if (Array.isArray(parsed)) return parsed;
+      if (typeof parsed === "string") return [parsed];
+      return [];
     } catch {
-      return featStr.split(",").map((s) => s.trim());
+      return typeof featStr === "string" ? featStr.split(",").map((s) => s.trim()) : [];
     }
   };
 
@@ -354,7 +358,7 @@ export default function SubscriptionModal({
               </div>
               <p className="text-xs text-on-surface-variant font-normal">
                 {mode === "NEW_STORE"
-                  ? "Vitrine WhatsApp immédiate • Burkina Faso & Afrique de l'Ouest"
+                  ? "Vitrine WhatsApp immédiate • Multi-Boutiques & Vente Directe"
                   : "Validation directe et prolongation automatique de votre vitrine"}
               </p>
             </div>
@@ -387,7 +391,11 @@ export default function SubscriptionModal({
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-semibold text-xs mb-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Boutique Officiellement Activée</span>
+                  <span>
+                    {onboardingTrack === "PAID"
+                      ? `Boutique Activée • Formule ${selectedPlanCode} (${selectedOperator})`
+                      : "Boutique Officiellement Activée (14 Jours Gratuits)"}
+                  </span>
                 </div>
                 <h3 className="text-xl font-bold text-on-surface tracking-tight">
                   Félicitations, votre boutique est en ligne !

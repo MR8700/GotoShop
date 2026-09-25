@@ -8,6 +8,7 @@ from app.routers import store, catalog, channels, commerce, analytics, auth, cus
 import app.models  # Ensures all models (Order, Chat, Payment, Media, Call, etc.) are registered
 from app.seed.seeder import seed_database
 import os
+from pathlib import Path
 
 from sqlalchemy import inspect, text
 import uuid

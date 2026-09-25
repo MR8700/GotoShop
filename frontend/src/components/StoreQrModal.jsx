@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Icon from "./Icon";
 import { fetchStoreQr, getMediaUrl } from "../api/client";
+import { generateStoreQrSvg } from "../utils/qrGenerator";
 
 export default function StoreQrModal({
   isOpen,
@@ -9,25 +10,39 @@ export default function StoreQrModal({
   showToast,
 }) {
   const [qrData, setQrData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState("AFFICHE_A4");
 
   useEffect(() => {
-    if (isOpen && store?.id) {
+    if (isOpen && store) {
       loadQr();
     }
-  }, [isOpen, store?.id]);
+  }, [isOpen, store?.slug, store?.id]);
 
   const loadQr = async () => {
+    const slug = store?.slug || store?.id || "maboutique";
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://gotoshop.com";
+    const directUrl = `${origin}/?store=${slug}`;
+
+    // 1. Immediately render crisp vector SVG (instantaneous with zero delay)
+    const clientSvg = generateStoreQrSvg(slug, origin);
+    setQrData({
+      qr_svg: clientSvg,
+      full_web_url: directUrl,
+      store_slug: slug,
+      store_name: store?.name || "Boutique GotoShop",
+    });
+    setLoading(false);
+
+    // 2. Fetch server-enhanced QR data if backend is reachable
     try {
-      setLoading(true);
-      const data = await fetchStoreQr(store.slug || store.id);
-      setQrData(data);
+      const data = await fetchStoreQr(slug);
+      if (data?.qr_svg) {
+        setQrData(data);
+      }
     } catch (e) {
-      console.error("Erreur chargement QR Code:", e);
-      if (showToast) showToast("Impossible de charger le QR code");
-    } finally {
-      setLoading(false);
+      // Graceful fallback already in place and active
+      console.warn("Notice: QR Code displayed using instant vector rendering engine:", e.message);
     }
   };
 

@@ -223,11 +223,17 @@ class SubscriptionService:
             ussd_code_used = SubscriptionService.compute_ussd_code(ussd_cfg.ussd_template, ussd_cfg.merchant_number, amount_val)
 
         # Save proof image if provided
-        proof_url = None
+        proof_url = ""
         if req_data.payment_proof_data:
-            proof_url = save_base64_media(req_data.payment_proof_data, prefix="proof")
-            if not proof_url:
-                proof_url = req_data.payment_proof_data
+            try:
+                saved = save_base64_media(req_data.payment_proof_data, prefix="proof")
+                proof_url = saved or (req_data.payment_proof_data if len(req_data.payment_proof_data) < 300 else "")
+            except Exception as e_p:
+                print(f"Notice: proof save warning: {e_p}")
+                proof_url = ""
+
+        # Ensure proof_url is never None (satisfies SQLite NOT NULL constraint)
+        proof_str = proof_url if proof_url else ""
 
         sub_req = SubscriptionRequest(
             id=str(uuid.uuid4()),
@@ -245,7 +251,7 @@ class SubscriptionService:
             duration_days=plan.duration_days if plan else 30,
             operator_code=req_data.operator_code or "ORANGE",
             ussd_code_used=ussd_code_used,
-            payment_proof_url=proof_url,
+            payment_proof_url=proof_str,
             status="PENDING",
             notes=req_data.notes
         )

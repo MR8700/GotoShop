@@ -87,6 +87,14 @@ export default function App() {
   });
   const [publicStores, setPublicStores] = useState(FALLBACK_PUBLIC_STORES);
   const [publicStoresLoading, setPublicStoresLoading] = useState(false);
+  const [lastVisitedStore, setLastVisitedStore] = useState(() => {
+    try {
+      const saved = safeStorage.getItem("gotoshop_last_visited_store");
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
 
   // Persona Mode: "client" | "owner"
   const [appMode, setAppMode] = useState("client");
@@ -209,6 +217,15 @@ export default function App() {
 
     // Native browser Back/Forward navigation listener (popstate)
     const handlePopState = () => {
+      // 1. Close any open overlays/modals so back action dismisses them
+      setIsSubscriptionModalOpen(false);
+      setIsStoreSwitcherOpen(false);
+      setIsCustomerAuthOpen(false);
+      setIsLoginOpen(false);
+      setIsChangePasswordOpen(false);
+      setIsNotificationDrawerOpen(false);
+      setIsStoreQrModalOpen(false);
+
       const p = new URLSearchParams(window.location.search);
       const storeSlug = p.get("store") || p.get("slug") || p.get("s");
       const viewParam = p.get("view");
@@ -233,6 +250,8 @@ export default function App() {
           loadAllData(match[1]);
         } else {
           setViewMode("explorer");
+          setActiveStoreSlug("");
+          loadPublicStores();
         }
       }
 
@@ -271,37 +290,53 @@ export default function App() {
     }
   };
 
-  // Synchronize dynamic store theme colors configured by merchant
+  // Track and save the last visited store when in store mode
   useEffect(() => {
-    if (store) {
-      // Synchronize dynamic browser tab title: "ShopChat + [host]"
-      if (typeof window !== "undefined") {
-        let hostStr = window.location.hostname || "localhost";
-        if (hostStr === "localhost" || hostStr === "127.0.0.1") {
-          if (store.slug) {
-            hostStr = `${store.slug}.localhost`;
-          }
-        }
-        document.title = `ShopChat + ${hostStr}`;
-      }
+    if (store && store.slug && viewMode === "store") {
+      const info = {
+        slug: store.slug,
+        name: store.name,
+        logo_url: store.logo_url,
+        delivery_city: store.delivery_city,
+        tagline: store.tagline,
+      };
+      setLastVisitedStore(info);
+      try {
+        safeStorage.setItem("gotoshop_last_visited_store", JSON.stringify(info));
+      } catch (e) {}
+    }
+  }, [store?.slug, store?.name, viewMode]);
 
-      if (store.is_custom_theme_active) {
-        if (store.primary_color) {
-          document.documentElement.style.setProperty("--color-primary", store.primary_color);
-          document.documentElement.style.setProperty("--color-primary-container", store.primary_color);
-        }
-        if (store.secondary_color) {
-          document.documentElement.style.setProperty("--color-secondary", store.secondary_color);
-          document.documentElement.style.setProperty("--color-secondary-container", store.secondary_color);
-        }
+  // Synchronize dynamic browser title ("GotoShop") & isolate boutique theme from explorer
+  useEffect(() => {
+    // 1. Dynamic browser tab title: "GotoShop" / "GotoShop • [Nom Boutique]"
+    if (typeof window !== "undefined") {
+      if (viewMode === "explorer") {
+        document.title = "GotoShop";
+      } else if (store?.name) {
+        document.title = `GotoShop • ${store.name}`;
       } else {
-        document.documentElement.style.removeProperty("--color-primary");
-        document.documentElement.style.removeProperty("--color-primary-container");
-        document.documentElement.style.removeProperty("--color-secondary");
-        document.documentElement.style.removeProperty("--color-secondary-container");
+        document.title = "GotoShop";
       }
     }
-  }, [store?.is_custom_theme_active, store?.primary_color, store?.secondary_color]);
+
+    // 2. Strict Theme Isolation: Reset boutique colors when on explorer/galerie
+    if (viewMode === "explorer" || !store || !store.is_custom_theme_active) {
+      document.documentElement.style.removeProperty("--color-primary");
+      document.documentElement.style.removeProperty("--color-primary-container");
+      document.documentElement.style.removeProperty("--color-secondary");
+      document.documentElement.style.removeProperty("--color-secondary-container");
+    } else if (store && store.is_custom_theme_active) {
+      if (store.primary_color) {
+        document.documentElement.style.setProperty("--color-primary", store.primary_color);
+        document.documentElement.style.setProperty("--color-primary-container", store.primary_color);
+      }
+      if (store.secondary_color) {
+        document.documentElement.style.setProperty("--color-secondary", store.secondary_color);
+        document.documentElement.style.setProperty("--color-secondary-container", store.secondary_color);
+      }
+    }
+  }, [viewMode, store?.name, store?.is_custom_theme_active, store?.primary_color, store?.secondary_color]);
 
   const loadUnreadChatCount = async () => {
     try {
@@ -584,6 +619,23 @@ export default function App() {
     }
   };
 
+  const handleOpenSubscriptionModal = (mode = "NEW_STORE") => {
+    setSubModalMode(mode);
+    setIsSubscriptionModalOpen(true);
+    try {
+      window.history.pushState({ modal: "subscription" }, "", window.location.href);
+    } catch (e) {}
+  };
+
+  const handleCloseSubscriptionModal = () => {
+    setIsSubscriptionModalOpen(false);
+    try {
+      if (window.history.state?.modal === "subscription") {
+        window.history.back();
+      }
+    } catch (e) {}
+  };
+
   if (isSuperAdminOpen) {
     return (
       <SuperAdminDashboard
@@ -603,12 +655,10 @@ export default function App() {
           onSelectStore={handleSelectStoreFromExplorer}
           customer={customer}
           onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
-          onOpenRegisterStore={() => {
-            setSubModalMode("NEW_STORE");
-            setIsSubscriptionModalOpen(true);
-          }}
+          onOpenRegisterStore={() => handleOpenSubscriptionModal("NEW_STORE")}
           onOpenOwnerLogin={() => setIsLoginOpen(true)}
           onOpenSuperAdmin={() => setIsSuperAdminOpen(true)}
+          lastVisitedStore={lastVisitedStore}
         />
 
         {/* Customer Login / Register Modal */}
@@ -691,14 +741,8 @@ export default function App() {
         onOpenExplorer={handleOpenExplorer}
         onOpenStoreSwitcher={() => setIsStoreSwitcherOpen(true)}
         onOpenSuperAdmin={() => setIsSuperAdminOpen(true)}
-        onOpenRegisterStore={() => {
-          setSubModalMode("NEW_STORE");
-          setIsSubscriptionModalOpen(true);
-        }}
-        onOpenSubscription={() => {
-          setSubModalMode("RENEWAL");
-          setIsSubscriptionModalOpen(true);
-        }}
+        onOpenRegisterStore={() => handleOpenSubscriptionModal("NEW_STORE")}
+        onOpenSubscription={() => handleOpenSubscriptionModal("RENEWAL")}
         onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
         onOpenQrModal={() => setIsStoreQrModalOpen(true)}
         onOpenMyStores={() => {
@@ -918,8 +962,7 @@ export default function App() {
         onLoginSuccess={handleLoginSuccess}
         onOpenRegisterStore={() => {
           setIsLoginOpen(false);
-          setSubModalMode("NEW_STORE");
-          setIsSubscriptionModalOpen(true);
+          handleOpenSubscriptionModal("NEW_STORE");
         }}
         showToast={showToast}
       />
@@ -961,7 +1004,7 @@ export default function App() {
       {/* Global Subscription & Onboarding Modal */}
       <SubscriptionModal
         isOpen={isSubscriptionModalOpen}
-        onClose={() => setIsSubscriptionModalOpen(false)}
+        onClose={handleCloseSubscriptionModal}
         mode={subModalMode}
         initialStore={store}
         onSuccess={handleStoreRegistered}

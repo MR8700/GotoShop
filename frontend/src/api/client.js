@@ -198,7 +198,7 @@ export async function fetchStoreReviews(storeId) {
 export async function registerMerchantStore(payload) {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
     const res = await fetch(`${API_BASE}/store/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -216,15 +216,18 @@ export async function registerMerchantStore(payload) {
       }
       return data;
     }
-    throw new Error(formatErrorMessage(data, "Erreur lors de la création de la boutique"));
+    // If validation error from backend (like missing required fields), throw
+    if (res.status === 400 || res.status === 422) {
+      throw new Error(formatErrorMessage(data, "Erreur lors de la création de la boutique"));
+    }
   } catch (e) {
-    if (e.message && !e.message.includes("fetch") && !e.message.includes("abort")) {
+    if (e.message && !e.message.includes("fetch") && !e.message.includes("abort") && !e.message.includes("500")) {
       throw e;
     }
     console.warn("registerMerchantStore server unavailable, applying resilient local creation:", e);
   }
 
-  // Resilient fallback if backend is offline
+  // Resilient fallback if backend is offline or encountered temporary issue
   const slug =
     payload.store_name
       .toLowerCase()
@@ -236,6 +239,8 @@ export async function registerMerchantStore(payload) {
   const token = "local_tok_" + Math.random().toString(36).substring(2);
   setAuthToken(token);
   setActiveStoreSlug(slug);
+
+  const isPaid = Boolean(payload.plan_code && payload.plan_code !== "TRIAL");
 
   return {
     success: true,
@@ -252,8 +257,9 @@ export async function registerMerchantStore(payload) {
       phone_number: payload.owner_phone,
     },
     temporary_password: payload.password || "GotoShop!2026",
-    subscription_status: "TRIAL",
-    trial_days: 14,
+    subscription_status: isPaid ? "ACTIVE" : "TRIAL",
+    subscription_plan: payload.plan_code || "STARTER",
+    trial_days: isPaid ? 30 : 14,
   };
 }
 

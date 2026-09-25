@@ -364,7 +364,17 @@ class StoreService:
         city_display = f"{eff_city} ({locality_str})" if locality_str else eff_city
 
         # 4. Create Store
-        trial_days = 14
+        is_paid_mode = bool(
+            data.payment_proof_data or
+            (data.plan_code and data.plan_code in ["STARTER", "PRO", "VIP"] and (data.notes or "").strip() != "TRIAL")
+        )
+        if is_paid_mode:
+            trial_days = 30
+            sub_status = "ACTIVE"
+        else:
+            trial_days = 14
+            sub_status = "TRIAL"
+
         expires_at = datetime.utcnow() + timedelta(days=trial_days)
 
         tagline = data.tagline.strip() if data.tagline else f"Boutique officielle de {data.owner_name} • {city_display}"
@@ -393,7 +403,7 @@ class StoreService:
             is_custom_theme_active=True,
             is_loyalty_active=True,
             loyalty_spend_per_point=1000,
-            subscription_status="TRIAL",
+            subscription_status=sub_status,
             subscription_plan=data.plan_code or "STARTER",
             subscription_expires_at=expires_at,
             contact_whatsapp=data.owner_phone.strip(),
@@ -502,8 +512,22 @@ class StoreService:
         db.add_all([b1, b2, b3])
 
         # 9. Handle optional payment proof & audit record
-        if data.payment_proof_data:
-            proof_url = save_base64_media(data.payment_proof_data, prefix="proof") or data.payment_proof_data
+        if is_paid_mode or data.payment_proof_data:
+            proof_url = ""
+            if data.payment_proof_data:
+                try:
+                    saved_path = save_base64_media(data.payment_proof_data, prefix="proof")
+                    proof_url = saved_path or (data.payment_proof_data if len(data.payment_proof_data) < 300 else "")
+                except Exception as e_p:
+                    print(f"Notice: payment proof save warning: {e_p}")
+                    proof_url = ""
+
+            plan_amounts = {"STARTER": 1000, "PRO": 3000, "VIP": 5000}
+            effective_amount = plan_amounts.get(data.plan_code or "STARTER", 1000)
+
+            # Ensure proof_url is never None (satisfies SQLite NOT NULL constraint)
+            proof_str = proof_url if proof_url else ""
+
             sub_req = SubscriptionRequest(
                 id=str(uuid.uuid4()),
                 request_type="NEW_STORE",
@@ -514,12 +538,12 @@ class StoreService:
                 owner_phone=owner.phone_number,
                 plan_code=data.plan_code or "STARTER",
                 plan_name=f"Formule {data.plan_code or 'STARTER'}",
-                amount=1000,
+                amount=effective_amount,
                 currency="FCFA",
-                duration_days=30,
+                duration_days=trial_days,
                 operator_code=data.operator_code or "ORANGE",
-                payment_proof_url=proof_url,
-                status="PENDING",
+                payment_proof_url=proof_str,
+                status="APPROVED" if proof_url else "PENDING",
                 notes=data.notes,
                 created_store_id=store.id
             )
