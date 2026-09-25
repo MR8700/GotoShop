@@ -77,7 +77,7 @@ app.add_middleware(
 try:
     if not os.path.exists(settings.MEDIA_DIR):
         os.makedirs(settings.MEDIA_DIR, exist_ok=True)
-    app.mount("/media", StaticFiles(directory=str(settings.MEDIA_DIR)), name="media")
+    app.mount("/media", StaticFiles(directory=str(settings.MEDIA_DIR), check_dir=False), name="media")
 except Exception as e_media:
     print("Notice: Static media directory mount skipped or handled:", e_media)
 

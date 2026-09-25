@@ -58,6 +58,9 @@ backend/conversastore.db
 # Vercel
 .vercel
 
+# Uploaded proofs & scratch files
+media/proofs/
+
 # Logs
 logs/
 *.log
