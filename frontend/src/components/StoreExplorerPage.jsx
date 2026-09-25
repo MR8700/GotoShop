@@ -175,10 +175,10 @@ export default function StoreExplorerPage({
           </div>
 
           {/* User Auth & Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 ml-auto">
             {customer ? (
               <div className="flex items-center gap-2 bg-surface-secondary border border-subtle px-3 py-1.5 rounded-xl">
-                <div className="w-6 h-6 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
+                <div className="w-7 h-7 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
                   {customer.name ? customer.name.charAt(0).toUpperCase() : "C"}
                 </div>
                 <span className="text-xs font-medium text-on-surface hidden sm:inline max-w-[120px] truncate">
@@ -188,18 +188,18 @@ export default function StoreExplorerPage({
             ) : (
               <button
                 onClick={onOpenCustomerAuth}
-                className="h-8 px-3 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface text-xs font-medium border border-subtle transition-all flex items-center gap-1.5"
+                className="h-8.5 sm:h-9.5 px-3 sm:px-3.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface text-xs font-medium border border-subtle transition-all flex items-center gap-2 cursor-pointer"
               >
-                <Icon name="login" className="text-[15px] text-primary" />
+                <Icon name="account_circle" className="text-[20px] sm:text-[22px] text-primary" />
                 <span>Connexion</span>
               </button>
             )}
 
             <button
               onClick={onOpenRegisterStore}
-              className="h-8 px-3 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5"
+              className="h-8.5 sm:h-9.5 px-3 sm:px-4 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
             >
-              <Icon name="add_business" className="text-[15px]" />
+              <Icon name="add_business" className="text-[19px] sm:text-[21px]" />
               <span className="hidden xs:inline">Ouvrir ma boutique</span>
             </button>
 

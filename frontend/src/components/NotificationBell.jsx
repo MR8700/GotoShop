@@ -36,7 +36,7 @@ export default function NotificationBell({
   return (
     <button
       onClick={onClick}
-      className="relative w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface border border-slate-300 dark:border-slate-700 flex items-center justify-center transition-all active:scale-95 shrink-0 cursor-pointer shadow-2xs"
+      className="relative w-8.5 h-8.5 sm:w-9.5 sm:h-9.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface border border-slate-300 dark:border-slate-700 flex items-center justify-center transition-all active:scale-95 shrink-0 cursor-pointer shadow-2xs"
       title={
         unreadCount > 0
           ? `${unreadCount} notification${unreadCount > 1 ? "s" : ""} non lue${unreadCount > 1 ? "s" : ""}`
@@ -44,9 +44,9 @@ export default function NotificationBell({
       }
       aria-label="Centre de notifications"
     >
-      <Icon name="notifications" className="text-[19px] sm:text-[20px]" />
+      <Icon name="notifications" className="text-[22px] sm:text-[24px]" />
       {unreadCount > 0 && (
-        <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center shadow-xs animate-pulse">
+        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[9.5px] font-bold flex items-center justify-center shadow-xs animate-pulse">
           {unreadCount > 9 ? "9+" : unreadCount}
         </span>
       )}

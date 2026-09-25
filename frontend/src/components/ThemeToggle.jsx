@@ -66,9 +66,9 @@ export default function ThemeToggle({ variant = "icon", className = "" }) {
       type="button"
       aria-label={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
       title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
-      className={`w-8 h-8 rounded-xl border border-subtle bg-surface-secondary hover:bg-surface-container-highest text-on-surface flex items-center justify-center transition-all active:scale-95 ${className}`}
+      className={`w-8.5 h-8.5 sm:w-9.5 sm:h-9.5 rounded-xl border border-subtle bg-surface-secondary hover:bg-surface-container-highest text-on-surface flex items-center justify-center transition-all active:scale-95 ${className}`}
     >
-      <Icon name={isDark ? "light_mode" : "dark_mode"} className="text-[18px] text-on-surface transition-transform duration-200" />
+      <Icon name={isDark ? "light_mode" : "dark_mode"} className="text-[20px] sm:text-[22px] text-on-surface transition-transform duration-200" />
     </button>
   );
 }

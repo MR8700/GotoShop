@@ -64,9 +64,9 @@ export default function Header({
   return (
     <>
       <header className="fixed top-0 inset-x-0 z-40 bg-surface/90 backdrop-blur-md border-b border-subtle pt-safe transition-all duration-200">
-        <div className="h-14 sm:h-16 px-2.5 sm:px-4 md:px-6 max-w-5xl mx-auto flex items-center justify-between gap-1.5 sm:gap-3">
+        <div className="h-14 sm:h-16 px-2.5 sm:px-4 md:px-6 max-w-5xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           {/* Left: Brand Identity */}
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 shrink">
             {isTunnel && (
               <button
                 aria-label="Retour au catalogue"
@@ -101,7 +101,7 @@ export default function Header({
               className="flex flex-col min-w-0 cursor-pointer"
             >
               <div className="flex items-center gap-1 sm:gap-1.5">
-                <span className="font-semibold text-xs sm:text-sm md:text-[15px] text-on-surface tracking-tight truncate max-w-[100px] xs:max-w-[150px] sm:max-w-[240px]">
+                <span className="font-semibold text-xs sm:text-sm md:text-[15px] text-on-surface tracking-tight truncate max-w-[85px] xs:max-w-[130px] sm:max-w-[200px] md:max-w-[260px]">
                   {getTabTitle()}
                 </span>
                 {store?.is_verified && (
@@ -119,15 +119,15 @@ export default function Header({
           </div>
 
           {/* Right: Actions & Navigation */}
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {/* Explorer button */}
+          <div className="flex items-center gap-2 xs:gap-2.5 sm:gap-3 md:gap-3.5 shrink-0 ml-auto">
+            {/* Explorer button (Boutique) */}
             {onOpenExplorer && (
               <button
                 onClick={onOpenExplorer}
-                className="h-7.5 sm:h-8 px-2 sm:px-2.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface text-[11px] sm:text-xs font-medium border border-slate-300 dark:border-slate-700 flex items-center gap-1 transition-all active:scale-95 shrink-0"
+                className="h-8.5 sm:h-9.5 px-2 xs:px-2.5 sm:px-3 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface text-xs font-medium border border-slate-300 dark:border-slate-700 flex items-center gap-1.5 transition-all active:scale-95 shrink-0 cursor-pointer"
                 title="Explorer toutes les boutiques"
               >
-                <Icon name="storefront" className="text-[15px] sm:text-[16px] text-primary" aria-hidden="true" />
+                <Icon name="storefront" className="text-[20px] sm:text-[22px] text-primary" aria-hidden="true" />
                 <span className="hidden md:inline">Toutes les Boutiques</span>
                 <span className="hidden sm:inline md:hidden">Boutiques</span>
               </button>
@@ -137,40 +137,40 @@ export default function Header({
             {authStatus?.is_authenticated && (
               <button
                 onClick={onToggleMode}
-                className={`h-7.5 sm:h-8 px-2 sm:px-2.5 rounded-xl text-[11px] sm:text-xs font-medium flex items-center gap-1 transition-all active:scale-95 border ${
+                className={`h-8.5 sm:h-9.5 px-2.5 sm:px-3 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all active:scale-95 border cursor-pointer ${
                   mode === "owner"
                     ? "bg-secondary/15 text-secondary border-secondary/30"
                     : "bg-primary/15 text-primary border-primary/30"
                 }`}
                 title={mode === "owner" ? "Basculer en vue client" : "Basculer en vue gestion"}
               >
-                <Icon name={mode === "owner" ? "visibility" : "admin_panel_settings"} className="text-[14px] sm:text-[15px]" />
+                <Icon name={mode === "owner" ? "visibility" : "admin_panel_settings"} className="text-[17px] sm:text-[18px]" />
                 <span className="hidden sm:inline">{mode === "owner" ? "Vue Client" : "Vue Admin"}</span>
               </button>
             )}
 
-            {/* Customer Quick Auth in client mode */}
+            {/* Customer Quick Auth / Profile in client mode */}
             {mode === "client" && !authStatus?.is_authenticated && (
               customer ? (
                 <button
                   onClick={() => onNavigate("reglages")}
-                  className="flex items-center gap-1.5 h-7.5 sm:h-8 pl-1 pr-2 sm:pr-2.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest border border-slate-300 dark:border-slate-700 transition-all shrink-0"
+                  className="flex items-center gap-1.5 h-8.5 sm:h-9.5 pl-1.5 pr-2.5 sm:pr-3 rounded-xl bg-surface-secondary hover:bg-surface-container-highest border border-slate-300 dark:border-slate-700 transition-all shrink-0 cursor-pointer"
                   title={`Compte de ${customer.name}`}
                 >
-                  <div className="w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-[10px] sm:text-[11px] font-bold">
+                  <div className="w-6.5 h-6.5 sm:w-7 sm:h-7 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-xs font-bold shrink-0">
                     {customer.name?.slice(0, 1).toUpperCase() || "C"}
                   </div>
-                  <span className="text-[11px] sm:text-xs font-medium text-on-surface hidden sm:inline max-w-[80px] truncate">
+                  <span className="text-xs font-medium text-on-surface hidden sm:inline max-w-[85px] truncate">
                     {customer.name}
                   </span>
                 </button>
               ) : (
                 <button
                   onClick={onOpenCustomerAuth}
-                  className="h-7.5 sm:h-8 px-2 sm:px-2.5 rounded-xl bg-primary hover:brightness-105 text-white text-[11px] sm:text-xs font-semibold shadow-sm transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                  className="h-8.5 sm:h-9.5 px-2.5 sm:px-3 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold shadow-xs transition-all active:scale-95 flex items-center gap-1.5 shrink-0 cursor-pointer"
                   title="Connexion ou Inscription rapide"
                 >
-                  <Icon name="login" className="text-[14px] sm:text-[15px]" />
+                  <Icon name="account_circle" className="text-[20px] sm:text-[22px]" />
                   <span className="hidden xs:inline">Connexion</span>
                 </button>
               )
@@ -181,7 +181,7 @@ export default function Header({
               <div className="relative">
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="relative flex items-center justify-center p-0.5 rounded-xl border border-subtle hover:border-secondary/50 transition-colors"
+                  className="relative flex items-center justify-center p-0.5 rounded-xl border border-subtle hover:border-secondary/50 transition-colors shrink-0 cursor-pointer"
                   title={authStatus?.owner_name || "Gérante"}
                 >
                   <img
@@ -191,9 +191,9 @@ export default function Header({
                       e.target.onerror = null;
                       e.target.src = "/media/store/awa_portrait.jpg";
                     }}
-                    className="w-7 h-7 rounded-lg object-cover"
+                    className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-lg object-cover"
                   />
-                  <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-secondary ring-1 ring-surface" />
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-secondary ring-1 ring-surface" />
                 </button>
 
                 {showProfileMenu && (
@@ -292,19 +292,19 @@ export default function Header({
               <ThemeToggle />
             </div>
 
-            {/* More options menu button */}
+            {/* More options menu button (...) */}
             <div className="relative">
               <button
                 onClick={() => setShowToolsMenu(!showToolsMenu)}
                 aria-label="Options"
-                className={`w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-all active:scale-95 border ${
+                className={`w-8.5 h-8.5 sm:w-9.5 sm:h-9.5 rounded-xl flex items-center justify-center transition-all active:scale-95 border cursor-pointer ${
                   showToolsMenu
                     ? "bg-surface-secondary text-on-surface border-strong"
                     : "bg-surface-secondary hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface border-slate-300 dark:border-slate-700"
                 }`}
                 title="Options et outils"
               >
-                <Icon name={showToolsMenu ? "close" : "more_vert"} className="text-[17px] sm:text-[18px]" />
+                <Icon name={showToolsMenu ? "close" : "more_vert"} className="text-[22px] sm:text-[24px]" />
               </button>
 
               {showToolsMenu && (
