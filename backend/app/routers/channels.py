@@ -22,11 +22,19 @@ def list_channels(
         return []
     return db.query(StoreChannel).filter(StoreChannel.store_id == store.id).order_by(StoreChannel.display_order.asc()).all()
 
+from app.routers.auth import require_store_admin
+
 @router.put("/{channel_id}", response_model=ChannelSchema)
-def update_channel(channel_id: str, data: ChannelUpdateSchema, db: Session = Depends(get_db)):
+def update_channel(
+    channel_id: str,
+    data: ChannelUpdateSchema,
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
     channel = db.query(StoreChannel).filter(StoreChannel.id == channel_id).first()
     if not channel:
         raise HTTPException(status_code=404, detail="Canal introuvable")
+    require_store_admin(channel.store_id, authorization, db)
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(channel, key, value)

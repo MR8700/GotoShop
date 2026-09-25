@@ -20,6 +20,7 @@ export default function VitrinePage({
   showToast,
   customer,
   mode = "client",
+  isCurrentStoreOwner = false,
   onOpenCustomerAuth,
   onProductUpdated,
   onProductDeleted,
@@ -154,7 +155,7 @@ export default function VitrinePage({
         </div>
       )}
 
-      {mode === "owner" && (
+      {mode === "owner" && isCurrentStoreOwner && (
         <div className="flex items-center justify-between p-3.5 rounded-2xl bg-surface-container border border-secondary/30 shadow-sm text-xs">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="w-8 h-8 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center shrink-0 font-bold">
@@ -427,7 +428,7 @@ export default function VitrinePage({
           </div>
 
           {/* Action Button */}
-          {mode === "owner" ? (
+          {mode === "owner" && isCurrentStoreOwner ? (
             <div className="grid grid-cols-2 gap-2 pt-2">
               <button
                 type="button"
@@ -593,7 +594,7 @@ export default function VitrinePage({
                 </div>
 
                 {/* Direct Order Button */}
-                {mode === "owner" ? (
+                {mode === "owner" && isCurrentStoreOwner ? (
                   <div className="grid grid-cols-2 gap-1.5 pt-1">
                     <button
                       type="button"

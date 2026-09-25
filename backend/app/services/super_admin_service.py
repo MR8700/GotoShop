@@ -126,6 +126,7 @@ class SuperAdminService:
             subscription_plan=s.subscription_plan or "PRO",
             subscription_expires_at=s.subscription_expires_at,
             custom_domain=s.custom_domain,
+            is_verified=bool(s.is_verified),
             products_count=prod_count,
             orders_count=orders_count,
             total_revenue=s.revenue or 0,
@@ -386,6 +387,8 @@ class SuperAdminService:
             store.subscription_status = data.subscription_status
         if data.subscription_plan:
             store.subscription_plan = data.subscription_plan
+        if data.is_verified is not None:
+            store.is_verified = data.is_verified
         if data.extend_days and data.extend_days > 0:
             current_expiry = store.subscription_expires_at or datetime.utcnow()
             if current_expiry < datetime.utcnow():
@@ -394,6 +397,16 @@ class SuperAdminService:
             if store.subscription_status == "EXPIRED":
                 store.subscription_status = "ACTIVE"
 
+        db.commit()
+        db.refresh(store)
+        return SuperAdminService._store_to_item(db, store)
+
+    @staticmethod
+    def verify_store(db: Session, store_id: str, is_verified: bool = True) -> Optional[SuperAdminStoreItem]:
+        store = db.query(Store).filter(Store.id == store_id).first()
+        if not store:
+            return None
+        store.is_verified = is_verified
         db.commit()
         db.refresh(store)
         return SuperAdminService._store_to_item(db, store)

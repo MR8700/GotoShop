@@ -128,7 +128,10 @@ class StoreService:
 
     @staticmethod
     def get_public_stores(db: Session):
-        stores = db.query(Store).filter(Store.subscription_status != "SUSPENDED").all()
+        stores = db.query(Store).filter(
+            Store.subscription_status != "SUSPENDED",
+            Store.is_verified == True
+        ).order_by(Store.created_at.desc()).all()
         result = []
         existing_slugs = set()
         for s in stores:
@@ -156,6 +159,7 @@ class StoreService:
                 "is_verified": s.is_verified,
                 "social_tunnel_badge": s.social_tunnel_badge or "WA/FB",
                 "social_tunnel_label": s.social_tunnel_label or "Tunnel Social Actif",
+                "created_at": s.created_at.isoformat() if s.created_at else None,
             })
 
         try:
@@ -185,6 +189,11 @@ class StoreService:
             new_avatar_url = save_base64_media(update_data.pop("avatar_data"), prefix="avatar")
             if new_avatar_url:
                 store.avatar_url = new_avatar_url
+
+        if "logo_data" in update_data and update_data["logo_data"]:
+            new_logo_url = save_base64_media(update_data.pop("logo_data"), prefix="store_logo")
+            if new_logo_url:
+                store.logo_url = new_logo_url
 
         for key, value in update_data.items():
             if hasattr(store, key):
@@ -380,21 +389,30 @@ class StoreService:
         tagline = data.tagline.strip() if data.tagline else f"Boutique officielle de {data.owner_name} • {city_display}"
         cat_name = data.category_name.strip() if data.category_name else "Mode & Accessoires"
 
+        # Resolve store logo
+        logo_url = "/media/store/logo.jpg"
+        if getattr(data, "logo_data", None):
+            saved_logo = save_base64_media(data.logo_data, prefix="store_logo")
+            if saved_logo:
+                logo_url = saved_logo
+        elif getattr(data, "logo_url", None):
+            logo_url = data.logo_url
+
         store = Store(
             id=str(uuid.uuid4()),
             owner_id=owner.id,
             name=data.store_name.strip(),
             slug=slug,
             tagline=tagline,
-            description=f"Bienvenue chez {data.store_name} à {city_display}, {eff_country}. Spécialiste {cat_name}. Commandez directement par WhatsApp avec géolocalisation et paiement à la livraison.",
+            description=f"Bienvenue chez {data.store_name} à {city_display}, {eff_country}. Spécialiste {cat_name}. Commandez directement sur la plateforme avec géolocalisation et messagerie intégrée.",
             owner_bio=f"Gérant(e) et responsable chez {data.store_name}. Service client et qualité garantis.",
             currency="FCFA",
-            logo_url="/media/store/logo.jpg",
+            logo_url=logo_url,
             avatar_url="/media/store/awa_portrait.jpg",
             rating=5.0,
             sales_count=0,
             revenue=0,
-            is_verified=True,
+            is_verified=False, # En cours d'examen - validation par un admin sous 24h
             social_tunnel_badge="WA/DIRECT",
             social_tunnel_label="Tunnel Express Actif",
             primary_color="#ec761e",
@@ -407,7 +425,8 @@ class StoreService:
             subscription_plan=data.plan_code or "STARTER",
             subscription_expires_at=expires_at,
             contact_whatsapp=data.owner_phone.strip(),
-            contact_email=owner.email
+            contact_email=owner.email,
+            created_at=datetime.utcnow()
         )
         db.add(store)
         db.flush()
@@ -553,9 +572,22 @@ class StoreService:
         db.refresh(store)
         db.refresh(owner)
 
+        owner_store_ids = [s.id for s in owner.stores] if owner.stores else [store.id]
+        owner_store_slugs = [s.slug for s in owner.stores] if owner.stores else [store.slug]
+        owner_owned_stores = [
+            {
+                "id": s.id,
+                "slug": s.slug,
+                "name": s.name,
+                "is_verified": bool(s.is_verified),
+                "subscription_status": s.subscription_status
+            }
+            for s in (owner.stores or [store])
+        ]
+
         return StoreRegisterResponse(
             success=True,
-            message="Félicitations ! Votre boutique a été créée et activée avec succès.",
+            message="Votre boutique a été créée avec succès et est actuellement en examen. Elle sera officiellement ouverte en moins de 24h après validation par notre équipe.",
             store_id=store.id,
             store_name=store.name,
             slug=store.slug,
@@ -570,5 +602,8 @@ class StoreService:
             temporary_password=temp_pwd or (data.password if data.password else None),
             must_change_password=must_change,
             subscription_status=store.subscription_status,
-            trial_days=trial_days
+            trial_days=trial_days,
+            store_ids=owner_store_ids,
+            store_slugs=owner_store_slugs,
+            owned_stores=owner_owned_stores
         )

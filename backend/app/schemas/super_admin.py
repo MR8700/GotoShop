@@ -32,9 +32,13 @@ class SuperAdminStoreCreateRequest(BaseModel):
     delivery_city: Optional[str] = "Abidjan (Cocody)"
 
 class SuperAdminStoreStatusRequest(BaseModel):
-    subscription_status: str # ACTIVE, TRIAL, SUSPENDED, EXPIRED
+    subscription_status: Optional[str] = None # ACTIVE, TRIAL, SUSPENDED, EXPIRED
     subscription_plan: Optional[str] = None
     extend_days: Optional[int] = None
+    is_verified: Optional[bool] = None
+
+class SuperAdminStoreVerifyRequest(BaseModel):
+    is_verified: bool = True
 
 class SuperAdminStoreItem(BaseModel):
     id: str
@@ -55,6 +59,7 @@ class SuperAdminStoreItem(BaseModel):
     subscription_plan: str = "PRO"
     subscription_expires_at: Optional[datetime] = None
     custom_domain: Optional[str] = None
+    is_verified: bool = True
     products_count: int = 0
     orders_count: int = 0
     total_revenue: int = 0

@@ -94,6 +94,18 @@ def update_store_status(
         raise HTTPException(status_code=404, detail="Boutique introuvable")
     return item
 
+@router.post("/stores/{store_id}/verify", response_model=SuperAdminStoreItem)
+def verify_store(
+    store_id: str,
+    admin = Depends(get_current_super_admin),
+    db: Session = Depends(get_db)
+):
+    """Valider et approuver officiellement une boutique pour publication immédiate."""
+    item = SuperAdminService.verify_store(db, store_id, is_verified=True)
+    if not item:
+        raise HTTPException(status_code=404, detail="Boutique introuvable")
+    return item
+
 @router.post("/stores/{store_id}/impersonate")
 def impersonate_merchant(
     store_id: str,

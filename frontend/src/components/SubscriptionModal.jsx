@@ -63,6 +63,10 @@ export default function SubscriptionModal({
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
 
+  // Store Logo (Facultatif mais très conseillé)
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [logoData, setLogoData] = useState(null);
+
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -80,6 +84,8 @@ export default function SubscriptionModal({
       setErrorMessage("");
       setProofPreview(null);
       setProofData(null);
+      setLogoPreview(null);
+      setLogoData(null);
       setCopiedCode(false);
       setCopiedUrl(false);
 
@@ -216,6 +222,45 @@ export default function SubscriptionModal({
     reader.readAsDataURL(file);
   };
 
+  const handleLogoFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 500;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedUri = canvas.toDataURL("image/jpeg", 0.88);
+        setLogoPreview(compressedUri);
+        setLogoData(compressedUri);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const copyToClipboard = (text, type = "code") => {
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(text);
@@ -264,6 +309,7 @@ export default function SubscriptionModal({
           locality: locality.trim() || undefined,
           category_name: categoryName,
           tagline: tagline.trim() || undefined,
+          logo_data: logoData || undefined,
           plan_code: onboardingTrack === "TRIAL" ? "STARTER" : selectedPlanCode,
           operator_code: selectedOperator,
           payment_proof_data: proofData || undefined,
@@ -384,29 +430,40 @@ export default function SubscriptionModal({
           ) : submitSuccess ? (
             /* SUCCESS CONFIRMATION SCREEN */
             <div className="text-center py-4 px-2 space-y-5 animate-fade-in">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 flex items-center justify-center mx-auto shadow-md">
-                <Icon name="storefront" className="text-[36px]" />
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border-2 border-amber-500/30 text-amber-500 flex items-center justify-center mx-auto shadow-md">
+                <Icon name="hourglass_top" className="text-[36px] animate-pulse" />
               </div>
 
-              <div className="space-y-1.5">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-semibold text-xs mb-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>
-                    {onboardingTrack === "PAID"
-                      ? `Boutique Activée • Formule ${selectedPlanCode} (${selectedOperator})`
-                      : "Boutique Officiellement Activée (14 Jours Gratuits)"}
-                  </span>
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-bold text-xs mb-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                  <span>Boutique en cours d'examen • Ouverture sous 24h</span>
                 </div>
                 <h3 className="text-xl font-bold text-on-surface tracking-tight">
-                  Félicitations, votre boutique est en ligne !
+                  Félicitations {ownerName} ! Votre boutique est enregistrée.
                 </h3>
-                <p className="text-xs text-on-surface-variant max-w-md mx-auto leading-relaxed">
-                  Bienvenue <strong className="text-on-surface">{ownerName}</strong>. Votre vitrine{" "}
-                  <strong className="text-primary font-bold">
-                    {submittedData?.store_name || storeName}
-                  </strong>{" "}
-                  est prête avec son tunnel WhatsApp direct.
-                </p>
+                
+                {/* 24H Admin Validation Explainer Card */}
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-2.5 max-w-lg mx-auto">
+                  <div className="flex items-start gap-2.5">
+                    <Icon name="verified_user" className="text-amber-500 text-lg shrink-0 mt-0.5" />
+                    <p className="text-xs text-on-surface leading-relaxed">
+                      <strong>Examen de sécurité en cours :</strong> Votre boutique est actuellement soumise à validation par un administrateur GotoShop.
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <Icon name="schedule" className="text-amber-500 text-lg shrink-0 mt-0.5" />
+                    <p className="text-xs text-on-surface leading-relaxed">
+                      Elle sera <strong>officiellement ouverte en moins de 24h</strong> à la fin des vérifications. Dès sa validation, elle apparaîtra parmi les boutiques publiques et sera mise en avant dans la section <strong>Boutiques Récentes ⚡</strong>.
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <Icon name="storefront" className="text-emerald-600 dark:text-emerald-400 text-lg shrink-0 mt-0.5" />
+                    <p className="text-xs text-on-surface leading-relaxed">
+                      <strong>Commencez dès maintenant :</strong> Vous avez déjà accès à votre espace commerçant pour ajouter vos produits, vos photos et configurer vos modes de livraison.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Public Store Link Card */}
@@ -597,6 +654,69 @@ export default function SubscriptionModal({
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Store Logo (Facultatif mais très conseillé) */}
+                  <div className="sm:col-span-2 p-3.5 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 transition-colors">
+                    <div className="flex flex-col sm:flex-row items-center gap-3.5">
+                      <div className="relative w-16 h-16 rounded-2xl bg-surface border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+                        {logoPreview ? (
+                          <img
+                            src={logoPreview}
+                            alt="Logo boutique"
+                            className="w-full h-full object-cover rounded-xl"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-primary/70">
+                            <Icon name="add_photo_alternate" className="text-2xl text-primary" />
+                            <span className="text-[9px] font-bold mt-0.5 text-on-surface-variant">Logo</span>
+                          </div>
+                        )}
+                        {logoPreview && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLogoPreview(null);
+                              setLogoData(null);
+                            }}
+                            className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[11px] font-bold shadow cursor-pointer hover:bg-rose-600 transition-colors"
+                            title="Supprimer le logo"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex-1 text-center sm:text-left">
+                        <div className="flex items-center gap-2 justify-center sm:justify-start flex-wrap">
+                          <span className="text-xs font-bold text-on-surface">Logo officiel de votre boutique</span>
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold">
+                            Facultatif mais très fortement conseillé ⭐
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-on-surface-variant mt-0.5 leading-snug">
+                          Avoir votre logo permet d'officialiser votre marque, inspire confiance aux clients et accélère la validation par l'admin.
+                        </p>
+                        <div className="mt-2 flex items-center justify-center sm:justify-start gap-2">
+                          <label className="px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-elevated text-xs font-semibold text-primary border border-primary/30 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors active:scale-98">
+                            <Icon name="upload" className="text-sm" />
+                            <span>{logoPreview ? "Changer le logo" : "Importer votre logo (PNG / JPG)"}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleLogoFileChange}
+                            />
+                          </label>
+                          {logoPreview && (
+                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                              <Icon name="check_circle" className="text-sm" />
+                              <span>Logo prêt</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Store Name */}
                   <div>
                     <label className="block text-xs font-medium text-on-surface-variant mb-1">

@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from pydantic import BaseModel
 
 class LoginRequest(BaseModel):
@@ -12,6 +12,9 @@ class LoginResponse(BaseModel):
     owner_name: str
     email: str
     message: str
+    store_ids: List[str] = []
+    store_slugs: List[str] = []
+    owned_stores: List[Dict[str, Any]] = []
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
@@ -33,3 +36,6 @@ class OwnerAuthStatus(BaseModel):
     must_change_password: bool
     owner_name: Optional[str] = None
     email: Optional[str] = None
+    store_ids: List[str] = []
+    store_slugs: List[str] = []
+    owned_stores: List[Dict[str, Any]] = []

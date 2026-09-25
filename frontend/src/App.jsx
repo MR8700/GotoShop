@@ -1,5 +1,6 @@
 import Icon from "./components/Icon";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import safeStorage from "./utils/safeStorage";
 import {
   fetchStore,
   fetchCategories,
@@ -108,11 +109,71 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
   // Owner Authentication states
-  const [authStatus, setAuthStatus] = useState({
-    is_authenticated: false,
-    must_change_password: true,
-    owner_name: null,
+  const [authStatus, setAuthStatus] = useState(() => {
+    try {
+      const token = safeStorage.getItem("conversastore_auth_token");
+      const savedSlug = safeStorage.getItem("conversastore_owner_store_slug");
+      const savedId = safeStorage.getItem("conversastore_owner_store_id");
+      const savedOwned = safeStorage.getItem("conversastore_owned_stores");
+      const ownedStores = savedOwned ? JSON.parse(savedOwned) : [];
+      return {
+        is_authenticated: Boolean(token),
+        must_change_password: false,
+        owner_name: null,
+        role: "merchant",
+        store_ids: savedId ? [savedId] : [],
+        store_slugs: savedSlug ? [savedSlug] : [],
+        owned_stores: ownedStores,
+      };
+    } catch (e) {
+      return {
+        is_authenticated: false,
+        must_change_password: true,
+        owner_name: null,
+        role: "merchant",
+        store_ids: [],
+        store_slugs: [],
+        owned_stores: [],
+      };
+    }
   });
+
+  // Multi-Tenant Isolation: Determine if currently logged in merchant owns the active store
+  const isCurrentStoreOwner = useMemo(() => {
+    if (!authStatus?.is_authenticated) return false;
+    if (authStatus?.role === "superadmin") return true;
+
+    const currentStoreId = store?.id;
+    const currentSlug = (store?.slug || getActiveStoreSlug() || "").toLowerCase();
+
+    if (currentStoreId && authStatus?.store_ids?.length) {
+      if (authStatus.store_ids.map(String).includes(String(currentStoreId))) return true;
+    }
+    if (currentSlug && authStatus?.store_slugs?.length) {
+      if (authStatus.store_slugs.map((s) => s.toLowerCase()).includes(currentSlug)) return true;
+    }
+    if (authStatus?.owned_stores?.length) {
+      const isOwned = authStatus.owned_stores.some(
+        (os) =>
+          (currentStoreId && String(os.id) === String(currentStoreId)) ||
+          (currentSlug && os.slug?.toLowerCase() === currentSlug)
+      );
+      if (isOwned) return true;
+    }
+    const savedSlug = safeStorage.getItem("conversastore_owner_store_slug");
+    if (savedSlug && currentSlug && savedSlug.toLowerCase() === currentSlug) {
+      return true;
+    }
+    const savedId = safeStorage.getItem("conversastore_owner_store_id");
+    if (savedId && currentStoreId && String(savedId) === String(currentStoreId)) {
+      return true;
+    }
+
+    return false;
+  }, [authStatus, store?.id, store?.slug]);
+
+  // Enforce client mode if merchant does not own the active store
+  const effectiveAppMode = isCurrentStoreOwner ? appMode : "client";
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [pendingAdminTab, setPendingAdminTab] = useState(null);
@@ -166,9 +227,21 @@ export default function App() {
   const checkAuth = async () => {
     try {
       const status = await fetchAuthStatus();
-      setAuthStatus(status);
-      if (status.is_authenticated && status.must_change_password) {
-        setIsChangePasswordOpen(true);
+      if (status && status.is_authenticated) {
+        setAuthStatus(status);
+        if (status.must_change_password) {
+          setIsChangePasswordOpen(true);
+        }
+      } else {
+        setAuthStatus({
+          is_authenticated: false,
+          must_change_password: true,
+          owner_name: null,
+          role: "merchant",
+          store_ids: [],
+          store_slugs: [],
+          owned_stores: [],
+        });
       }
     } catch (e) {
       console.error("Auth check failed:", e);
@@ -354,13 +427,28 @@ export default function App() {
     return () => clearInterval(interval);
   }, [store?.id, appMode]);
 
+  // Auto-reset persona mode to "client" whenever the merchant visits a store they don't own
+  useEffect(() => {
+    if (!isCurrentStoreOwner && appMode === "owner") {
+      setAppMode("client");
+      if (activeTab === "commandes" || activeTab === "stats" || activeTab === "reglages") {
+        setActiveTab("boutique");
+      }
+    }
+  }, [isCurrentStoreOwner, appMode, activeTab]);
+
   const handleSelectTab = (tab) => {
     // When in owner mode, protect admin screens
-    if (appMode === "owner" && (tab === "commandes" || tab === "stats" || tab === "reglages")) {
+    if (effectiveAppMode === "owner" && (tab === "commandes" || tab === "stats" || tab === "reglages")) {
       if (!authStatus.is_authenticated) {
         setPendingAdminTab(tab);
         setIsLoginOpen(true);
         showToast("Connexion propriétaire requise pour cet espace");
+        return;
+      }
+      if (!isCurrentStoreOwner) {
+        showToast("Accès réservé au propriétaire de cette boutique");
+        setActiveTab("boutique");
         return;
       }
       if (authStatus.must_change_password) {
@@ -403,33 +491,73 @@ export default function App() {
   };
 
   const handleToggleMode = () => {
-    if (authStatus.is_authenticated) {
-      const nextMode = appMode === "owner" ? "client" : "owner";
-      setAppMode(nextMode);
-      showToast(`Basculé en mode ${nextMode === "owner" ? "Commerçante" : "Client"} 🔄`);
+    if (!authStatus.is_authenticated) {
+      setIsLoginOpen(true);
+      return;
+    }
+    if (!isCurrentStoreOwner) {
+      showToast("Vous visitez cette boutique en tant que client");
+      return;
+    }
+    const nextMode = appMode === "owner" ? "client" : "owner";
+    setAppMode(nextMode);
+    showToast(`Basculé en mode ${nextMode === "owner" ? "Commerçante" : "Client"} 🔄`);
+  };
+
+  const handleGoToMyStore = () => {
+    const mySlug =
+      authStatus?.store_slugs?.[0] ||
+      authStatus?.owned_stores?.[0]?.slug ||
+      safeStorage.getItem("conversastore_owner_store_slug");
+    if (mySlug) {
+      handleSwitchStore(mySlug, true);
     } else {
       setIsLoginOpen(true);
     }
   };
 
   const handleLoginSuccess = (loginData) => {
+    const storeIds = loginData.store_ids || (loginData.store_id ? [loginData.store_id] : []);
+    const storeSlugs = loginData.store_slugs || (loginData.store_slug ? [loginData.store_slug] : []);
+    const ownedStores = loginData.owned_stores || [];
+
     setAuthStatus({
       is_authenticated: true,
       must_change_password: loginData.must_change_password,
       owner_name: loginData.owner_name,
       email: loginData.email,
+      role: loginData.role || "merchant",
+      store_ids: storeIds,
+      store_slugs: storeSlugs,
+      owned_stores: ownedStores,
     });
     setIsLoginOpen(false);
-    setAppMode("owner");
 
-    if (loginData.must_change_password) {
-      setIsChangePasswordOpen(true);
-      showToast("Changement de mot de passe obligatoire pour continuer");
-    } else if (pendingAdminTab) {
-      setActiveTab(pendingAdminTab);
-      setPendingAdminTab(null);
+    // Multi-tenant check: if merchant owns the currently loaded store, stay and open admin
+    const currentSlug = (store?.slug || getActiveStoreSlug() || "").toLowerCase();
+    const ownsCurrent =
+      loginData.role === "superadmin" ||
+      storeSlugs.some((s) => s.toLowerCase() === currentSlug) ||
+      ownedStores.some((os) => os.slug?.toLowerCase() === currentSlug);
+
+    if (ownsCurrent) {
+      setAppMode("owner");
+      if (loginData.must_change_password) {
+        setIsChangePasswordOpen(true);
+        showToast("Changement de mot de passe obligatoire pour continuer");
+      } else if (pendingAdminTab) {
+        setActiveTab(pendingAdminTab);
+        setPendingAdminTab(null);
+      } else {
+        setActiveTab("commandes");
+      }
+    } else if (storeSlugs.length > 0) {
+      // Direct merchant to their own store
+      handleSwitchStore(storeSlugs[0], true);
+      showToast("Bienvenue dans votre propre boutique !");
     } else {
-      setActiveTab("commandes");
+      setAppMode("client");
+      setActiveTab("boutique");
     }
   };
 
@@ -453,6 +581,10 @@ export default function App() {
       must_change_password: true,
       owner_name: null,
       email: null,
+      role: "merchant",
+      store_ids: [],
+      store_slugs: [],
+      owned_stores: [],
     });
     setAppMode("client");
     showToast("Déconnexion propriétaire réussie");
@@ -627,7 +759,17 @@ export default function App() {
     } catch (e) {}
 
     await loadAllData(slug);
-    if (openAdmin) {
+
+    // Multi-tenant verify: only enter owner mode if user actually owns this store
+    const cleanSlug = (slug || "").toLowerCase();
+    const userOwnsNewStore =
+      authStatus?.is_authenticated &&
+      (authStatus?.role === "superadmin" ||
+        authStatus?.store_slugs?.some((s) => s.toLowerCase() === cleanSlug) ||
+        authStatus?.owned_stores?.some((os) => os.slug?.toLowerCase() === cleanSlug) ||
+        safeStorage.getItem("conversastore_owner_store_slug")?.toLowerCase() === cleanSlug);
+
+    if (openAdmin && userOwnsNewStore) {
       setAppMode("owner");
       setActiveTab("commandes");
     } else {
@@ -643,9 +785,12 @@ export default function App() {
     try {
       const url = new URL(window.location);
       url.searchParams.set("store", slug);
+      url.searchParams.delete("view");
       window.history.pushState({}, "", url);
     } catch (e) {}
     await loadAllData(slug);
+    // Explorer browsing is always strictly client persona
+    setAppMode("client");
     setActiveTab("boutique");
     showToast("Boutique chargée avec succès !");
   };
@@ -655,6 +800,7 @@ export default function App() {
     try {
       const url = new URL(window.location);
       url.searchParams.delete("store");
+      url.searchParams.delete("view");
       window.history.pushState({}, "", url);
     } catch (e) {}
     loadPublicStores();
@@ -662,6 +808,10 @@ export default function App() {
 
   const handleStoreRegistered = async (result, openAdmin = true) => {
     if (result?.slug) {
+      const storeIds = result.store_ids || (result.store_id ? [result.store_id] : []);
+      const storeSlugs = result.store_slugs || (result.slug ? [result.slug] : []);
+      const ownedStores = result.owned_stores || [{ id: result.store_id, slug: result.slug, name: result.store_name }];
+
       if (result.access_token) {
         setAuthToken(result.access_token);
         setAuthStatus({
@@ -669,6 +819,10 @@ export default function App() {
           must_change_password: Boolean(result.must_change_password),
           owner_name: result.owner?.full_name || result.store_name,
           email: result.owner?.email,
+          role: "merchant",
+          store_ids: storeIds,
+          store_slugs: storeSlugs,
+          owned_stores: ownedStores,
         });
       }
       await handleSwitchStore(result.slug, openAdmin);
@@ -722,6 +876,41 @@ export default function App() {
           onOpenOwnerLogin={() => setIsLoginOpen(true)}
           onOpenSuperAdmin={() => setIsSuperAdminOpen(true)}
           lastVisitedStore={lastVisitedStore}
+          authStatus={authStatus}
+          onLogoutCustomer={() => {
+            clearCustomerToken();
+            setCustomer(null);
+            setClientOrdersCount(0);
+            showToast("Déconnexion client réussie");
+          }}
+          onLogoutMerchant={handleLogout}
+          onNavigateToOrders={() => {
+            const targetSlug = lastVisitedStore?.slug || publicStores[0]?.slug;
+            if (targetSlug) {
+              handleSwitchStore(targetSlug, false);
+            }
+            setActiveTab("commandes");
+          }}
+          onNavigateToProfile={() => {
+            const targetSlug = lastVisitedStore?.slug || publicStores[0]?.slug;
+            if (targetSlug) {
+              handleSwitchStore(targetSlug, false);
+            }
+            setActiveTab("reglages");
+          }}
+          onGoToMerchantDashboard={() => {
+            const mySlug =
+              authStatus?.store_slugs?.[0] ||
+              authStatus?.owned_stores?.[0]?.slug ||
+              safeStorage.getItem("conversastore_owner_store_slug");
+            if (mySlug) {
+              handleSwitchStore(mySlug, true);
+            } else if (store?.slug && isCurrentStoreOwner) {
+              handleSwitchStore(store.slug, true);
+            } else {
+              setIsLoginOpen(true);
+            }
+          }}
         />
 
         {/* Customer Login / Register Modal */}
@@ -793,9 +982,12 @@ export default function App() {
         activeTab={activeTab}
         onShare={handleShare}
         onNavigate={handleSelectTab}
-        mode={appMode}
+        mode={effectiveAppMode}
         onToggleMode={handleToggleMode}
         authStatus={authStatus}
+        isCurrentStoreOwner={isCurrentStoreOwner}
+        onGoToMyStore={handleGoToMyStore}
+        myStoreSlug={authStatus?.store_slugs?.[0] || safeStorage.getItem("conversastore_owner_store_slug")}
         customer={customer}
         onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
         onOpenLogin={() => setIsLoginOpen(true)}
@@ -817,7 +1009,7 @@ export default function App() {
       {/* Main Screen Container */}
       <main className={`flex flex-col relative w-full pt-16 bg-surface flex-grow ${activeTab === "chat" ? "max-w-4xl px-2 sm:px-4" : "max-w-lg px-margin"} mx-auto`}>
         {/* Merchant Decision Support & Operational Priorities */}
-        {appMode === "owner" && (activeTab === "commandes" || activeTab === "stats") && (
+        {effectiveAppMode === "owner" && isCurrentStoreOwner && (activeTab === "commandes" || activeTab === "stats") && (
           <div className="w-full pt-2">
             <DecisionSupportWidget
               store={store}
@@ -850,7 +1042,8 @@ export default function App() {
             onCheckoutCart={handleCheckoutCart}
             showToast={showToast}
             customer={customer}
-            mode={appMode}
+            mode={effectiveAppMode}
+            isCurrentStoreOwner={isCurrentStoreOwner}
             onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
             onProductUpdated={handleProductUpdated}
             onProductDeleted={handleProductDeleted}
@@ -885,7 +1078,7 @@ export default function App() {
 
         {/* Tab 2: Commandes */}
         {activeTab === "commandes" && (
-          appMode === "owner" ? (
+          effectiveAppMode === "owner" && isCurrentStoreOwner ? (
             <CommandesPage
               store={store}
               categories={categories}
@@ -911,7 +1104,7 @@ export default function App() {
             store={store}
             customer={customer}
             initialConversationId={activeConversationId}
-            appMode={appMode}
+            appMode={effectiveAppMode}
             onClose={() => setActiveTab("boutique")}
             showToast={showToast}
             onNavigateToOrder={() => {
@@ -922,7 +1115,7 @@ export default function App() {
 
         {/* Tab 3: Stats / Avantages */}
         {activeTab === "stats" && (
-          appMode === "owner" ? (
+          effectiveAppMode === "owner" && isCurrentStoreOwner ? (
             <StatsPage
               store={store}
               showToast={showToast}
@@ -942,7 +1135,7 @@ export default function App() {
 
         {/* Tab 4: Réglages / Profil */}
         {activeTab === "reglages" && (
-          appMode === "owner" ? (
+          effectiveAppMode === "owner" && isCurrentStoreOwner ? (
             <ReglagesPage
               store={store}
               channels={channels}
@@ -996,7 +1189,7 @@ export default function App() {
         <BottomNav
           activeTab={activeTab}
           onSelectTab={handleSelectTab}
-          mode={appMode}
+          mode={effectiveAppMode}
           pendingCount={3}
           clientOrdersCount={clientOrdersCount}
           unreadChatCount={unreadChatCount}
@@ -1036,7 +1229,7 @@ export default function App() {
       />
 
       {/* Mandatory Strong Password Change Modal */}
-      {(isChangePasswordOpen || (authStatus.is_authenticated && authStatus.must_change_password && appMode === "owner" && (activeTab === "commandes" || activeTab === "stats" || activeTab === "reglages"))) && (
+      {(isChangePasswordOpen || (authStatus.is_authenticated && authStatus.must_change_password && effectiveAppMode === "owner" && (activeTab === "commandes" || activeTab === "stats" || activeTab === "reglages"))) && (
         <ChangePasswordModal
           isMandatory={authStatus.must_change_password}
           onClose={() => setIsChangePasswordOpen(false)}
@@ -1082,7 +1275,7 @@ export default function App() {
       <NotificationDrawer
         isOpen={isNotificationDrawerOpen}
         onClose={() => setIsNotificationDrawerOpen(false)}
-        mode={appMode}
+        mode={effectiveAppMode}
         customer={customer}
         store={store}
         onNavigateAction={handleNavigateAction}

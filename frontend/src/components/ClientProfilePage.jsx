@@ -157,12 +157,18 @@ export default function ClientProfilePage({
               {avatarPreview ? (
                 <img
                   src={avatarPreview.startsWith("data:") ? avatarPreview : getMediaUrl(avatarPreview)}
-                  alt="Avatar"
+                  alt=""
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.style.display = "none";
+                    if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+                  }}
                 />
-              ) : (
+              ) : null}
+              <div className={`w-full h-full flex items-center justify-center ${avatarPreview ? "hidden" : "flex"}`}>
                 <Icon name="person" className="text-[32px]" />
-              )}
+              </div>
             </div>
             <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
               <Icon name="photo_camera" className="text-[20px]" />

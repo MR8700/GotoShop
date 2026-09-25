@@ -15,16 +15,24 @@ export default function StoreExplorerPage({
   onOpenOwnerLogin,
   onOpenSuperAdmin,
   lastVisitedStore,
+  authStatus,
+  onLogoutCustomer,
+  onLogoutMerchant,
+  onNavigateToOrders,
+  onNavigateToProfile,
+  onGoToMerchantDashboard,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const [showReturnBubble, setShowReturnBubble] = useState(true);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const itemsPerPage = 12;
 
   // Filter categories
   const filterOptions = [
     { id: "ALL", label: "Toutes les Boutiques", icon: "storefront" },
+    { id: "RECENT", label: "Boutiques Récentes ⚡", icon: "bolt" },
     { id: "BURKINA", label: "Burkina Faso 🇧🇫", icon: "location_on" },
     { id: "CI", label: "Côte d'Ivoire 🇨🇮", icon: "location_on" },
     { id: "MALI", label: "Mali 🇲🇱", icon: "location_on" },
@@ -55,6 +63,15 @@ export default function StoreExplorerPage({
       const cityLower = (st.delivery_city || "").toLowerCase();
       const nameLower = (st.name || "").toLowerCase();
       const tagLower = (st.tagline || "").toLowerCase();
+
+      if (selectedFilter === "RECENT") {
+        if (st.created_at) {
+          const storeDate = new Date(st.created_at);
+          const diffDays = (Date.now() - storeDate.getTime()) / (1000 * 60 * 60 * 24);
+          if (diffDays <= 30) return true;
+        }
+        return Boolean(st.is_new || String(st.id).startsWith("store-") || st.badge === "NEW");
+      }
 
       if (selectedFilter === "BURKINA") {
         return (
@@ -155,8 +172,17 @@ export default function StoreExplorerPage({
       {/* Top Header */}
       <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-subtle px-4 sm:px-6">
         <div className="max-w-5xl mx-auto h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="w-9 h-9 rounded-xl bg-surface-container border border-slate-300 dark:border-slate-700 p-0.5 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+          <div
+            onClick={() => {
+              setSearchQuery("");
+              setSelectedFilter("ALL");
+              setCurrentPage(1);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group"
+            title="Accueil GotoShop"
+          >
+            <div className="w-9 h-9 rounded-xl bg-surface-container border border-slate-300 dark:border-slate-700 p-0.5 shadow-xs flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform">
               <img
                 src="/media/store/logo.png"
                 alt="Logo GotoShop"
@@ -169,31 +195,255 @@ export default function StoreExplorerPage({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-base sm:text-lg text-on-surface tracking-tight">GotoShop</span>
+                <span className="font-bold text-base sm:text-lg text-on-surface tracking-tight group-hover:text-primary transition-colors">GotoShop</span>
               </div>
             </div>
           </div>
 
           {/* User Auth & Actions */}
-          <div className="flex items-center gap-2.5 sm:gap-3.5 ml-auto">
-            {customer ? (
-              <div className="flex items-center gap-2 bg-surface-secondary border border-subtle px-3 py-1.5 rounded-xl">
-                <div className="w-7 h-7 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
-                  {customer.name ? customer.name.charAt(0).toUpperCase() : "C"}
-                </div>
-                <span className="text-xs font-medium text-on-surface hidden sm:inline max-w-[120px] truncate">
-                  {customer.name}
-                </span>
-              </div>
-            ) : (
-              <button
-                onClick={onOpenCustomerAuth}
-                className="h-8.5 sm:h-9.5 px-3 sm:px-3.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface text-xs font-medium border border-subtle transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <Icon name="account_circle" className="text-[20px] sm:text-[22px] text-primary" />
-                <span>Connexion</span>
-              </button>
-            )}
+          <div className="flex items-center gap-2.5 sm:gap-3.5 ml-auto relative">
+            {/* Interactive Profile Button & Dropdown */}
+            <div className="relative">
+              {customer ? (
+                <button
+                  type="button"
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className={`flex items-center gap-2 bg-surface-secondary hover:bg-surface-container-highest border px-2.5 sm:px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    isProfileMenuOpen ? "border-primary ring-2 ring-primary/20 bg-surface-container-highest" : "border-subtle"
+                  }`}
+                  title="Mon Profil & Commandes"
+                  aria-expanded={isProfileMenuOpen}
+                >
+                  <div className="w-7 h-7 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                    {customer.name ? customer.name.charAt(0).toUpperCase() : "C"}
+                  </div>
+                  <span className="text-xs font-medium text-on-surface hidden sm:inline max-w-[120px] truncate">
+                    {customer.name}
+                  </span>
+                  <Icon
+                    name={isProfileMenuOpen ? "expand_less" : "expand_more"}
+                    className="text-[16px] text-on-surface-variant transition-transform"
+                  />
+                </button>
+              ) : authStatus?.is_authenticated ? (
+                <button
+                  type="button"
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className={`flex items-center gap-2 bg-surface-secondary hover:bg-surface-container-highest border px-2.5 sm:px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    isProfileMenuOpen ? "border-secondary ring-2 ring-secondary/20" : "border-subtle"
+                  }`}
+                  title="Espace Commerçante"
+                  aria-expanded={isProfileMenuOpen}
+                >
+                  <div className="w-7 h-7 rounded-lg bg-secondary/20 text-secondary flex items-center justify-center text-xs font-bold shrink-0">
+                    {authStatus.owner_name ? authStatus.owner_name.charAt(0).toUpperCase() : "M"}
+                  </div>
+                  <span className="text-xs font-medium text-on-surface hidden sm:inline max-w-[120px] truncate">
+                    {authStatus.owner_name || "Commerçante"}
+                  </span>
+                  <Icon
+                    name={isProfileMenuOpen ? "expand_less" : "expand_more"}
+                    className="text-[16px] text-on-surface-variant"
+                  />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className={`h-8.5 sm:h-9.5 px-3 sm:px-3.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface text-xs font-medium border transition-all flex items-center gap-2 cursor-pointer ${
+                    isProfileMenuOpen ? "border-primary ring-2 ring-primary/20" : "border-subtle"
+                  }`}
+                  title="Compte & Connexion"
+                >
+                  <Icon name="account_circle" className="text-[20px] sm:text-[22px] text-primary" />
+                  <span>Connexion</span>
+                  <Icon name={isProfileMenuOpen ? "expand_less" : "expand_more"} className="text-[15px] text-on-surface-variant -ml-1" />
+                </button>
+              )}
+
+              {/* Dropdown Menu Modal / Popover */}
+              {isProfileMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-64 sm:w-72 bg-surface border border-subtle rounded-2xl shadow-xl p-2 z-50 text-xs animate-fade-in divide-y divide-subtle">
+                    {/* Header info */}
+                    <div className="p-2.5 pb-3">
+                      {customer ? (
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary font-bold text-base flex items-center justify-center shrink-0">
+                            {customer.name ? customer.name.charAt(0).toUpperCase() : "C"}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-sm text-on-surface truncate">{customer.name}</p>
+                            <p className="text-[11px] text-on-surface-variant truncate">
+                              {customer.phone || customer.email || "Compte Client"}
+                            </p>
+                            <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                              Client Connecté 🟢
+                            </span>
+                          </div>
+                        </div>
+                      ) : authStatus?.is_authenticated ? (
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-secondary/20 text-secondary font-bold text-base flex items-center justify-center shrink-0">
+                            {authStatus.owner_name ? authStatus.owner_name.charAt(0).toUpperCase() : "M"}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-sm text-on-surface truncate">{authStatus.owner_name || "Commerçante"}</p>
+                            <p className="text-[11px] text-on-surface-variant truncate">{authStatus.email || "Propriétaire boutique"}</p>
+                            <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                              Espace Gestion Commerçant
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Icon name="account_circle" className="text-xl text-primary" />
+                            <p className="font-bold text-sm text-on-surface">Bienvenue sur GotoShop</p>
+                          </div>
+                          <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                            Accédez à vos commandes, vos favoris et à la gestion de vos boutiques.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Navigation Actions */}
+                    <div className="py-1.5 space-y-0.5">
+                      {customer && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsProfileMenuOpen(false);
+                              if (onNavigateToOrders) onNavigateToOrders();
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface font-medium transition-colors cursor-pointer"
+                          >
+                            <Icon name="receipt_long" className="text-[18px] text-primary" />
+                            <span>Mes Commandes &amp; Achats</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsProfileMenuOpen(false);
+                              if (onNavigateToProfile) onNavigateToProfile();
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface font-medium transition-colors cursor-pointer"
+                          >
+                            <Icon name="manage_accounts" className="text-[18px] text-secondary" />
+                            <span>Mon Profil &amp; Adresses</span>
+                          </button>
+                        </>
+                      )}
+
+                      {!customer && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            onOpenCustomerAuth();
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 flex items-center gap-2.5 text-primary font-semibold transition-colors cursor-pointer"
+                        >
+                          <Icon name="login" className="text-[18px]" />
+                          <span>Connexion Client (3 secondes)</span>
+                        </button>
+                      )}
+
+                      {authStatus?.is_authenticated ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            if (onGoToMerchantDashboard) onGoToMerchantDashboard();
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface font-medium transition-colors cursor-pointer"
+                        >
+                          <Icon name="dashboard" className="text-[18px] text-secondary" />
+                          <span>Tableau de bord Commerçant</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            onOpenOwnerLogin();
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface font-medium transition-colors cursor-pointer"
+                        >
+                          <Icon name="admin_panel_settings" className="text-[18px] text-on-surface-variant" />
+                          <span>Accès Espace Commerçant</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          onOpenRegisterStore();
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface font-medium transition-colors cursor-pointer"
+                      >
+                        <Icon name="add_business" className="text-[18px] text-amber-500" />
+                        <span>Créer une nouvelle boutique</span>
+                      </button>
+
+                      {onOpenSuperAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            onOpenSuperAdmin();
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+                        >
+                          <Icon name="shield_person" className="text-[18px]" />
+                          <span>Console SuperAdmin</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Logout actions */}
+                    {(customer || authStatus?.is_authenticated) && (
+                      <div className="pt-1.5 space-y-0.5">
+                        {customer && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsProfileMenuOpen(false);
+                              if (onLogoutCustomer) onLogoutCustomer();
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-red-500/10 flex items-center gap-2.5 text-red-500 font-medium transition-colors cursor-pointer"
+                          >
+                            <Icon name="logout" className="text-[18px]" />
+                            <span>Déconnexion compte client</span>
+                          </button>
+                        )}
+                        {authStatus?.is_authenticated && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsProfileMenuOpen(false);
+                              if (onLogoutMerchant) onLogoutMerchant();
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-xl hover:bg-red-500/10 flex items-center gap-2.5 text-red-500 font-medium transition-colors cursor-pointer"
+                          >
+                            <Icon name="power_settings_new" className="text-[18px]" />
+                            <span>Déconnexion commerçant</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
 
             <button
               onClick={onOpenRegisterStore}
@@ -386,6 +636,13 @@ export default function StoreExplorerPage({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {paginatedStores.map((st) => {
               const stCtx = getBusinessContext(st);
+              const isRecent = Boolean(
+                (st.created_at && (Date.now() - new Date(st.created_at).getTime()) / (1000 * 60 * 60 * 24) <= 14) ||
+                st.is_new ||
+                String(st.id).startsWith("store-") ||
+                st.badge === "NEW"
+              );
+
               return (
                 <div
                   key={st.id}
@@ -427,11 +684,17 @@ export default function StoreExplorerPage({
 
                         {/* Title, Location & Domain badge */}
                         <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 mb-1">
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold flex items-center gap-1">
                               <Icon name={stCtx.icon} className="text-[10px]" />
                               <span>{stCtx.terms.domain_label}</span>
                             </span>
+                            {isRecent && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 border border-amber-500/30">
+                                <Icon name="bolt" className="text-[11px]" />
+                                <span>Boutique récente</span>
+                              </span>
+                            )}
                           </div>
                           <h3 className="font-semibold text-base text-on-surface group-hover:text-primary transition-colors truncate">
                             {st.name}

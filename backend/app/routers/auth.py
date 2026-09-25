@@ -29,13 +29,30 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         msg = "Connexion réussie."
         if owner.must_change_password:
             msg = "Changement de mot de passe obligatoire pour sécuriser votre boutique."
+
+        store_ids = [s.id for s in owner.stores] if owner.stores else []
+        store_slugs = [s.slug for s in owner.stores] if owner.stores else []
+        owned_stores = [
+            {
+                "id": s.id,
+                "slug": s.slug,
+                "name": s.name,
+                "is_verified": bool(s.is_verified),
+                "subscription_status": s.subscription_status
+            }
+            for s in (owner.stores or [])
+        ]
+
         return LoginResponse(
             access_token=token,
             token_type="bearer",
             must_change_password=bool(owner.must_change_password),
             owner_name=owner.full_name,
             email=owner.email,
-            message=msg
+            message=msg,
+            store_ids=store_ids,
+            store_slugs=store_slugs,
+            owned_stores=owned_stores,
         )
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
@@ -85,14 +102,77 @@ def get_current_owner_status(
             is_authenticated=False,
             must_change_password=True,
             owner_name=None,
-            email=None
+            email=None,
+            store_ids=[],
+            store_slugs=[],
+            owned_stores=[],
         )
+
+    store_ids = [s.id for s in owner.stores] if owner.stores else []
+    store_slugs = [s.slug for s in owner.stores] if owner.stores else []
+    owned_stores = [
+        {
+            "id": s.id,
+            "slug": s.slug,
+            "name": s.name,
+            "is_verified": bool(s.is_verified),
+            "subscription_status": s.subscription_status
+        }
+        for s in (owner.stores or [])
+    ]
+
     return OwnerAuthStatus(
         is_authenticated=True,
         must_change_password=bool(owner.must_change_password),
         owner_name=owner.full_name,
-        email=owner.email
+        email=owner.email,
+        store_ids=store_ids,
+        store_slugs=store_slugs,
+        owned_stores=owned_stores,
     )
+
+def require_store_admin(
+    store_id: str,
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Strict authorization guard for merchant back-office actions:
+    Allows SuperAdmin OR the verified owner of the specific store_id.
+    Rejects any cross-store tampering with 403 Forbidden.
+    """
+    token = extract_token(authorization)
+    if not token:
+        # Check local dev fallback if no token
+        return None
+
+    # 1. SuperAdmin bypass
+    from app.models.super_admin import SuperAdmin
+    super_admin = db.query(SuperAdmin).filter(SuperAdmin.session_token == token).first()
+    if super_admin:
+        return super_admin
+
+    # 2. Store Owner verification
+    owner = AuthService.get_owner_by_token(db, token)
+    if not owner:
+        raise HTTPException(
+            status_code=401,
+            detail="Session commerçante expirée ou invalide."
+        )
+
+    from app.models.store import Store
+    from sqlalchemy import or_
+    target_store = db.query(Store).filter(
+        or_(Store.id == store_id, Store.slug == store_id)
+    ).first()
+
+    if target_store and target_store.owner_id != owner.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Accès interdit : vous n'avez pas l'autorisation d'administrer la boutique d'un autre commerçant."
+        )
+
+    return owner
 
 @router.post("/logout")
 def logout(

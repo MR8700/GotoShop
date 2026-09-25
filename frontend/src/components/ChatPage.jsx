@@ -868,11 +868,21 @@ export default function ChatPage({
                 >
                   <div className="relative shrink-0">
                     <div className="w-11 h-11 rounded-full bg-surface-elevated border border-border flex items-center justify-center font-bold text-sm text-primary overflow-hidden">
-                      {c.store_avatar_url ? (
-                        <img src={getMediaUrl(c.store_avatar_url)} alt="Logo" className="w-full h-full object-cover" />
-                      ) : (
-                        c.store_name?.charAt(0) || "B"
-                      )}
+                      {c.store_logo_url || c.store_avatar_url ? (
+                        <img
+                          src={getMediaUrl(c.store_logo_url || c.store_avatar_url)}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = "none";
+                            if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <span className={`w-full h-full flex items-center justify-center ${c.store_logo_url || c.store_avatar_url ? "hidden" : "flex"}`}>
+                        {c.store_name?.charAt(0) || "B"}
+                      </span>
                     </div>
                     {c.unread_count > 0 && (
                       <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center border-2 border-surface">
@@ -948,15 +958,21 @@ export default function ChatPage({
 
                 <div className="relative">
                   <div className="w-10 h-10 rounded-full bg-surface-elevated border border-border flex items-center justify-center font-bold text-sm text-primary overflow-hidden">
-                    {activeConv.store?.avatar_url ? (
+                    {activeConv.store?.logo_url || activeConv.store?.avatar_url ? (
                       <img
-                        src={getMediaUrl(activeConv.store.avatar_url)}
-                        alt="Logo"
+                        src={getMediaUrl(activeConv.store.logo_url || activeConv.store.avatar_url)}
+                        alt=""
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = "none";
+                          if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+                        }}
                       />
-                    ) : (
-                      activeConv.store?.name?.charAt(0) || "B"
-                    )}
+                    ) : null}
+                    <span className={`w-full h-full flex items-center justify-center ${activeConv.store?.logo_url || activeConv.store?.avatar_url ? "hidden" : "flex"}`}>
+                      {activeConv.store?.name?.charAt(0) || "B"}
+                    </span>
                   </div>
                   <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-surface" />
                 </div>
@@ -1531,11 +1547,21 @@ export default function ChatPage({
             {/* Store Card */}
             <div className="p-3.5 bg-surface-elevated/50 rounded-xl border border-border space-y-2 text-center">
               <div className="w-14 h-14 rounded-full bg-surface border border-border mx-auto flex items-center justify-center text-primary font-bold overflow-hidden">
-                {activeConv.store?.avatar_url ? (
-                  <img src={getMediaUrl(activeConv.store.avatar_url)} alt="Logo" className="w-full h-full object-cover" />
-                ) : (
-                  activeConv.store?.name?.charAt(0) || "B"
-                )}
+                {activeConv.store?.logo_url || activeConv.store?.avatar_url ? (
+                  <img
+                    src={getMediaUrl(activeConv.store.logo_url || activeConv.store.avatar_url)}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.style.display = "none";
+                      if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+                    }}
+                  />
+                ) : null}
+                <span className={`w-full h-full flex items-center justify-center ${activeConv.store?.logo_url || activeConv.store?.avatar_url ? "hidden" : "flex"}`}>
+                  {activeConv.store?.name?.charAt(0) || "B"}
+                </span>
               </div>
               <div>
                 <h4 className="font-bold text-sm text-foreground">{activeConv.store?.name}</h4>

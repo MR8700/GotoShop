@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -53,6 +53,8 @@ class StoreUpdateSchema(BaseModel):
     owner_bio: Optional[str] = None
     avatar_data: Optional[str] = None # base64 data URL
     avatar_url: Optional[str] = None
+    logo_data: Optional[str] = None # base64 data URL
+    logo_url: Optional[str] = None
     currency: Optional[str] = None
     flash_title: Optional[str] = None
     flash_subtitle: Optional[str] = None
@@ -113,6 +115,7 @@ class StoreDetailSchema(BaseModel):
     trust_badges: List[TrustBadgeSchema] = []
     delivery_cities: List[DeliveryCitySchema] = []
     loyalty_tiers: List[LoyaltyTierSchema] = []
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -128,6 +131,8 @@ class StoreRegisterRequest(BaseModel):
     locality: Optional[str] = None
     category_name: Optional[str] = "Mode & Accessoires"
     tagline: Optional[str] = None
+    logo_data: Optional[str] = None
+    logo_url: Optional[str] = None
     plan_code: Optional[str] = "STARTER"
     operator_code: Optional[str] = "ORANGE"
     payment_proof_data: Optional[str] = None
@@ -152,3 +157,6 @@ class StoreRegisterResponse(BaseModel):
     must_change_password: bool = False
     subscription_status: str = "TRIAL"
     trial_days: int = 14
+    store_ids: List[str] = []
+    store_slugs: List[str] = []
+    owned_stores: List[Dict[str, Any]] = []

@@ -12,6 +12,9 @@ export default function Header({
   mode = "client",
   onToggleMode,
   authStatus,
+  isCurrentStoreOwner = false,
+  onGoToMyStore,
+  myStoreSlug,
   customer,
   onOpenCustomerAuth,
   onOpenLogin,
@@ -88,10 +91,14 @@ export default function Header({
                 src={getMediaUrl(store?.logo_url) || "/media/store/logo.jpg"}
                 onError={(e) => {
                   e.target.onerror = null;
-                  e.target.src = "/media/store/logo.jpg";
+                  e.target.style.display = "none";
+                  if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
                 }}
                 className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 object-cover rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-container shadow-xs group-hover:border-primary/40 transition-all"
               />
+              <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-primary/10 text-primary hidden items-center justify-center font-bold text-xs">
+                {store?.name ? store.name.charAt(0).toUpperCase() : "G"}
+              </div>
               <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-secondary ring-2 ring-surface" />
             </div>
 
@@ -133,8 +140,8 @@ export default function Header({
               </button>
             )}
 
-            {/* Persona mode toggle when owner authenticated */}
-            {authStatus?.is_authenticated && (
+            {/* Persona mode toggle ONLY when owner authenticated AND owns this store */}
+            {authStatus?.is_authenticated && isCurrentStoreOwner && (
               <button
                 onClick={onToggleMode}
                 className={`h-8.5 sm:h-9.5 px-2.5 sm:px-3 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all active:scale-95 border cursor-pointer ${
@@ -189,10 +196,14 @@ export default function Header({
                     src={getMediaUrl(store?.avatar_url) || "/media/store/awa_portrait.jpg"}
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.src = "/media/store/awa_portrait.jpg";
+                      e.target.style.display = "none";
+                      if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
                     }}
                     className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-lg object-cover"
                   />
+                  <div className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-lg bg-secondary/20 text-secondary hidden items-center justify-center font-bold text-xs">
+                    {authStatus?.owner_name ? authStatus.owner_name.charAt(0).toUpperCase() : "M"}
+                  </div>
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-secondary ring-1 ring-surface" />
                 </button>
 
@@ -200,42 +211,66 @@ export default function Header({
                   <div className="absolute right-0 mt-2 w-56 bg-surface border border-subtle rounded-2xl shadow-dropdown p-1.5 z-50 text-xs animate-fade-in divide-y divide-subtle">
                     <div className="px-3 py-2">
                       <p className="font-semibold text-on-surface truncate">{authStatus.owner_name || "Commerçante"}</p>
-                      <p className="text-[11px] text-secondary font-medium">Propriétaire boutique</p>
+                      <p className="text-[11px] text-secondary font-medium">
+                        {isCurrentStoreOwner ? "Gérant de cette boutique" : "Commerçant GotoShop"}
+                      </p>
+                      {!isCurrentStoreOwner && (
+                        <span className="inline-block mt-1 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                          Visite en tant que client
+                        </span>
+                      )}
                     </div>
 
                     <div className="py-1 space-y-0.5">
-                      <button
-                        onClick={() => {
-                          setShowProfileMenu(false);
-                          onToggleMode();
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
-                      >
-                        <Icon name={mode === "owner" ? "smartphone" : "store"} className="text-[16px] text-secondary" />
-                        <span>{mode === "owner" ? "Passer en vue client" : "Passer en gestion"}</span>
-                      </button>
+                      {isCurrentStoreOwner ? (
+                        <button
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            onToggleMode();
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
+                        >
+                          <Icon name={mode === "owner" ? "smartphone" : "store"} className="text-[16px] text-secondary" />
+                          <span>{mode === "owner" ? "Passer en vue client" : "Passer en gestion"}</span>
+                        </button>
+                      ) : onGoToMyStore ? (
+                        <button
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            onGoToMyStore();
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl bg-secondary/10 hover:bg-secondary/20 flex items-center gap-2 text-secondary font-semibold"
+                        >
+                          <Icon name="storefront" className="text-[16px]" />
+                          <span>Accéder à ma boutique</span>
+                        </button>
+                      ) : null}
 
-                      <button
-                        onClick={() => {
-                          setShowProfileMenu(false);
-                          if (onOpenQrModal) onOpenQrModal();
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
-                      >
-                        <Icon name="qr_code_2" className="text-[16px] text-primary" />
-                        <span>QR Code &amp; Impression</span>
-                      </button>
+                      {isCurrentStoreOwner && onOpenQrModal && (
+                        <button
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            onOpenQrModal();
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
+                        >
+                          <Icon name="qr_code_2" className="text-[16px] text-primary" />
+                          <span>QR Code &amp; Impression</span>
+                        </button>
+                      )}
 
-                      <button
-                        onClick={() => {
-                          setShowProfileMenu(false);
-                          if (onOpenSubscription) onOpenSubscription();
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
-                      >
-                        <Icon name="workspace_premium" className="text-[16px] text-amber-500" />
-                        <span>Abonnement SaaS</span>
-                      </button>
+                      {isCurrentStoreOwner && onOpenSubscription && (
+                        <button
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            onOpenSubscription();
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
+                        >
+                          <Icon name="workspace_premium" className="text-[16px] text-amber-500" />
+                          <span>Abonnement SaaS</span>
+                        </button>
+                      )}
 
                       <button
                         onClick={() => {
@@ -389,6 +424,19 @@ export default function Header({
                       <Icon name="add_business" className="text-[16px]" />
                       <span>Ouvrir ma boutique</span>
                     </button>
+
+                    {authStatus?.is_authenticated && !isCurrentStoreOwner && onGoToMyStore && (
+                      <button
+                        onClick={() => {
+                          setShowToolsMenu(false);
+                          onGoToMyStore();
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl bg-secondary/10 hover:bg-secondary/20 flex items-center gap-2.5 text-secondary font-semibold transition-colors"
+                      >
+                        <Icon name="storefront" className="text-[16px]" />
+                        <span>Accéder à ma boutique</span>
+                      </button>
+                    )}
 
                     {!authStatus?.is_authenticated && (
                       <button

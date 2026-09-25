@@ -77,8 +77,19 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Produit introuvable")
     return product
 
+from app.routers.auth import require_store_admin
+
 @router.post("/products", response_model=ProductSchema)
-def create_product(req: ProductCreateSchema, db: Session = Depends(get_db)):
+def create_product(
+    req: ProductCreateSchema,
+    authorization: Optional[str] = Header(None),
+    x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
+    store_slug: Optional[str] = Query(None, alias="store"),
+    db: Session = Depends(get_db)
+):
+    target_store_ref = req.store_id or x_store_slug or store_slug
+    if target_store_ref:
+        require_store_admin(target_store_ref, authorization, db)
     try:
         product = CatalogService.create_product(db, req)
         return product
@@ -86,14 +97,30 @@ def create_product(req: ProductCreateSchema, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.put("/products/{product_id}", response_model=ProductSchema)
-def update_product(product_id: str, req: ProductUpdateSchema, db: Session = Depends(get_db)):
-    product = CatalogService.update_product(db, product_id, req)
-    if not product:
+def update_product(
+    product_id: str,
+    req: ProductUpdateSchema,
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    existing = CatalogService.get_product_by_id(db, product_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Produit introuvable")
+    require_store_admin(existing.store_id, authorization, db)
+    product = CatalogService.update_product(db, product_id, req)
     return product
 
 @router.delete("/products/{product_id}")
-def delete_product(product_id: str, hard: bool = Query(False), db: Session = Depends(get_db)):
+def delete_product(
+    product_id: str,
+    hard: bool = Query(False),
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    existing = CatalogService.get_product_by_id(db, product_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Produit introuvable")
+    require_store_admin(existing.store_id, authorization, db)
     success = CatalogService.delete_product(db, product_id, hard=hard)
     if not success:
         raise HTTPException(status_code=404, detail="Produit introuvable")

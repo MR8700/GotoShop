@@ -28,6 +28,8 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
   const [ownerBio, setOwnerBio] = useState(store?.owner_bio || "");
   const [avatarPreview, setAvatarPreview] = useState(store?.avatar_url || "");
   const [avatarData, setAvatarData] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(store?.logo_url || "");
+  const [logoData, setLogoData] = useState(null);
   const [flashTitle, setFlashTitle] = useState(store?.flash_title || "");
   const [flashSubtitle, setFlashSubtitle] = useState(store?.flash_subtitle || "");
   const [showRatingsPublicly, setShowRatingsPublicly] = useState(store?.show_ratings_publicly !== false);
@@ -110,7 +112,17 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
   useEffect(() => {
     loadTiers();
     loadSubStatus();
-  }, [store?.id]);
+    if (store) {
+      setName(store.name || "");
+      setTagline(store.tagline || "");
+      setCurrency(store.currency || "FCFA");
+      setOwnerBio(store.owner_bio || "");
+      setAvatarPreview(store.avatar_url || "");
+      setLogoPreview(store.logo_url || "");
+      setFlashTitle(store.flash_title || "");
+      setFlashSubtitle(store.flash_subtitle || "");
+    }
+  }, [store?.id, store?.logo_url, store?.avatar_url]);
 
   const handleAvatarFile = (file) => {
     if (!file) return;
@@ -145,6 +157,45 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
         setAvatarPreview(resized);
         setAvatarData(resized);
         showToast("Photo de profil sélectionnée (cliquez sur Enregistrer pour valider)");
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLogoFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 500;
+        const MAX_HEIGHT = 500;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const resized = canvas.toDataURL("image/jpeg", 0.9);
+        setLogoPreview(resized);
+        setLogoData(resized);
+        showToast("Logo de boutique sélectionné (cliquez sur Enregistrer pour valider)");
       };
       img.src = e.target.result;
     };
@@ -209,9 +260,13 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
       if (avatarData) {
         payload.avatar_data = avatarData;
       }
+      if (logoData) {
+        payload.logo_data = logoData;
+      }
       const updated = await updateStore(store.id, payload);
       if (onStoreUpdated) onStoreUpdated(updated);
       setAvatarData(null);
+      setLogoData(null);
       showToast("Profil et boutique enregistrés avec succès !");
     } catch (err) {
       showToast(err.message || "Erreur de sauvegarde");
@@ -345,6 +400,77 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
       </div>
 
       <form onSubmit={handleSaveStore} className="bg-surface-container rounded-xl p-space-md shadow-md space-y-4">
+        {/* Verification Status Banner */}
+        {store?.is_verified ? (
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-3">
+            <Icon name="verified" className="text-xl text-emerald-500 shrink-0 mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }} />
+            <div className="text-xs">
+              <p className="font-bold text-emerald-600 dark:text-emerald-400">Boutique Officiellement Vérifiée 🟢</p>
+              <p className="text-on-surface-variant mt-0.5">Votre vitrine est validée par l'administration et activement répertoriée dans la Galerie des Boutiques.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+            <Icon name="hourglass_top" className="text-xl text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+            <div className="text-xs">
+              <p className="font-bold text-amber-600 dark:text-amber-400">Boutique en Examen (&lt; 24h) ⏳</p>
+              <p className="text-on-surface-variant mt-0.5 leading-relaxed">
+                Votre boutique est en cours de validation par un administrateur GotoShop. Elle sera officiellement publiée dans la galerie et classée dans <strong>"Boutiques récentes"</strong> en moins de 24h. En attendant, configurez librement votre catalogue et vos réglages !
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Logo Officiel de la Boutique */}
+        <div className="p-3.5 rounded-xl bg-surface-container-high/60 border border-slate-300 dark:border-slate-700 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="font-label-sm text-label-sm text-primary font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <Icon name="storefront" className="text-[18px]" />
+              Logo Officiel de la Boutique
+            </span>
+            <span className="font-label-sm text-label-sm text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium">
+              Fortement Conseillé ⭐
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3.5">
+            <div className="relative group shrink-0">
+              <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-slate-300 dark:border-slate-700 bg-surface flex items-center justify-center shadow-md">
+                {logoPreview ? (
+                  <img
+                    src={logoPreview.startsWith("data:") ? logoPreview : getMediaUrl(logoPreview)}
+                    alt="Logo Boutique"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "/media/store/logo.jpg";
+                    }}
+                  />
+                ) : (
+                  <Icon name="storefront" className="text-3xl text-primary" />
+                )}
+              </div>
+              <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white rounded-xl opacity-90 group-hover:opacity-100 cursor-pointer transition-opacity">
+                <Icon name="add_photo_alternate" className="text-[18px]" />
+                <span className="text-[9px] font-bold">Changer</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && handleLogoFile(e.target.files[0])}
+                />
+              </label>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <p className="font-headline-sm text-sm text-on-surface">Logo de Vitrine &amp; Galerie</p>
+              <p className="font-body-sm text-xs text-on-surface-variant leading-tight mt-0.5">
+                Visible dans le répertoire des boutiques, en haut de votre vitrine et sur vos reçus.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Photo de profil & Bio Commerçante */}
         <div className="p-3.5 rounded-xl bg-surface-container-high/60 border border-primary/20 space-y-3">
           <div className="flex items-center justify-between">

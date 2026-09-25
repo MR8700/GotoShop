@@ -213,6 +213,13 @@ export async function registerMerchantStore(payload) {
       }
       if (data.slug) {
         setActiveStoreSlug(data.slug);
+        safeStorage.setItem("conversastore_owner_store_slug", data.slug);
+      }
+      if (data.store_id) {
+        safeStorage.setItem("conversastore_owner_store_id", data.store_id);
+      }
+      if (data.owned_stores) {
+        safeStorage.setItem("conversastore_owned_stores", JSON.stringify(data.owned_stores));
       }
       return data;
     }
@@ -520,6 +527,9 @@ export function setAuthToken(token) {
 
 export function clearAuthToken() {
   safeStorage.removeItem("conversastore_auth_token");
+  safeStorage.removeItem("conversastore_owner_store_slug");
+  safeStorage.removeItem("conversastore_owner_store_id");
+  safeStorage.removeItem("conversastore_owned_stores");
 }
 
 export async function resetOwnerCredentials() {
@@ -545,6 +555,15 @@ export async function loginOwner(identifier, password) {
   }
   if (data.access_token) {
     setAuthToken(data.access_token);
+    if (data.store_slugs && data.store_slugs.length > 0) {
+      safeStorage.setItem("conversastore_owner_store_slug", data.store_slugs[0]);
+    }
+    if (data.store_ids && data.store_ids.length > 0) {
+      safeStorage.setItem("conversastore_owner_store_id", data.store_ids[0]);
+    }
+    if (data.owned_stores) {
+      safeStorage.setItem("conversastore_owned_stores", JSON.stringify(data.owned_stores));
+    }
   }
   return data;
 }
@@ -1076,6 +1095,23 @@ export async function updateSuperAdminStoreStatus(storeId, payload) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur mise à jour statut boutique");
+  }
+  return res.json();
+}
+
+export async function verifySuperAdminStore(storeId, isVerified = true) {
+  const token = getSuperAdminToken();
+  const res = await fetch(`${API_BASE}/super-admin/stores/${storeId}/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ is_verified: isVerified }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur de validation de la boutique");
   }
   return res.json();
 }

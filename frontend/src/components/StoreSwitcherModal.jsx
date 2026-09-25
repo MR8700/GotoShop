@@ -140,15 +140,23 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
                     {/* Top row */}
                     <div className="flex items-start gap-3 min-w-0">
                       <div className="relative shrink-0">
-                        <img
-                          src={getMediaUrl(st.logo_url) || "/media/store/logo.jpg"}
-                          alt={st.name}
-                          className="w-11 h-11 rounded-lg object-cover border border-subtle bg-surface-secondary"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "/media/store/logo.jpg";
-                          }}
-                        />
+                        {st.logo_url ? (
+                          <img
+                            src={getMediaUrl(st.logo_url)}
+                            alt=""
+                            className="w-11 h-11 rounded-lg object-cover border border-subtle bg-surface-secondary"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.style.display = "none";
+                              if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className={`w-11 h-11 rounded-lg border border-subtle bg-primary/10 text-primary items-center justify-center font-bold text-sm ${st.logo_url ? "hidden" : "flex"}`}
+                        >
+                          {st.name?.charAt(0) || "B"}
+                        </div>
                         {st.is_verified && (
                           <span
                             className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-secondary text-white flex items-center justify-center text-[9px] font-bold shadow"

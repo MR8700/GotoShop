@@ -8,6 +8,7 @@ import {
   fetchSuperAdminStores,
   createSuperAdminStore,
   updateSuperAdminStoreStatus,
+  verifySuperAdminStore,
   impersonateStoreOwner,
   deleteSuperAdminStore,
   setActiveStoreSlug,
@@ -251,6 +252,23 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
     }
   };
 
+  const handleVerifyStore = async (st, verify = true) => {
+    const actionLabel = verify ? "valider et publier officiellement" : "retirer la validation de";
+    const ok = window.confirm(`Voulez-vous ${actionLabel} la boutique "${st.name}" ? Elle sera ${verify ? "visible sur la plateforme et classée dans Boutiques Récentes" : "masquée du catalogue public"}.`);
+    if (!ok) return;
+
+    setActionLoading(true);
+    try {
+      await verifySuperAdminStore(st.id, verify);
+      showToast(verify ? `Boutique "${st.name}" validée et publiée ! Elle apparaît dans les boutiques récentes.` : `Validation de "${st.name}" retirée.`);
+      await loadDashboardData();
+    } catch (e) {
+      alert(e.message || "Erreur lors de la validation de la boutique");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Subscription Handlers
   const handleApproveSubRequest = async (reqItem) => {
     const ok = window.confirm(
@@ -328,6 +346,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
   };
 
   const pendingRequestsCount = subRequests.filter((r) => r.status === "PENDING").length;
+  const pendingStoresCount = stores.filter((s) => !s.is_verified).length;
 
   const filteredRequests = subRequests.filter((r) => {
     if (subFilter !== "ALL" && r.status !== subFilter) return false;
@@ -354,6 +373,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
       s.owner_phone.toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchesSearch) return false;
     if (statusFilter === "ALL") return true;
+    if (statusFilter === "PENDING_VERIFICATION") return !s.is_verified;
     return s.subscription_status === statusFilter;
   });
 
@@ -609,7 +629,8 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
 
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
             {[
-              { key: "ALL", label: "Toutes" },
+              { key: "ALL", label: "Toutes les Boutiques" },
+              { key: "PENDING_VERIFICATION", label: `À Valider (< 24h) ⏳${pendingStoresCount > 0 ? ` (${pendingStoresCount})` : ""}`, highlight: pendingStoresCount > 0 },
               { key: "ACTIVE", label: "Actives" },
               { key: "TRIAL", label: "En Essai" },
               { key: "SUSPENDED", label: "Suspendues" },
@@ -617,13 +638,15 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
               <button
                 key={f.key}
                 onClick={() => setStatusFilter(f.key)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
                   statusFilter === f.key
                     ? "bg-amber-500 text-slate-950 font-bold"
+                    : f.highlight
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse"
                     : "bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800"
                 }`}
               >
-                {f.label}
+                <span>{f.label}</span>
               </button>
             ))}
           </div>
@@ -650,15 +673,40 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                 >
                   {/* Left: Brand Identity & Subdomain */}
                   <div className="flex items-start gap-3.5 min-w-[280px]">
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-inner shrink-0"
-                      style={{ backgroundColor: st.primary_color || "#ec761e" }}
-                    >
-                      {st.name ? st.name.charAt(0).toUpperCase() : "B"}
+                    <div className="relative w-12 h-12 rounded-xl border border-slate-700 bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
+                      {st.logo_url ? (
+                        <img
+                          src={getMediaUrl(st.logo_url)}
+                          alt={st.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = "none";
+                            if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className={`w-full h-full flex items-center justify-center font-black text-white text-base ${st.logo_url ? "hidden" : "flex"}`}
+                        style={{ backgroundColor: st.primary_color || "#ec761e" }}
+                      >
+                        {st.name ? st.name.charAt(0).toUpperCase() : "B"}
+                      </div>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-extrabold text-white text-sm">{st.name}</h4>
+                        {!st.is_verified ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 animate-pulse">
+                            <Icon name="hourglass_top" className="text-[12px]" />
+                            <span>En Examen (&lt; 24h)</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                            <Icon name="verified" className="text-[12px]" />
+                            <span>Validée</span>
+                          </span>
+                        )}
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                             isActive
@@ -722,6 +770,26 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto justify-end">
+                    {!st.is_verified ? (
+                      <button
+                        onClick={() => handleVerifyStore(st, true)}
+                        title="Valider et publier la boutique officiellement"
+                        className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                      >
+                        <Icon name="check_circle" className="text-sm" />
+                        <span>Valider &amp; Publier</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleVerifyStore(st, false)}
+                        title="Suspendre la validation publique"
+                        className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-400 hover:text-amber-400 transition border border-slate-700 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Icon name="block" className="text-sm" />
+                        <span className="hidden sm:inline">Dépublier</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => handleViewVitrine(st)}
                       title="Ouvrir la vitrine client"
