@@ -1230,6 +1230,7 @@ export default function App() {
           onOrderCreated={(order) => {
             setClientOrdersCount((prev) => prev + 1);
             loadUnreadChatCount();
+            handleSelectTab("commandes");
           }}
           onOpenChat={(convId) => {
             setConversationalOrderProduct(null);

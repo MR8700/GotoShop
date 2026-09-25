@@ -22,6 +22,7 @@ import {
   getMediaUrl,
 } from "../api/client";
 import { formatSalesQuantity } from "../utils/salesEngine";
+import MobileMoneyPaymentModal from "./MobileMoneyPaymentModal";
 
 export default function ChatPage({
   store,
@@ -71,9 +72,10 @@ export default function ChatPage({
   const remoteVideoRef = useRef(null);
   const callTimerRef = useRef(null);
 
-  // Payment proof modal
+  // Payment proof & Mobile Money modals
   const [previewMediaUrl, setPreviewMediaUrl] = useState(null);
   const [isPaymentProofModalOpen, setIsPaymentProofModalOpen] = useState(false);
+  const [isMobileMoneyModalOpen, setIsMobileMoneyModalOpen] = useState(false);
   const [paymentNote, setPaymentNote] = useState("");
   const [paymentFile, setPaymentFile] = useState(null);
 
@@ -1064,39 +1066,96 @@ export default function ChatPage({
 
             {/* Interactive Order Action Banners for Current State */}
             {activeConv.order && (
-              <div className="px-4 py-2 bg-surface-elevated/40 border-b border-border flex items-center justify-between gap-2 text-xs overflow-x-auto">
-                {/* 1. Merchant: Order Pending Acceptance */}
+              <div className="px-4 py-2.5 bg-surface-elevated/60 border-b border-border flex flex-col gap-2 text-xs">
+                {/* 1. Merchant: Order Pending Acceptance with GPS & 1-Click Accept */}
                 {isMerchant && activeConv.order.status === "PENDING_SELLER_ACCEPTANCE" && (
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-amber-500 font-bold">Nouvelle commande reçue !</span>
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 w-full">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-amber-500 font-bold flex items-center gap-1">
+                          <Icon name="hourglass_top" className="text-[16px] animate-pulse" />
+                          Nouvelle commande à valider : #{activeConv.order.order_number}
+                        </span>
+                        <span className="font-bold text-primary">
+                          ({activeConv.order.total_amount?.toLocaleString()} {activeConv.order.currency})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-foreground-muted flex-wrap">
+                        <span>📍 {activeConv.order.delivery_city || "Ouagadougou"} {activeConv.order.delivery_neighborhood || activeConv.order.delivery?.delivery_address ? `(${activeConv.order.delivery_neighborhood || activeConv.order.delivery?.delivery_address})` : ""}</span>
+                        {(activeConv.order.customer_location_url || activeConv.order.delivery?.maps_url) && (
+                          <a
+                            href={activeConv.order.customer_location_url || activeConv.order.delivery?.maps_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-secondary hover:underline font-bold inline-flex items-center gap-0.5"
+                          >
+                            <Icon name="pin_drop" className="text-[13px]" />
+                            <span>GPS Maps</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                       <button
                         onClick={() => handleRejectOrder(activeConv.order.id)}
-                        className="px-3 py-1 rounded-lg text-red-500 border border-red-500/30 hover:bg-red-500/10 font-bold text-xs"
+                        className="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-red-500 border border-red-500/30 hover:bg-red-500/10 font-bold text-xs transition-colors cursor-pointer"
                       >
                         Refuser
                       </button>
                       <button
                         onClick={() => handleAcceptOrder(activeConv.order.id)}
-                        className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold text-xs shadow-sm hover:bg-emerald-700"
+                        className="flex-1 sm:flex-initial px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
                       >
-                        Accepter la commande
+                        <Icon name="check" className="text-[16px]" />
+                        <span>Accepter la commande (1 clic)</span>
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* 2. Customer: Order Accepted, Payment Pending */}
-                {!isMerchant && (activeConv.order.status === "ACCEPTED" || activeConv.order.payment_status === "PAYMENT_PENDING") && (
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-emerald-500 font-bold">Commande acceptée par le vendeur !</span>
-                    <button
-                      onClick={handleOpenPaymentProofModal}
-                      className="px-3 py-1.5 rounded-lg bg-primary text-white font-bold text-xs shadow-sm hover:bg-primary-hover flex items-center gap-1.5"
-                    >
-                      <Icon name="upload_file" className="text-sm" />
-                      <span>Envoyer la preuve de paiement</span>
-                    </button>
+                {/* 2. Customer: Order Accepted, Mobile Money Payment Call-to-Action */}
+                {!isMerchant && (activeConv.order.status === "ACCEPTED" || activeConv.order.payment_status === "PAYMENT_PENDING") && activeConv.order.payment_status !== "PAYMENT_CONFIRMED" && (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 w-full bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/30">
+                    <div className="space-y-0.5">
+                      <p className="text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center gap-1.5">
+                        <Icon name="verified" className="text-[16px] text-emerald-500" />
+                        <span>Commande acceptée par le vendeur !</span>
+                      </p>
+                      <p className="text-[11px] text-foreground-muted">
+                        ⚡ Soldez votre commande via Mobile Money pour déclencher la <strong>livraison express garantie (45 min à 2h)</strong>.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setIsMobileMoneyModalOpen(true)}
+                        className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:brightness-105 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                      >
+                        <Icon name="payments" className="text-[16px]" />
+                        <span>Payer par Mobile Money (Orange / Moov)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenPaymentProofModal}
+                        className="px-2.5 py-2 rounded-xl bg-surface-elevated hover:bg-surface text-foreground-muted hover:text-foreground text-[11px] font-semibold border border-subtle transition-colors cursor-pointer"
+                        title="Envoyer un reçu ou capture de virement"
+                      >
+                        <Icon name="receipt" className="text-[16px]" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2b. Customer: Order Paid Notification */}
+                {!isMerchant && (activeConv.order.status === "PAID" || activeConv.order.payment_status === "PAYMENT_CONFIRMED") && (
+                  <div className="flex items-center justify-between w-full bg-blue-500/10 p-2.5 rounded-xl border border-blue-500/30 text-xs text-blue-700 dark:text-blue-300">
+                    <div className="flex items-center gap-2">
+                      <Icon name="electric_moped" className="text-[18px] text-blue-500" />
+                      <span><strong>Commande Soldée ✓</strong> • Préparation en cours, livraison express sous 45 min à 2h.</span>
+                    </div>
+                    <span className="font-mono text-[10px] bg-blue-500/20 px-2 py-0.5 rounded-full font-bold">
+                      {activeConv.order.transaction_reference || "LigdiCash"}
+                    </span>
                   </div>
                 )}
 
@@ -1424,7 +1483,39 @@ export default function ChatPage({
 
             {/* Bottom Action / Input Bar */}
             <div className="p-3 border-t border-border bg-surface shrink-0">
-              {isRecording ? (
+              {/* Client gating: Chat is locked until order is accepted by merchant */}
+              {!isMerchant && (!activeConv.order || activeConv.order.status === "PENDING_SELLER_ACCEPTANCE") ? (
+                <div className="p-3.5 bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 text-amber-700 dark:text-amber-300">
+                    <Icon
+                      name={activeConv.order ? "hourglass_top" : "lock"}
+                      className={`text-[20px] text-amber-500 shrink-0 ${activeConv.order ? "animate-pulse" : ""}`}
+                    />
+                    <span className="font-medium leading-relaxed">
+                      {activeConv.order
+                        ? `Votre commande #${activeConv.order.order_number} est en attente d'acceptation par le commerçant. La messagerie sera débloquée dès son acceptation en 1 clic.`
+                        : "Les discussions directes nécessitent une commande acceptée par le vendeur. GotoShop ne permet pas de causerie gratuite sans commande."}
+                    </span>
+                  </div>
+                  {activeConv.order ? (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToOrder?.(activeConv.order.id)}
+                      className="px-4 py-2 rounded-xl bg-surface-elevated hover:bg-surface border border-amber-500/40 text-on-surface font-bold text-xs shrink-0 cursor-pointer transition-colors"
+                    >
+                      Suivre ma commande
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onClose?.()}
+                      className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-xs shrink-0 cursor-pointer shadow-sm transition-all"
+                    >
+                      Voir le catalogue
+                    </button>
+                  )}
+                </div>
+              ) : isRecording ? (
                 /* Active Recording Bar */
                 <div className="flex items-center justify-between gap-3 p-2 bg-red-500/10 border border-red-500/30 rounded-2xl">
                   <div className="flex items-center gap-2 text-red-500 font-bold text-xs">
@@ -1788,6 +1879,25 @@ export default function ChatPage({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MOBILE MONEY PAYMENT MODAL (LigdiCash API Orange / Moov) */}
+      {/* ==================================================================== */}
+      {isMobileMoneyModalOpen && activeConv?.order && (
+        <MobileMoneyPaymentModal
+          order={activeConv.order}
+          isOpen={isMobileMoneyModalOpen}
+          onClose={() => setIsMobileMoneyModalOpen(false)}
+          onSuccess={async (paymentResult) => {
+            setIsMobileMoneyModalOpen(false);
+            showToast?.("🎉 Paiement Mobile Money validé ! Votre commande passe en préparation.");
+            const updated = await fetchConversationDetail(activeConvId);
+            setActiveConv(updated);
+          }}
+          showToast={showToast}
+          customer={customer}
+        />
       )}
 
       {/* ==================================================================== */}

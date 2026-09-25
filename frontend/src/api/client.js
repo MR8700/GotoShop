@@ -1667,6 +1667,28 @@ export async function confirmOrderPayment(orderId, verifiedBy = "Commerçant", v
   return res.json();
 }
 
+export async function payMobileMoneyOrder(orderId, { operator, phoneNumber, otpCode, customerName = "Client", isTestMode = false }) {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/pay-mobile-money`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      operator,
+      phone_number: phoneNumber,
+      otp_code: otpCode,
+      customer_name: customerName,
+      is_test_mode: isTestMode,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors du paiement Mobile Money");
+  }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("notifications:");
+  return res.json();
+}
+
 export async function rejectOrderPayment(orderId, reason = "Montant incorrect", verifiedBy = "Commerçant") {
   const res = await fetch(`${API_BASE}/orders/${orderId}/reject-payment`, {
     method: "POST",

@@ -287,15 +287,6 @@ export default function VitrinePage({
                 <Icon name="qr_code_2" className="text-[18px]" />
               </button>
             )}
-
-            <button
-              onClick={() => onOpenChat ? onOpenChat() : onOpenTunnel(heroProduct, "WHATSAPP")}
-              aria-label="Discuter avec le vendeur"
-              className="w-9 h-9 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 flex items-center justify-center transition-all shrink-0 active:scale-95 cursor-pointer shadow-xs"
-              title="Discuter en direct avec le commerçant"
-            >
-              <Icon name="forum" className="text-[18px]" />
-            </button>
           </div>
         </div>
 
@@ -466,27 +457,17 @@ export default function VitrinePage({
                   {ctx.getOrderCtaLabel(heroProduct.is_customizable)}
                 </span>
               </button>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => onOpenChat?.()}
-                  className="h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-semibold border border-subtle flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Icon name="forum" className="text-[16px] text-secondary" />
-                  <span>Discuter en direct</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onAddToCart(heroProduct);
-                    showToast?.(`Ajouté au panier : ${heroProduct.name}`);
-                  }}
-                  className="h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-primary text-xs font-semibold border border-subtle flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Icon name="add_shopping_cart" className="text-[16px]" />
-                  <span>Ajouter au panier</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onAddToCart(heroProduct);
+                  showToast?.(`Ajouté au panier : ${heroProduct.name}`);
+                }}
+                className="w-full h-10 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-primary text-xs font-bold border border-subtle flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <Icon name="add_shopping_cart" className="text-[18px]" />
+                <span>Ajouter au panier</span>
+              </button>
             </div>
           )}
         </section>
@@ -632,27 +613,17 @@ export default function VitrinePage({
                         {ctx.getOrderCtaLabel(p.is_customizable)}
                       </span>
                     </button>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => onOpenChat?.()}
-                        className="h-8 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-on-surface text-[11px] font-medium border border-subtle flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <Icon name="forum" className="text-[14px] text-secondary" />
-                        <span>Discuter</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onAddToCart(p);
-                          showToast?.(`Ajouté au panier : ${p.name}`);
-                        }}
-                        className="h-8 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-primary text-[11px] font-semibold border border-subtle flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <Icon name="add_shopping_cart" className="text-[14px]" />
-                        <span>Ajouter</span>
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onAddToCart(p);
+                        showToast?.(`Ajouté au panier : ${p.name}`);
+                      }}
+                      className="w-full h-8 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-primary text-[11px] font-bold border border-subtle flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Icon name="add_shopping_cart" className="text-[14px]" />
+                      <span>Ajouter au panier</span>
+                    </button>
                   </div>
                 )}
               </div>

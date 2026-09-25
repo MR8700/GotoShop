@@ -289,6 +289,110 @@ def test_multi_item_order_and_cancellation():
     assert cancel_msg is not None
     print("[PASS] Cancellation reflected in internal conversation")
 
+def test_ligdicash_mobile_money_payment():
+    print("=== RUNNING LIGDICASH MOBILE MONEY PAYMENT TEST ===")
+    
+    # 1. Create order
+    r = client.get("/api/store?slug=garbadrome-kossodo")
+    assert r.status_code == 200
+    store = r.json()
+    store_id = store["id"]
+
+    r = client.get(f"/api/catalog/products?store_id={store_id}")
+    assert r.status_code == 200
+    products = r.json()
+    p = products[0]
+
+    unique_token = f"token_ligdi_{uuid.uuid4().hex[:8]}"
+    order_payload = {
+        "store_id": store_id,
+        "items": [
+            {
+                "product_id": p["id"],
+                "product_name": p["name"],
+                "quantity": 1,
+                "unit_price": p["price"],
+            }
+        ],
+        "delivery": {
+            "delivery_mode": "GPS_AND_DESCRIPTION",
+            "delivery_city": "Ouagadougou",
+            "delivery_address": "Kossodo vers échangeur du nord",
+            "latitude": 12.4172,
+            "longitude": -1.4889
+        },
+        "customer_name": "Salif Ouédraogo",
+        "customer_phone": "+22670123456",
+        "customer_token": unique_token,
+        "delivery_fee": 500
+    }
+    r = client.post("/api/orders", json=order_payload)
+    assert r.status_code == 200
+    order = r.json()
+    order_id = order["id"]
+    conv_id = order["conversation_id"]
+
+    # 2. Seller accepts order
+    r = client.post(f"/api/orders/{order_id}/accept", json={"seller_name": "Garbadrome Chef"})
+    assert r.status_code == 200
+    assert r.json()["status"] == "ACCEPTED"
+    print("[PASS] Order accepted by merchant")
+
+    # 3. Validation errors tests
+    # Invalid phone (<8 digits)
+    r = client.post(f"/api/orders/{order_id}/pay-mobile-money", json={
+        "operator": "ORANGE_MONEY",
+        "phone_number": "123",
+        "otp_code": "123456"
+    })
+    assert r.status_code == 400
+    assert "téléphone" in r.text.lower()
+    print("[PASS] Validation: Short phone number rejected")
+
+    # Invalid OTP (!= 6 digits)
+    r = client.post(f"/api/orders/{order_id}/pay-mobile-money", json={
+        "operator": "ORANGE_MONEY",
+        "phone_number": "70123456",
+        "otp_code": "123"
+    })
+    assert r.status_code == 400
+    assert "otp" in r.text.lower()
+    print("[PASS] Validation: Invalid OTP length rejected")
+
+    # 4. Successful Orange Money Payment with 6-digit OTP
+    r = client.post(f"/api/orders/{order_id}/pay-mobile-money", json={
+        "operator": "ORANGE_MONEY",
+        "phone_number": "+226 70 12 34 56",
+        "otp_code": "749201",
+        "customer_name": "Salif Ouédraogo",
+        "is_test_mode": True
+    })
+    assert r.status_code == 200
+    pay_res = r.json()
+    assert pay_res["status"] == "PAID"
+    assert pay_res["payment_status"] == "PAYMENT_CONFIRMED"
+    assert "Orange Money" in pay_res["operator"]
+    assert "45 min - 2h" in pay_res["delivery_delay"]
+    assert pay_res["transaction_reference"].startswith("LGD-ORA-")
+    print(f"[PASS] LigdiCash Orange Money Payment Success: Ref {pay_res['transaction_reference']}, Delay: {pay_res['delivery_delay']}")
+
+    # 5. Check order status in DB
+    r = client.get(f"/api/orders/{order_id}")
+    assert r.status_code == 200
+    updated_order = r.json()
+    assert updated_order["status"] == "PAID"
+    assert updated_order["payment_status"] == "PAYMENT_CONFIRMED"
+
+    # 6. Check system message in conversation with delivery guarantee
+    r = client.get(f"/api/conversations/{conv_id}/messages")
+    assert r.status_code == 200
+    messages = r.json()
+    ligdi_msg = next((m for m in messages if "ligdicash" in m["content"].lower() or "45 min" in m["content"]), None)
+    assert ligdi_msg is not None
+    print("[PASS] Conversation contains LigdiCash confirmation message with express delivery guarantee (45 min - 2h)")
+
 if __name__ == "__main__":
     test_conversational_commerce_suite()
     test_multi_item_order_and_cancellation()
+    test_ligdicash_mobile_money_payment()
+

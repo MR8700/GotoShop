@@ -220,11 +220,11 @@ export default function ConversationalOrderModal({
       if (result?.customer && onCustomerAuthenticated) {
         onCustomerAuthenticated(result.customer);
       }
-      setStep("SUCCESS");
-      showToast?.(`Commande #${result?.order_number || ""} transmise avec succès !`);
+      showToast?.(`Commande #${result?.order_number || ""} transmise avec succès ! Redirection vers vos commandes...`);
       if (onOrderCreated) {
         onOrderCreated(result);
       }
+      onClose();
     } catch (err) {
       console.error("Order submit failed:", err);
       const msg = err.message || "Erreur lors de la transmission de la commande. Veuillez réessayer.";

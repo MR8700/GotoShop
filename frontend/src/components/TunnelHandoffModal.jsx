@@ -289,9 +289,10 @@ export default function TunnelHandoffModal({
         url: window.location.origin,
       });
 
-      showToast?.(`Commande #${orderResult.order_number} transmise avec succès !`);
+      showToast?.(`Commande #${orderResult.order_number} transmise avec succès ! Redirection vers vos commandes...`);
       if (onOrderCreated) onOrderCreated(orderResult);
-      setCreatedOrder(orderResult);
+      if (onNavigateToOrders) onNavigateToOrders();
+      onClose?.();
     } catch (err) {
       showToast?.(err.message || "Erreur lors de la validation de la commande");
     } finally {

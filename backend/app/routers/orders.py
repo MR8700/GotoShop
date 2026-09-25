@@ -82,6 +82,13 @@ class SubmitPaymentProofRequest(BaseModel):
     sender_id: Optional[str] = None
     sender_name: Optional[str] = "Client"
 
+class MobileMoneyPaymentRequest(BaseModel):
+    operator: str # ORANGE_MONEY, MOOV_MONEY
+    phone_number: str
+    otp_code: str
+    customer_name: Optional[str] = "Client"
+    is_test_mode: Optional[bool] = False
+
 
 @router.post("", summary="Créer une commande avec personnalisations et géolocalisation")
 def create_order(req: CreateOrderRequest, db: Session = Depends(get_db)):
@@ -247,6 +254,22 @@ def update_status(order_id: str, req: UpdateOrderStatusRequest, db: Session = De
             new_status=req.status,
             notes=req.notes,
             actor_name=req.actor_name or "Commerçant"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{order_id}/pay-mobile-money", summary="Payer une commande via Mobile Money LigdiCash (Orange / Moov avec OTP)")
+def pay_mobile_money(order_id: str, req: MobileMoneyPaymentRequest, db: Session = Depends(get_db)):
+    try:
+        return PaymentService.process_ligdicash_payment(
+            db=db,
+            order_id=order_id,
+            operator=req.operator,
+            phone_number=req.phone_number,
+            otp_code=req.otp_code,
+            customer_name=req.customer_name or "Client",
+            is_test_mode=bool(req.is_test_mode)
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
