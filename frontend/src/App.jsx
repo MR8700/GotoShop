@@ -479,25 +479,89 @@ export default function App() {
     }
   };
 
-  const handleOpenTunnel = (product, channel = "WHATSAPP", color = "Bleu Nuit") => {
-    setTunnelProduct(product);
-    setTunnelInitialChannel(channel);
-    setTunnelInitialColor(color);
-    setActiveTab("tunnel");
-  };
-
-  const handleAddToCart = (product) => {
+  const handleAddToCart = (product, customVariant = null, customQuantity = 1) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
         return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === product.id ? { ...item, quantity: item.quantity + (customQuantity || 1) } : item
         );
       } else {
-        return [...prev, { id: product.id, name: product.name, price: product.price, quantity: 1 }];
+        return [
+          ...prev,
+          {
+            id: product.id,
+            product_id: product.id,
+            name: product.name,
+            price: (customVariant && customVariant.price_override) || product.price || 0,
+            quantity: customQuantity || 1,
+            unit: product.sales_unit || "PIECE",
+            unit_label: product.sales_unit_label || "pièce",
+            pricing_model: product.pricing_model || "FIXED_PER_UNIT",
+            primary_image_url: product.primary_image_url,
+            variant_id: customVariant ? customVariant.id : null,
+            variant_name: customVariant ? customVariant.name : (product.variants?.[0]?.name || null),
+            customization_text: "",
+            is_customizable: Boolean(product.is_customizable),
+            store_id: product.store_id || store?.id,
+          },
+        ];
       }
     });
-    showToast(`Ajouté : ${product.name}`);
+    showToast(`Ajouté au panier : ${product.name}`);
+  };
+
+  const handleUpdateCartQuantity = (productId, delta) => {
+    setCart((prev) =>
+      prev
+        .map((item) =>
+          item.id === productId ? { ...item, quantity: item.quantity + delta } : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  };
+
+  const handleRemoveFromCart = (productId) => {
+    setCart((prev) => prev.filter((item) => item.id !== productId));
+  };
+
+  const handleUpdateCartCustomization = (productId, text) => {
+    setCart((prev) =>
+      prev.map((item) => (item.id === productId ? { ...item, customization_text: text } : item))
+    );
+  };
+
+  const handleClearCart = () => {
+    setCart([]);
+  };
+
+  const handleOpenTunnel = (product = null, channel = "DIRECT", color = "Bleu Nuit") => {
+    if (product) {
+      setTunnelProduct(product);
+      setCart((prev) => {
+        if (!prev.find((it) => it.id === product.id)) {
+          return [
+            ...prev,
+            {
+              id: product.id,
+              product_id: product.id,
+              name: product.name,
+              price: product.price || 0,
+              quantity: 1,
+              unit: product.sales_unit || "PIECE",
+              unit_label: product.sales_unit_label || "pièce",
+              primary_image_url: product.primary_image_url,
+              variant_name: color || (product.variants?.[0]?.name || null),
+              customization_text: "",
+              is_customizable: Boolean(product.is_customizable),
+              store_id: product.store_id || store?.id,
+            },
+          ];
+        }
+        return prev;
+      });
+    }
+    setActiveTab("tunnel");
   };
 
   const handleCheckoutCart = () => {
@@ -505,8 +569,7 @@ export default function App() {
       showToast("Votre panier est vide");
       return;
     }
-    const hero = products.find((p) => p.is_hero_deal) || products[0];
-    handleOpenTunnel(hero, "WHATSAPP");
+    setActiveTab("tunnel");
   };
 
   const handleShare = () => {
@@ -523,7 +586,7 @@ export default function App() {
   };
 
   const handleOpenConversationalOrder = (product) => {
-    setConversationalOrderProduct(product);
+    handleOpenTunnel(product);
   };
 
   const handleOpenChat = (conversationId = null) => {
@@ -800,18 +863,23 @@ export default function App() {
         {activeTab === "tunnel" && (
           <TunnelHandoffModal
             store={store}
+            cart={cart}
             product={tunnelProduct || products[0]}
             customer={customer}
-            initialChannel={tunnelInitialChannel}
-            initialColor={tunnelInitialColor}
+            onUpdateCartQuantity={handleUpdateCartQuantity}
+            onRemoveFromCart={handleRemoveFromCart}
+            onUpdateCartCustomization={handleUpdateCartCustomization}
+            onClearCart={handleClearCart}
             onClose={() => handleSelectTab("boutique")}
             showToast={showToast}
-            onOrderCreated={(intent) => {
-              showToast(`Commande #${intent.reference_code} enregistrée en base !`);
+            onOrderCreated={(order) => {
+              showToast(`Commande #${order.order_number || order.reference_code} enregistrée en base !`);
               setClientOrdersCount((prev) => prev + 1);
+              loadUnreadChatCount();
             }}
             onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
             onNavigateToOrders={() => handleSelectTab("commandes")}
+            onOpenChat={handleOpenChat}
           />
         )}
 

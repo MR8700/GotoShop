@@ -1,3 +1,4 @@
+import uuid
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -188,5 +189,106 @@ def test_conversational_commerce_suite():
 
     print("\nALL CONVERSATIONAL COMMERCE TESTS PASSED WITH 100% SUCCESS!")
 
+def test_multi_item_order_and_cancellation():
+    print("=== RUNNING MULTI-ITEM ORDER & CANCELLATION TEST ===")
+    
+    # 1. Get Store & Products
+    r = client.get("/api/store?slug=garbadrome-kossodo")
+    assert r.status_code == 200
+    store = r.json()
+    store_id = store["id"]
+
+    r = client.get(f"/api/catalog/products?store_id={store_id}")
+    assert r.status_code == 200
+    products = r.json()
+    assert len(products) >= 3
+
+    p1, p2, p3 = products[0], products[1], products[2]
+    unique_suffix = uuid.uuid4().hex[:8]
+    cust_token = f"token_multi_{unique_suffix}"
+    cust_phone = f"+22675{uuid.uuid4().hex[:6]}"
+
+    # 2. Place Multi-Item Order (>2 products)
+    multi_order_payload = {
+        "store_id": store_id,
+        "items": [
+            {
+                "product_id": p1["id"],
+                "product_name": p1["name"],
+                "quantity": 2,
+                "unit_price": p1["price"],
+                "customization_text": "Sans piment, bien cuit"
+            },
+            {
+                "product_id": p2["id"],
+                "product_name": p2["name"],
+                "quantity": 1,
+                "unit_price": p2["price"],
+                "customization_text": "Portion extra sauce"
+            },
+            {
+                "product_id": p3["id"],
+                "product_name": p3["name"],
+                "quantity": 3,
+                "unit_price": p3["price"],
+                "customization_text": "Emballage séparé"
+            }
+        ],
+        "delivery": {
+            "delivery_mode": "GPS_AND_DESCRIPTION",
+            "delivery_city": "Ouagadougou",
+            "delivery_address": "Secteur 15, face pharmacie de l'espérance",
+            "latitude": 12.3714,
+            "longitude": -1.5197
+        },
+        "customer_name": "Amina Traoré",
+        "customer_phone": cust_phone,
+        "customer_token": cust_token,
+        "delivery_fee": 1000
+    }
+
+    r = client.post("/api/orders", json=multi_order_payload)
+    assert r.status_code == 200, f"Multi-item order failed: {r.text}"
+    order = r.json()
+    order_id = order["id"]
+    conv_id = order["conversation_id"]
+
+    # Verify all 3 items recorded correctly
+    assert len(order["items"]) == 3
+    expected_total = (p1["price"] * 2) + (p2["price"] * 1) + (p3["price"] * 3) + 1000
+    assert order["total_amount"] == expected_total
+    assert order["status"] == "PENDING_SELLER_ACCEPTANCE"
+    print(f"[PASS] Multi-Item Order Created: {len(order['items'])} distinct items, Total: {order['total_amount']} FCFA")
+
+    # 3. Verify Customer Order History returns all 3 items and internal chat link
+    r = client.get(f"/api/orders?customer_token={cust_token}")
+    assert r.status_code == 200
+    cust_orders = r.json()
+    assert len(cust_orders) >= 1
+    found_order = next(o for o in cust_orders if o["id"] == order_id)
+    assert len(found_order["items"]) == 3
+    assert found_order["conversation_id"] == conv_id
+    print(f"[PASS] Customer Orders API returns all 3 items with internal conversation link")
+
+    # 4. Cancel pending order directly from client
+    cancel_payload = {
+        "reason": "Changement d'avis / Erreur de quantité",
+        "actor_name": "Amina Traoré"
+    }
+    r = client.post(f"/api/orders/{order_id}/cancel", json=cancel_payload)
+    assert r.status_code == 200
+    cancel_res = r.json()
+    assert cancel_res["status"] == "CANCELLED"
+    print(f"[PASS] Pending Order Cancelled Directly: Status is {cancel_res['status']}")
+
+    # 5. Check conversation reflects cancellation
+    r = client.get(f"/api/conversations/{conv_id}/messages")
+    assert r.status_code == 200
+    messages = r.json()
+    cancel_msg = next((m for m in messages if "annulée" in m["content"].lower() or "cancelled" in m["content"].lower()), None)
+    assert cancel_msg is not None
+    print("[PASS] Cancellation reflected in internal conversation")
+
 if __name__ == "__main__":
     test_conversational_commerce_suite()
+    test_multi_item_order_and_cancellation()

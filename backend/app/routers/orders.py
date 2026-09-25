@@ -56,6 +56,10 @@ class RejectOrderRequest(BaseModel):
     reason: Optional[str] = "Indisponible temporairement"
     seller_name: Optional[str] = "Commerçant"
 
+class CancelOrderRequest(BaseModel):
+    reason: Optional[str] = "Annulé par le client"
+    actor_name: Optional[str] = "Client"
+
 class ConfirmPaymentRequest(BaseModel):
     verified_by: Optional[str] = "Commerçant"
     verification_note: Optional[str] = None
@@ -144,6 +148,16 @@ def accept_order(order_id: str, req: AcceptOrderRequest, db: Session = Depends(g
 def reject_order(order_id: str, req: RejectOrderRequest, db: Session = Depends(get_db)):
     try:
         return OrderService.reject_order(db=db, order_id=order_id, reason=req.reason, seller_name=req.seller_name or "Commerçant")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{order_id}/cancel", summary="Annuler une commande (client ou vendeur)")
+def cancel_order(order_id: str, req: Optional[CancelOrderRequest] = None, db: Session = Depends(get_db)):
+    try:
+        actor = req.actor_name if req else "Client"
+        reason = req.reason if req else "Annulé par le client"
+        return OrderService.cancel_order(db=db, order_id=order_id, reason=reason, actor_name=actor)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

@@ -1413,6 +1413,19 @@ export async function rejectOrder(orderId, reason = "Indisponible", sellerName =
   return res.json();
 }
 
+export async function cancelConversationalOrder(orderId, reason = "Annulé par le client", actorName = "Client") {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason, actor_name: actorName }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors de l'annulation de la commande");
+  }
+  return res.json();
+}
+
 export async function submitPaymentProof(orderId, proofData) {
   const res = await fetch(`${API_BASE}/orders/${orderId}/payment-proof`, {
     method: "POST",

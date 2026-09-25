@@ -22,7 +22,7 @@ class IntentResponse(BaseModel):
     store_id: str
     product_id: str
     channel_type: str
-    quantity: int
+    quantity: float = 1.0
     selected_color: Optional[str] = None
     delivery_city: Optional[str] = None
     customer_location_url: Optional[str] = None
@@ -73,7 +73,7 @@ class IntentSummarySchema(BaseModel):
     customer_source: Optional[str] = None
     customer_location_url: Optional[str] = None
     customer_coordinates: Optional[str] = None
-    quantity: int
+    quantity: float = 1.0
     selected_color: Optional[str] = None
     delivery_city: Optional[str] = None
     status: str

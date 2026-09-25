@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -69,6 +69,8 @@ class CustomerOrderItem(BaseModel):
     redirect_url: str
     customer_location_url: Optional[str] = None
     customer_coordinates: Optional[str] = None
+    items: Optional[List[Dict[str, Any]]] = None
+    conversation_id: Optional[str] = None
     created_at: datetime
 
 class CustomerStatsResponse(BaseModel):

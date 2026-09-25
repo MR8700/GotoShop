@@ -96,27 +96,96 @@ class NotificationEngine:
 
     @staticmethod
     def notify_order_created(db: Session, order: Order, store: Store, conversation_id: Optional[str] = None):
-        """Notify store owner of new order placement."""
-        store_slug = store.slug or store.id
+        """Notify store owner and customer of new order placement."""
+        store_slug = store.slug or store.id if store else "shop"
+        store_name = store.name if store else "La boutique"
         title = f"Nouvelle commande #{order.order_number}"
         msg = f"{order.customer_name or 'Un client'} a passé commande pour {order.total_amount:,} {order.currency}."
         
-        NotificationEngine.dispatch(
-            db=db,
-            recipient_type="STORE_OWNER",
-            recipient_id=store.id,
-            store_id=store.id,
-            order_id=order.id,
-            conversation_id=conversation_id,
-            category="TRANSACTIONAL",
-            event_type="ORDER_CREATED",
-            urgency="HIGH",
-            title=title,
-            message=msg,
-            action_url=f"/store/{store_slug}?tab=commandes&order={order.id}",
-            action_label="Consulter la commande",
-            action_payload={"order_number": order.order_number, "total_amount": order.total_amount}
-        )
+        if store:
+            NotificationEngine.dispatch(
+                db=db,
+                recipient_type="STORE_OWNER",
+                recipient_id=store.id,
+                store_id=store.id,
+                order_id=order.id,
+                conversation_id=conversation_id,
+                category="TRANSACTIONAL",
+                event_type="ORDER_CREATED",
+                urgency="HIGH",
+                title=title,
+                message=msg,
+                action_url=f"/store/{store_slug}?tab=commandes&order={order.id}",
+                action_label="Consulter la commande",
+                action_payload={"order_number": order.order_number, "total_amount": order.total_amount}
+            )
+
+        # Notify customer that order is submitted and pending
+        target_id = order.customer_id or order.customer_token
+        if target_id:
+            target_type = "CUSTOMER" if order.customer_id else "GUEST"
+            NotificationEngine.dispatch(
+                db=db,
+                recipient_type=target_type,
+                recipient_id=target_id,
+                store_id=store.id if store else None,
+                order_id=order.id,
+                conversation_id=conversation_id,
+                category="TRANSACTIONAL",
+                event_type="ORDER_PENDING",
+                urgency="HIGH",
+                title=f"Commande #{order.order_number} en attente",
+                message=f"Votre commande de {order.total_amount:,} {order.currency} a été transmise à {store_name}. En attente de validation par le commerçant.",
+                action_url=f"/store/{store_slug}?tab=chat&conv={conversation_id}" if conversation_id else f"/store/{store_slug}?tab=commandes",
+                action_label="Suivre ma commande",
+                action_payload={"order_number": order.order_number, "status": "PENDING_SELLER_ACCEPTANCE"}
+            )
+
+    @staticmethod
+    def notify_order_cancelled(db: Session, order: Order, store: Optional[Store], reason: str = "Annulée par le client", cancelled_by: str = "Client", conversation_id: Optional[str] = None):
+        """Notify store owner and customer when an order is cancelled."""
+        store_slug = store.slug or store.id if store else "shop"
+        store_name = store.name if store else "La boutique"
+
+        # 1. Notify Store Owner if cancelled
+        if store:
+            NotificationEngine.dispatch(
+                db=db,
+                recipient_type="STORE_OWNER",
+                recipient_id=store.id,
+                store_id=store.id,
+                order_id=order.id,
+                conversation_id=conversation_id,
+                category="TRANSACTIONAL",
+                event_type="ORDER_CANCELLED",
+                urgency="HIGH",
+                title=f"Commande #{order.order_number} annulée",
+                message=f"La commande #{order.order_number} a été annulée ({reason}).",
+                action_url=f"/store/{store_slug}?tab=commandes&order={order.id}",
+                action_label="Consulter la commande",
+                action_payload={"order_number": order.order_number, "reason": reason}
+            )
+
+        # 2. Notify Customer
+        target_id = order.customer_id or order.customer_token
+        if target_id:
+            target_type = "CUSTOMER" if order.customer_id else "GUEST"
+            NotificationEngine.dispatch(
+                db=db,
+                recipient_type=target_type,
+                recipient_id=target_id,
+                store_id=order.store_id,
+                order_id=order.id,
+                conversation_id=conversation_id,
+                category="TRANSACTIONAL",
+                event_type="ORDER_CANCELLED",
+                urgency="MEDIUM",
+                title=f"Commande #{order.order_number} annulée",
+                message=f"Votre commande auprès de {store_name} a bien été annulée.",
+                action_url=f"/store/{store_slug}?tab=commandes",
+                action_label="Voir mes commandes",
+                action_payload={"order_number": order.order_number, "reason": reason}
+            )
 
     @staticmethod
     def notify_order_accepted(db: Session, order: Order, store: Store, conversation_id: Optional[str] = None):

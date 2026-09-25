@@ -10,10 +10,12 @@ export default function NotificationBell({
 }) {
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const recipientType = mode === "owner" ? "STORE_OWNER" : "CUSTOMER";
-  const recipientId = mode === "owner" ? store?.id : customer?.id;
+  const guestToken = typeof window !== "undefined" ? localStorage.getItem("conversastore_customer_token") : null;
+  const recipientType = mode === "owner" ? "STORE_OWNER" : (customer?.id ? "CUSTOMER" : "GUEST");
+  const recipientId = mode === "owner" ? store?.id : (customer?.id || guestToken);
 
   const refreshUnread = async () => {
+    if (!recipientId) return;
     try {
       const res = await fetchNotifications({
         recipient_type: recipientType,

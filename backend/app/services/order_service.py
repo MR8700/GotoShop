@@ -77,7 +77,9 @@ class OrderService:
 
             if cust:
                 actual_customer_id = cust.id
-                if not cust.session_token:
+                if customer_token:
+                    cust.session_token = customer_token
+                elif not cust.session_token:
                     cust.session_token = secrets.token_hex(24)
                 customer_token = cust.session_token
                 if country:
@@ -87,7 +89,7 @@ class OrderService:
                 if delivery_neighborhood:
                     cust.delivery_neighborhood = delivery_neighborhood
             elif (register_account or customer_phone) and customer_name:
-                new_session_token = secrets.token_hex(24)
+                new_session_token = customer_token or secrets.token_hex(24)
                 cust = Customer(
                     id=str(uuid.uuid4()),
                     store_id=actual_store_id,
@@ -621,6 +623,76 @@ class OrderService:
                 "type": "order.status_updated",
                 "order_id": order.id,
                 "status": new_status
+            })
+
+        return OrderService.format_order_dict(order)
+
+    @staticmethod
+    def cancel_order(db: Session, order_id: str, reason: Optional[str] = "Annulé par le client", actor_name: str = "Client") -> Dict[str, Any]:
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            raise ValueError(f"Commande {order_id} introuvable")
+
+        prev_status = order.status
+        order.status = "CANCELLED"
+        order.rejection_reason = reason or "Annulé par le client"
+        order.updated_at = datetime.utcnow()
+
+        # Restock products if stock was tracked
+        for it in (order.items or []):
+            if it.product_id:
+                prod = db.query(Product).filter(Product.id == it.product_id).first()
+                if prod and prod.stock is not None:
+                    prod.stock = round(float(prod.stock) + float(it.quantity), 3)
+                    prod.stock_label = f"Stock: {prod.stock} {it.unit_label}".strip()
+
+        # Update linked conversation
+        conv = db.query(Conversation).filter(Conversation.order_id == order.id).first()
+        if conv:
+            msg = f"❌ La commande #{order.order_number} a été annulée. Motif : {order.rejection_reason}"
+            ChatService.post_system_message(
+                db=db,
+                conversation_id=conv.id,
+                content=msg,
+                metadata={"order_id": order.id, "status": "CANCELLED", "reason": order.rejection_reason}
+            )
+
+        # Audit log
+        audit = AuditLog(
+            id=str(uuid.uuid4()),
+            event_name="ORDER_CANCELLED",
+            actor_type="CUSTOMER" if "client" in (actor_name or "").lower() else "MERCHANT",
+            actor_name=actor_name,
+            resource_type="ORDER",
+            resource_id=order.id,
+            previous_state=prev_status,
+            new_state="CANCELLED",
+            metadata_json=json.dumps({"reason": order.rejection_reason})
+        )
+        db.add(audit)
+        db.commit()
+        db.refresh(order)
+
+        # Centralized notification dispatch
+        try:
+            NotificationEngine.notify_order_cancelled(
+                db=db,
+                order=order,
+                store=order.store,
+                reason=order.rejection_reason,
+                cancelled_by=actor_name,
+                conversation_id=conv.id if conv else None
+            )
+            db.commit()
+        except Exception as e:
+            print("Notice: notify_order_cancelled failed:", e)
+
+        if conv:
+            manager.safe_broadcast_sync(conv.id, {
+                "type": "order.status_updated",
+                "order_id": order.id,
+                "status": "CANCELLED",
+                "reason": order.rejection_reason
             })
 
         return OrderService.format_order_dict(order)

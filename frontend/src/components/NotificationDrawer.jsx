@@ -20,11 +20,12 @@ export default function NotificationDrawer({
   const [activeFilter, setActiveFilter] = useState("ALL"); // ALL, TRANSACTIONAL, STORE_NEWS, RELATIONAL
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const recipientType = mode === "owner" ? "STORE_OWNER" : "CUSTOMER";
-  const recipientId = mode === "owner" ? store?.id : customer?.id;
+  const guestToken = typeof window !== "undefined" ? localStorage.getItem("conversastore_customer_token") : null;
+  const recipientType = mode === "owner" ? "STORE_OWNER" : (customer?.id ? "CUSTOMER" : "GUEST");
+  const recipientId = mode === "owner" ? store?.id : (customer?.id || guestToken);
 
   const loadNotifications = async () => {
-    if (!isOpen) return;
+    if (!isOpen || !recipientId) return;
     setLoading(true);
     try {
       const res = await fetchNotifications({

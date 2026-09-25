@@ -476,11 +476,14 @@ export default function VitrinePage({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onOpenTunnel(heroProduct, "WHATSAPP", selectedHeroColor)}
-                  className="h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-green-600 text-xs font-semibold border border-subtle flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  onClick={() => {
+                    onAddToCart(heroProduct);
+                    showToast?.(`Ajouté au panier : ${heroProduct.name}`);
+                  }}
+                  className="h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-primary text-xs font-semibold border border-subtle flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Icon name="chat" className="text-[16px]" />
-                  <span>WhatsApp</span>
+                  <Icon name="add_shopping_cart" className="text-[16px]" />
+                  <span>Ajouter au panier</span>
                 </button>
               </div>
             </div>
@@ -639,11 +642,14 @@ export default function VitrinePage({
                       </button>
                       <button
                         type="button"
-                        onClick={() => onOpenTunnel(p, "WHATSAPP")}
-                        className="h-8 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-green-600 text-[11px] font-medium border border-subtle flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        onClick={() => {
+                          onAddToCart(p);
+                          showToast?.(`Ajouté au panier : ${p.name}`);
+                        }}
+                        className="h-8 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-primary text-[11px] font-semibold border border-subtle flex items-center justify-center gap-1 transition-colors cursor-pointer"
                       >
-                        <Icon name="chat" className="text-[14px]" />
-                        <span>WhatsApp</span>
+                        <Icon name="add_shopping_cart" className="text-[14px]" />
+                        <span>Ajouter</span>
                       </button>
                     </div>
                   </div>
@@ -730,9 +736,6 @@ export default function VitrinePage({
               onOpenChat();
             } else {
               showToast("Ouverture de la discussion avec le commerçant...");
-              const msg = "Bonjour ! J'aimerais des conseils personnalisés pour ma commande.";
-              const waNumber = store?.contact_whatsapp?.replace(/\D/g, "") || "22670123456";
-              window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
             }
           }}
           className="w-full sm:w-auto h-10 px-4 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95 cursor-pointer"

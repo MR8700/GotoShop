@@ -2,6 +2,9 @@ import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
 import {
   fetchCustomerOrders,
+  fetchConversationalOrders,
+  cancelConversationalOrder,
+  getCustomerToken,
   getMediaUrl,
   getLocalGuestOrders,
   updateLocalGuestOrder,
@@ -37,43 +40,66 @@ export default function ClientCommandesPage({
   const loadOrders = async () => {
     setLoading(true);
     try {
-      if (customer) {
-        // Authenticated customer: fetch orders from DB
-        const data = await fetchCustomerOrders();
-        setOrders(data);
-      } else {
-        // Guest mode: fetch orders from local storage
-        const local = getLocalGuestOrders();
-        if (local.length > 0) {
-          // Enrich with live backend database status
-          const ids = local.map((o) => o.id).filter(Boolean);
-          try {
-            const liveOrders = await fetchBatchOrders(ids);
-            if (liveOrders && liveOrders.length > 0) {
-              const liveMap = new Map(liveOrders.map((o) => [o.id, o]));
-              const merged = local.map((l) => {
-                const live = liveMap.get(l.id);
-                return live
-                  ? {
-                      ...l,
-                      status: live.status,
-                      client_status: live.client_status,
-                      client_feedback: live.client_feedback,
-                      client_satisfaction_rating: live.client_satisfaction_rating,
-                      coherence_status: live.coherence_status,
-                      coherence_notes: live.coherence_notes,
-                      is_sold: live.status === "SOLD",
-                      total_amount: live.total_amount,
-                    }
-                  : l;
-              });
-              setOrders(merged);
-              return;
-            }
-          } catch {}
+      const token = customer?.session_token || getCustomerToken();
+      let combined = [];
+
+      // 1. Fetch conversational orders from backend
+      try {
+        const convOrders = await fetchConversationalOrders({
+          customer_id: customer?.id,
+          customer_token: token,
+        });
+        if (Array.isArray(convOrders) && convOrders.length > 0) {
+          combined = convOrders.map((o) => ({
+            ...o,
+            reference_code: o.order_number || o.reference_code,
+            product_name: o.items?.length
+              ? o.items.map((it) => `${it.product_name} (${it.quantity})`).join(", ")
+              : (o.product_name || "Commande"),
+            product_image_url: o.items?.[0]?.primary_image_url || o.product_image_url,
+          }));
         }
-        setOrders(local);
+      } catch (e) {
+        console.warn("fetchConversationalOrders warning:", e);
       }
+
+      // 2. Fetch authenticated customer legacy intents
+      if (customer) {
+        try {
+          const custOrders = await fetchCustomerOrders();
+          if (Array.isArray(custOrders)) {
+            custOrders.forEach((co) => {
+              if (
+                !combined.some(
+                  (o) =>
+                    o.id === co.id ||
+                    (co.reference_code && (o.order_number === co.reference_code || o.reference_code === co.reference_code))
+                )
+              ) {
+                combined.push(co);
+              }
+            });
+          }
+        } catch (e) {}
+      }
+
+      // 3. Merge local guest orders
+      const local = getLocalGuestOrders();
+      if (Array.isArray(local) && local.length > 0) {
+        local.forEach((lo) => {
+          if (
+            !combined.some(
+              (o) =>
+                o.id === lo.id ||
+                (lo.reference_code && (o.order_number === lo.reference_code || o.reference_code === lo.reference_code))
+            )
+          ) {
+            combined.push(lo);
+          }
+        });
+      }
+
+      setOrders(combined);
     } catch (err) {
       showToast("Erreur lors du chargement des commandes");
     } finally {
@@ -121,22 +147,23 @@ export default function ClientCommandesPage({
         reasonToSend = cancelReason === "Autre" ? (customReason.trim() || "Annulation client") : cancelReason;
       }
 
-      const updatedIntent = await recordClientOrderAction(
-        actionOrder.id,
-        actionType,
-        reasonToSend,
-        rating
-      );
+      if (actionType === "CANCEL") {
+        try {
+          await cancelConversationalOrder(actionOrder.id, reasonToSend);
+        } catch (e) {
+          await recordClientOrderAction(actionOrder.id, actionType, reasonToSend, rating).catch(() => {});
+        }
+      } else {
+        await recordClientOrderAction(actionOrder.id, actionType, reasonToSend, rating);
+      }
 
       // Update local storage if guest
       if (!customer) {
         updateLocalGuestOrder(actionOrder.id, {
-          client_status: updatedIntent.client_status,
-          client_feedback: updatedIntent.client_feedback,
-          client_satisfaction_rating: updatedIntent.client_satisfaction_rating,
-          coherence_status: updatedIntent.coherence_status,
-          coherence_notes: updatedIntent.coherence_notes,
-          status: updatedIntent.status,
+          status: actionType === "CANCEL" ? "CANCELLED" : actionOrder.status,
+          client_status: actionType === "CANCEL" ? "CANCELLED" : "SATISFIED",
+          client_feedback: reasonToSend,
+          client_satisfaction_rating: rating,
         });
       }
 
@@ -146,21 +173,19 @@ export default function ClientCommandesPage({
           o.id === actionOrder.id
             ? {
                 ...o,
-                client_status: updatedIntent.client_status,
-                client_feedback: updatedIntent.client_feedback,
-                client_satisfaction_rating: updatedIntent.client_satisfaction_rating,
-                coherence_status: updatedIntent.coherence_status,
-                coherence_notes: updatedIntent.coherence_notes,
-                status: updatedIntent.status,
+                status: actionType === "CANCEL" ? "CANCELLED" : o.status,
+                client_status: actionType === "CANCEL" ? "CANCELLED" : "SATISFIED",
+                client_feedback: reasonToSend,
+                client_satisfaction_rating: rating,
               }
             : o
         )
       );
 
       if (actionType === "SATISFY") {
-        showToast("⭐ Merci ! Votre satisfaction a été transmise à la commerçante.");
+        showToast("⭐ Merci ! Votre satisfaction a été enregistrée.");
       } else {
-        showToast("❌ Commande annulée. La commerçante a été notifiée.");
+        showToast("❌ Commande annulée avec succès.");
       }
 
       setActionOrder(null);
@@ -320,30 +345,66 @@ export default function ClientCommandesPage({
                   </div>
                 )}
 
-                {/* Product details in layered inner card */}
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-secondary/80 border border-slate-200 dark:border-slate-700/80 shadow-xs">
-                  <img
-                    src={order.product_image_url ? getMediaUrl(order.product_image_url) : "/media/products/samsung_galaxy_a15.jpg"}
-                    alt={order.product_name}
-                    className="w-16 h-16 rounded-xl object-cover bg-surface shrink-0 border border-slate-300 dark:border-slate-700"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = "/media/products/samsung_galaxy_a15.jpg";
-                    }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-headline-sm text-sm text-on-surface truncate font-bold">
-                      {order.product_name}
-                    </h4>
-                    <p className="text-xs text-on-surface-variant">
-                      Quantité : <span className="text-on-surface font-semibold">{order.quantity}</span>
-                      {order.selected_color && ` • ${order.selected_color}`}
-                    </p>
-                    <p className="text-sm font-bold text-primary tabular-nums mt-0.5">
-                      {order.total_amount?.toLocaleString("fr-FR")} {order.currency || "FCFA"}
-                    </p>
+                {/* Product details in layered inner card: Multi-items or single fallback */}
+                {order.items && order.items.length > 0 ? (
+                  <div className="space-y-2 p-3 rounded-xl bg-surface-secondary/80 border border-slate-200 dark:border-slate-700/80 shadow-xs">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-on-surface-variant border-b border-subtle pb-1">
+                      <span>{order.items.length} article{order.items.length > 1 ? "s" : ""} commandé{order.items.length > 1 ? "s" : ""}</span>
+                      <span className="text-primary font-bold">{order.total_amount?.toLocaleString("fr-FR")} {order.currency || "FCFA"}</span>
+                    </div>
+                    {order.items.map((it, idx) => (
+                      <div key={idx} className="flex items-center gap-2.5 py-1.5 border-b border-subtle/50 last:border-0">
+                        <div className="w-10 h-10 rounded-lg bg-surface flex items-center justify-center shrink-0 border border-subtle overflow-hidden">
+                          <img
+                            src={it.primary_image_url ? getMediaUrl(it.primary_image_url) : (order.product_image_url ? getMediaUrl(order.product_image_url) : "/media/products/samsung_galaxy_a15.jpg")}
+                            alt={it.product_name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = "/media/products/samsung_galaxy_a15.jpg";
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-on-surface truncate">{it.product_name}</p>
+                          <p className="text-[11px] text-on-surface-variant">
+                            {it.quantity} {it.unit_label || "pièce"} × {it.unit_price?.toLocaleString("fr-FR")} {order.currency || "FCFA"}
+                            {it.customization_text && (
+                              <span className="block text-primary text-[10px] italic">Note : {it.customization_text}</span>
+                            )}
+                          </p>
+                        </div>
+                        <span className="text-xs font-bold text-on-surface shrink-0">
+                          {(it.total_price || (it.quantity * it.unit_price))?.toLocaleString("fr-FR")} {order.currency || "FCFA"}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-secondary/80 border border-slate-200 dark:border-slate-700/80 shadow-xs">
+                    <img
+                      src={order.product_image_url ? getMediaUrl(order.product_image_url) : "/media/products/samsung_galaxy_a15.jpg"}
+                      alt={order.product_name}
+                      className="w-16 h-16 rounded-xl object-cover bg-surface shrink-0 border border-slate-300 dark:border-slate-700"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "/media/products/samsung_galaxy_a15.jpg";
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-headline-sm text-sm text-on-surface truncate font-bold">
+                        {order.product_name}
+                      </h4>
+                      <p className="text-xs text-on-surface-variant">
+                        Quantité : <span className="text-on-surface font-semibold">{order.quantity}</span>
+                        {order.selected_color && ` • ${order.selected_color}`}
+                      </p>
+                      <p className="text-sm font-bold text-primary tabular-nums mt-0.5">
+                        {order.total_amount?.toLocaleString("fr-FR")} {order.currency || "FCFA"}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Status Badges & Explanations */}
                 <div className="flex flex-col gap-2 pt-1 border-t border-subtle">
@@ -354,22 +415,27 @@ export default function ClientCommandesPage({
                         <Icon name="thumb_up" className="text-[14px]" />
                         Satisfait(e) ({order.client_satisfaction_rating || 5}★)
                       </span>
-                    ) : isClientCancelled ? (
+                    ) : (order.status === "CANCELLED" || isClientCancelled) ? (
                       <span className="flex items-center gap-1 text-rose-500 font-bold bg-rose-500/15 px-2 py-0.5 rounded-full text-[11px]">
                         <Icon name="cancel" className="text-[14px]" />
-                        Annulée par vous
+                        Commande Annulée
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-amber-500 font-semibold bg-amber-500/15 px-2 py-0.5 rounded-full text-[11px]">
                         <Icon name="schedule" className="text-[14px]" />
-                        En attente de votre retour
+                        En attente de validation (Pending)
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-on-surface-variant">Suivi boutique :</span>
-                    {isMutualSale ? (
+                    {order.status === "ACCEPTED" ? (
+                      <span className="flex items-center gap-1 text-emerald-500 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                        <Icon name="check_circle" className="text-[14px]" />
+                        Acceptée par le vendeur
+                      </span>
+                    ) : isMutualSale ? (
                       <span className="flex items-center gap-1 text-emerald-500 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full text-[11px]">
                         <Icon name="check_circle" className="text-[14px]" />
                         Vente 100% Consolidée
@@ -379,10 +445,15 @@ export default function ClientCommandesPage({
                         <Icon name="local_shipping" className="text-[14px]" />
                         Validé &amp; Expédié
                       </span>
+                    ) : order.status === "CANCELLED" ? (
+                      <span className="flex items-center gap-1 text-rose-500 font-medium bg-rose-500/15 px-2 py-0.5 rounded-full text-[11px]">
+                        <Icon name="close" className="text-[14px]" />
+                        Annulée
+                      </span>
                     ) : (
                       <span className="flex items-center gap-1 text-on-surface-variant font-medium bg-surface-secondary px-2 py-0.5 rounded-full text-[11px]">
-                        <Icon name="chat" className="text-[14px]" />
-                        Discussion en cours
+                        <Icon name="hourglass_top" className="text-[14px]" />
+                        En attente du commerçant
                       </span>
                     )}
                   </div>
@@ -411,7 +482,7 @@ export default function ClientCommandesPage({
                 </div>
 
                 {/* Client Action Buttons (Annuler ou Marquer Satisfait) */}
-                {!isClientSatisfied && !isClientCancelled && (
+                {!isClientSatisfied && order.status !== "CANCELLED" && !isClientCancelled && (
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-subtle">
                     <button
                       type="button"
@@ -432,7 +503,7 @@ export default function ClientCommandesPage({
                   </div>
                 )}
 
-                {/* Contact buttons */}
+                {/* Contact buttons - 100% Platform Autonomy */}
                 <div className="flex flex-col gap-2 pt-1">
                   {onOpenChat && (
                     <button
@@ -441,18 +512,9 @@ export default function ClientCommandesPage({
                       className="w-full h-10 rounded-xl bg-primary hover:brightness-105 text-white font-label-md font-bold flex items-center justify-center gap-2 transition-all active:scale-98 shadow-sm cursor-pointer"
                     >
                       <Icon name="forum" className="text-[18px]" />
-                      <span>Ouvrir la discussion en direct</span>
+                      <span>Ouvrir la discussion avec le vendeur</span>
                     </button>
                   )}
-                  <a
-                    href={order.redirect_url || `https://wa.me/2250700000000?text=Bonjour%20Awa,%20suivi%20de%20ma%20commande%20${order.reference_code}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-on-surface border border-subtle font-label-sm font-semibold flex items-center justify-center gap-2 transition-colors active:scale-98"
-                  >
-                    <Icon name="chat" className="text-[16px] text-green-600" />
-                    <span>Relancer sur WhatsApp</span>
-                  </a>
                 </div>
               </div>
             );

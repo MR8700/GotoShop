@@ -152,32 +152,86 @@ class CustomerService:
 
     @classmethod
     def get_customer_orders(cls, db: Session, customer: Customer) -> List[CustomerOrderItem]:
+        from app.models.order import Order
+        results = []
+        seen_refs = set()
+
+        # 1. Fetch full Conversational Orders
+        real_orders = db.query(Order).filter(
+            (Order.customer_id == customer.id) |
+            (Order.customer_phone == customer.phone) |
+            (Order.customer_token == customer.session_token)
+        ).order_by(Order.created_at.desc()).all()
+
+        for o in real_orders:
+            seen_refs.add(o.order_number)
+            conv_id = o.conversations[0].id if o.conversations else None
+            items_list = [
+                {
+                    "id": it.id,
+                    "product_id": it.product_id,
+                    "product_name": it.product_name,
+                    "quantity": it.quantity,
+                    "unit_price": it.unit_price,
+                    "total_price": it.total_price,
+                    "unit_label": it.unit_label,
+                    "customization_text": it.customization_text,
+                }
+                for it in (o.items or [])
+            ]
+            first_item = o.items[0] if o.items else None
+            prod_name = ", ".join([f"{it.product_name} ({it.quantity})" for it in o.items]) if o.items else "Commande GotoShop"
+            prod_img = first_item.product.primary_image_url if first_item and getattr(first_item, "product", None) else None
+            store_slug = o.store.slug if o.store else "shop"
+
+            results.append(CustomerOrderItem(
+                id=o.id,
+                reference_code=o.order_number,
+                product_name=prod_name,
+                product_image_url=prod_img,
+                quantity=int(sum([it.quantity for it in o.items])) if o.items else 1,
+                selected_color=first_item.variant_name if first_item else None,
+                delivery_city=o.delivery.delivery_city if o.delivery else None,
+                total_amount=o.total_amount,
+                currency=o.currency or "FCFA",
+                status=o.status,
+                client_status="CANCELLED" if o.status == "CANCELLED" else "PENDING",
+                client_feedback=o.rejection_reason,
+                client_satisfaction_rating=5 if o.status == "COMPLETED" else None,
+                client_action_at=o.updated_at,
+                coherence_status="HARMONIZED_PENDING",
+                coherence_notes=None,
+                is_sold=o.status in ["DELIVERED", "COMPLETED"],
+                channel_type="IN_APP_CHAT",
+                redirect_url=f"/store/{store_slug}?tab=chat&conv={conv_id}" if conv_id else f"/store/{store_slug}?tab=commandes",
+                customer_location_url=o.delivery.maps_url if o.delivery and hasattr(o.delivery, "maps_url") else (f"https://maps.google.com/?q={o.delivery.latitude},{o.delivery.longitude}" if o.delivery and o.delivery.latitude else None),
+                customer_coordinates=f"{o.delivery.latitude}, {o.delivery.longitude}" if o.delivery and o.delivery.latitude else None,
+                items=items_list,
+                conversation_id=conv_id,
+                created_at=o.created_at,
+            ))
+
+        # 2. Legacy OrderIntents
         intents = db.query(OrderIntent).filter(
             (OrderIntent.customer_id == customer.id) |
             (OrderIntent.customer_phone == customer.phone)
         ).order_by(OrderIntent.created_at.desc()).all()
 
-        results = []
         for i in intents:
-            prod_name = i.product.name if i.product else "Produit Awa Chic & Tech"
+            if i.reference_code in seen_refs:
+                continue
+            seen_refs.add(i.reference_code)
+            prod_name = i.product.name if i.product else "Produit GotoShop"
             prod_img = i.product.primary_image_url if i.product else None
             is_sold = i.sale_confirmation.is_sold if i.sale_confirmation else None
-            
-            # Formulate direct WhatsApp redirection link for customer follow-up
-            phone_target = "2250700000000"
-            if i.channel and i.channel.account_handle:
-                phone_target = normalize_phone(i.channel.account_handle)
-            followup_msg = f"Bonjour Awa, je fais le suivi de ma commande {i.reference_code} ({prod_name}). Pouvez-vous me donner des nouvelles ?"
-            import urllib.parse
-            encoded_msg = urllib.parse.quote(followup_msg)
-            wa_link = f"https://wa.me/{phone_target}?text={encoded_msg}"
+            store_slug = i.store.slug if i.store else "shop"
 
             results.append(CustomerOrderItem(
                 id=i.id,
                 reference_code=i.reference_code,
                 product_name=prod_name,
                 product_image_url=prod_img,
-                quantity=i.quantity,
+                quantity=int(i.quantity) if i.quantity else 1,
                 selected_color=i.selected_color,
                 delivery_city=i.delivery_city,
                 total_amount=i.total_amount,
@@ -190,12 +244,15 @@ class CustomerService:
                 coherence_status=i.coherence_status or "HARMONIZED_PENDING",
                 coherence_notes=i.coherence_notes,
                 is_sold=is_sold,
-                channel_type=i.channel_type or "WHATSAPP",
-                redirect_url=wa_link,
+                channel_type=i.channel_type or "IN_APP_CHAT",
+                redirect_url=f"/store/{store_slug}?tab=commandes",
                 customer_location_url=i.customer_location_url,
                 customer_coordinates=i.customer_coordinates,
+                items=None,
+                conversation_id=None,
                 created_at=i.created_at,
             ))
+
         return results
 
     @classmethod

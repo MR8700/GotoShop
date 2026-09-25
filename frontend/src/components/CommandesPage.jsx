@@ -806,32 +806,16 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      {/* Fast Contact Button if phone available */}
-                      {item.customer_phone && (
-                        <a
-                          href={`https://wa.me/${item.customer_phone.replace(/\D/g, "")}?text=${encodeURIComponent(
-                            `Bonjour ${item.customer_name || ""}, je vous contacte concernant votre commande ${item.reference_code} chez Awa Chic & Tech.`
-                          )}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 text-[11px] font-semibold flex items-center gap-1 transition-all"
-                          title="Contacter sur WhatsApp"
-                        >
-                          <Icon name="chat" className="text-[13px]" />
-                          <span>WhatsApp</span>
-                        </a>
-                      )}
-
-                      {/* Direct Chat Button */}
+                      {/* Direct Internal Chat Button */}
                       {onOpenChat && (
                         <button
                           type="button"
                           onClick={() => onOpenChat(item.conversation_id)}
-                          className="px-2 py-1 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
-                          title="Ouvrir la messagerie directe"
+                          className="px-2.5 py-1 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                          title="Ouvrir la messagerie interne"
                         >
-                          <Icon name="forum" className="text-[13px]" />
-                          <span>Chat</span>
+                          <Icon name="forum" className="text-[14px]" />
+                          <span>Discuter en direct</span>
                         </button>
                       )}
 

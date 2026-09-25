@@ -1,58 +1,190 @@
 import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
-import { getMediaUrl, createOrderIntent, saveLocalGuestOrder } from "../api/client";
+import {
+  getMediaUrl,
+  createConversationalOrder,
+  cancelConversationalOrder,
+  saveLocalGuestOrder,
+} from "../api/client";
+import { sendNativeNotification, requestNotificationPermission } from "../utils/nativeNotifications";
 
 export default function TunnelHandoffModal({
   store,
-  product,
+  cart = [],
+  product = null,
   customer,
-  initialChannel = "WHATSAPP",
-  initialColor = "Bleu Nuit",
+  onUpdateCartQuantity,
+  onRemoveFromCart,
+  onUpdateCartCustomization,
+  onClearCart,
   onClose,
   showToast,
   onOrderCreated,
   onOpenCustomerAuth,
   onNavigateToOrders,
+  onOpenChat,
 }) {
-  const [selectedColor, setSelectedColor] = useState(initialColor);
-  const [quantity, setQuantity] = useState(1);
-  const [selectedCity, setSelectedCity] = useState(customer?.city || "Ouagadougou");
-  const [customLocality, setCustomLocality] = useState(customer?.delivery_address || "");
-  const [activeChannel, setActiveChannel] = useState((customer?.preferred_channel || initialChannel).toUpperCase());
-  const [referenceCode, setReferenceCode] = useState("CMD-" + Math.random().toString(36).substring(2, 8).toUpperCase());
-  const [copied, setCopied] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [orderSuccessIntent, setOrderSuccessIntent] = useState(null);
+  // If cart is empty but single product passed, construct an editable working items array
+  const [items, setItems] = useState(() => {
+    if (cart && cart.length > 0) {
+      return cart.map((c) => ({
+        id: c.id || c.product_id,
+        product_id: c.product_id || c.id,
+        name: c.name || "Article",
+        unit_price: Number(c.price) || 0,
+        quantity: Number(c.quantity) || 1,
+        unit: c.unit || "PIECE",
+        unit_label: c.unit_label || "pièce",
+        primary_image_url: c.primary_image_url || null,
+        selected_color: c.selected_color || (c.variants && c.variants[0]?.name) || "Standard",
+        customization_text: c.customization_text || "",
+      }));
+    }
+    if (product) {
+      return [
+        {
+          id: product.id,
+          product_id: product.id,
+          name: product.name,
+          unit_price: Number(product.price) || 0,
+          quantity: 1,
+          unit: product.sales_unit || "PIECE",
+          unit_label: product.sales_unit_label || "pièce",
+          primary_image_url: product.primary_image_url || null,
+          selected_color: (product.variants && product.variants[0]?.name) || "Standard",
+          customization_text: "",
+        },
+      ];
+    }
+    return [];
+  });
 
-  // Editable social media message state
-  const [customMessage, setCustomMessage] = useState("");
-  const [isMessageEdited, setIsMessageEdited] = useState(false);
+  // Delivery & location state
+  const cities = store?.delivery_cities?.length
+    ? store.delivery_cities
+    : [
+        { id: "1", name: "Ouagadougou", display_label: "Ouagadougou" },
+        { id: "2", name: "Bobo-Dioulasso", display_label: "Bobo-Dioulasso" },
+        { id: "3", name: "Koudougou", display_label: "Koudougou" },
+        { id: "4", name: "Autre Ville", display_label: "Autre Ville" },
+      ];
 
-  // GPS Location state - EXCLUSIVELY sent if client explicitly wants it
-  const [wantSendGps, setWantSendGps] = useState(false);
+  const [selectedCity, setSelectedCity] = useState(
+    customer?.city || store?.city || "Ouagadougou"
+  );
+  const [customLocality, setCustomLocality] = useState(
+    customer?.delivery_address || customer?.delivery_neighborhood || ""
+  );
+  const [deliveryNotes, setDeliveryNotes] = useState("");
+
+  // Customer contact info
+  const [customerName, setCustomerName] = useState(customer?.name || "");
+  const [customerPhone, setCustomerPhone] = useState(customer?.phone || "");
+
+  // GPS Location state
+  const [wantSendGps, setWantSendGps] = useState(Boolean(customer?.gps_coordinates));
   const [isLocating, setIsLocating] = useState(false);
-  const [customerLocationUrl, setCustomerLocationUrl] = useState(customer?.gps_location_url || null);
-  const [customerCoordinates, setCustomerCoordinates] = useState(customer?.gps_coordinates || null);
+  const [latitude, setLatitude] = useState(
+    customer?.gps_coordinates ? parseFloat(customer.gps_coordinates.split(",")[0]) : null
+  );
+  const [longitude, setLongitude] = useState(
+    customer?.gps_coordinates ? parseFloat(customer.gps_coordinates.split(",")[1]) : null
+  );
+  const [locationAccuracy, setLocationAccuracy] = useState(null);
+
+  // Submission & Post-order state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState(null);
+
+  // Synchronize internal items with cart when cart prop changes externally
+  useEffect(() => {
+    if (cart && cart.length > 0 && !createdOrder) {
+      setItems(
+        cart.map((c) => ({
+          id: c.id || c.product_id,
+          product_id: c.product_id || c.id,
+          name: c.name || "Article",
+          unit_price: Number(c.price) || 0,
+          quantity: Number(c.quantity) || 1,
+          unit: c.unit || "PIECE",
+          unit_label: c.unit_label || "pièce",
+          primary_image_url: c.primary_image_url || null,
+          selected_color: c.selected_color || (c.variants && c.variants[0]?.name) || "Standard",
+          customization_text: c.customization_text || "",
+        }))
+      );
+    }
+  }, [cart]);
+
+  // Request native notification permission on mount
+  useEffect(() => {
+    requestNotificationPermission().catch(() => {});
+  }, []);
+
+  const handleUpdateItemQuantity = (index, delta) => {
+    setItems((prev) => {
+      const updated = [...prev];
+      const target = updated[index];
+      const nextQty = Math.max(1, target.quantity + delta);
+      updated[index] = { ...target, quantity: nextQty };
+      return updated;
+    });
+    const item = items[index];
+    if (item && onUpdateCartQuantity) {
+      onUpdateCartQuantity(item.id, delta);
+    }
+  };
+
+  const handleRemoveItem = (index) => {
+    const item = items[index];
+    if (item && onRemoveFromCart) {
+      onRemoveFromCart(item.id);
+    }
+    setItems((prev) => prev.filter((_, i) => i !== index));
+    showToast?.("Article retiré du panier");
+  };
+
+  const handleUpdateCustomization = (index, text) => {
+    setItems((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], customization_text: text };
+      return updated;
+    });
+    const item = items[index];
+    if (item && onUpdateCartCustomization) {
+      onUpdateCartCustomization(item.id, text);
+    }
+  };
+
+  const handleCancelCartDirectly = () => {
+    if (window.confirm("Êtes-vous sûr de vouloir vider et annuler votre panier ?")) {
+      if (onClearCart) onClearCart();
+      setItems([]);
+      showToast?.("Panier vidé et annulé");
+      onClose?.();
+    }
+  };
 
   const handleCaptureLocation = () => {
     if (!navigator.geolocation) {
-      showToast("La géolocalisation n'est pas supportée par votre appareil");
+      showToast?.("La géolocalisation n'est pas supportée par votre appareil");
       return;
     }
     setIsLocating(true);
-    showToast("Recherche de votre position GPS exacte...");
+    showToast?.("Recherche de votre position GPS exacte...");
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const lat = position.coords.latitude.toFixed(5);
-        const lng = position.coords.longitude.toFixed(5);
-        const coordsStr = `${lat}, ${lng}`;
-        const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
-        setCustomerCoordinates(coordsStr);
-        setCustomerLocationUrl(mapsUrl);
+        const lat = parseFloat(position.coords.latitude.toFixed(5));
+        const lng = parseFloat(position.coords.longitude.toFixed(5));
+        const acc = parseFloat(position.coords.accuracy.toFixed(1));
+        setLatitude(lat);
+        setLongitude(lng);
+        setLocationAccuracy(acc);
         setWantSendGps(true);
         setIsLocating(false);
-        showToast("Position GPS capturée avec succès");
+        showToast?.("Position GPS capturée avec succès !");
       },
       (error) => {
         setIsLocating(false);
@@ -60,244 +192,267 @@ export default function TunnelHandoffModal({
         if (error.code === 1) errorMsg = "Veuillez autoriser l'accès GPS pour partager votre position";
         else if (error.code === 2) errorMsg = "Signal GPS indisponible";
         else if (error.code === 3) errorMsg = "Délai GPS dépassé";
-        showToast(errorMsg);
+        showToast?.(errorMsg);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
   const handleClearLocation = () => {
-    setCustomerCoordinates(null);
-    setCustomerLocationUrl(null);
+    setLatitude(null);
+    setLongitude(null);
+    setLocationAccuracy(null);
     setWantSendGps(false);
-    showToast("Position GPS retirée.");
+    showToast?.("Position GPS retirée");
   };
 
-  // Available cities from store or defaults
-  const cities = store?.delivery_cities?.length
-    ? store.delivery_cities
-    : [
-        { id: "1", name: "Ouagadougou", display_label: "Ouagadougou" },
-        { id: "2", name: "Bobo-Dioulasso", display_label: "Bobo-Dioulasso" },
-        { id: "3", name: "Koudougou", display_label: "Koudougou" },
-        { id: "4", name: "Autre", display_label: "Autre Ville" },
-      ];
+  // Pricing calculations
+  const subtotal = items.reduce((sum, it) => sum + it.unit_price * it.quantity, 0);
+  const deliveryFee = store?.delivery_fee !== undefined ? store.delivery_fee : 500;
+  const totalAmount = subtotal + deliveryFee;
+  const currency = store?.currency || "FCFA";
 
-  // Available variants from product or defaults
-  const colorOptions = product?.variants?.length
-    ? product.variants.map((v) => v.name)
-    : ["Bleu Nuit", "Noir Minéral", "Or Jaune"];
-
-  const unitPrice = product?.price || 85000;
-  const totalPrice = unitPrice * quantity;
-
-  const copyRefCode = () => {
-    navigator.clipboard?.writeText(referenceCode).catch(() => {});
-    setCopied(true);
-    showToast(`Référence #${referenceCode} copiée`);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const destinationStr = customLocality.trim() ? `${selectedCity} (${customLocality.trim()})` : selectedCity;
-
-  const getDefaultMessage = () => {
-    const colorStr = selectedColor ? ` (${selectedColor})` : "";
-    const clientGreeting = customer ? `Je suis ${customer.name}. ` : "";
-    let msg = `Bonjour ${store?.name || "Boutique"}, ${clientGreeting}je souhaite commander ${quantity}x ${product?.name}${colorStr} pour livraison à ${destinationStr}. Réf: ${referenceCode}`;
-    if (wantSendGps && customerLocationUrl) {
-      msg += ` 📍 Position GPS livraison : ${customerLocationUrl}`;
+  // Handle direct order creation on GotoShop (100% on platform, no social media)
+  const handleConfirmOrder = async () => {
+    if (items.length === 0) {
+      showToast?.("Votre panier est vide");
+      return;
     }
-    return msg;
-  };
-
-  useEffect(() => {
-    if (!isMessageEdited) {
-      setCustomMessage(getDefaultMessage());
+    if (!customer && !customerName.trim()) {
+      showToast?.("Veuillez renseigner votre nom pour la livraison");
+      return;
     }
-  }, [
-    quantity,
-    selectedColor,
-    destinationStr,
-    wantSendGps,
-    customerLocationUrl,
-    customer,
-    store?.name,
-    product?.name,
-    referenceCode,
-    isMessageEdited,
-  ]);
 
-  const handleLaunchHandshake = async () => {
     setIsSubmitting(true);
-    showToast(`Préparation de la commande #${referenceCode}...`);
-
-    const finalMessage = (customMessage.trim() || getDefaultMessage()).trim();
+    showToast?.("Validation de votre commande sur GotoShop...");
 
     try {
       const resolvedStoreId = store?.id || store?.slug || "faso-danfani";
-      const resolvedProductId = product?.id || "hero-product";
-
       const payload = {
         store_id: resolvedStoreId,
-        product_id: resolvedProductId,
-        channel_type: activeChannel,
-        quantity: quantity,
-        selected_color: selectedColor,
-        delivery_city: destinationStr,
-        customer_source: "MOBILE_WEB",
-        customer_name: customer?.name || "Client Mobile",
-        customer_phone: customer?.phone || null,
+        items: items.map((it) => ({
+          product_id: it.product_id,
+          product_name: it.name,
+          quantity: it.quantity,
+          unit_price: it.unit_price,
+          unit: it.unit || "PIECE",
+          unit_label: it.unit_label || "pièce",
+          variant_name: it.selected_color || null,
+          customization_text: it.customization_text || null,
+        })),
+        delivery: {
+          delivery_mode: wantSendGps ? "GPS_AND_DESCRIPTION" : "ADDRESS_DESCRIPTION",
+          delivery_city: selectedCity,
+          delivery_address: customLocality || selectedCity,
+          latitude: wantSendGps ? latitude : null,
+          longitude: wantSendGps ? longitude : null,
+          location_accuracy: wantSendGps ? locationAccuracy : null,
+          delivery_notes: deliveryNotes || null,
+        },
+        customer_name: customer?.name || customerName.trim() || "Client GotoShop",
+        customer_phone: customer?.phone || customerPhone.trim() || null,
         customer_id: customer?.id || null,
-        customer_location_url: wantSendGps ? customerLocationUrl : null,
-        customer_coordinates: wantSendGps ? customerCoordinates : null,
-        custom_message: finalMessage,
+        customer_token: customer?.session_token || null,
+        delivery_fee: deliveryFee,
+        notes: deliveryNotes || null,
+        city: selectedCity,
+        delivery_neighborhood: customLocality || null,
+        register_account: !customer && Boolean(customerPhone.trim()),
       };
 
-      const res = await createOrderIntent(payload);
+      const orderResult = await createConversationalOrder(payload);
 
-      // Persist in local storage for guest tracking
+      // Persist in local guest orders for offline tracking
       saveLocalGuestOrder({
-        id: res.id,
-        reference_code: res.reference_code,
-        product_name: product.name,
-        product_image_url: product.primary_image_url,
-        quantity: quantity,
-        selected_color: selectedColor,
-        delivery_city: destinationStr,
-        total_amount: totalPrice,
-        currency: product.currency || "FCFA",
-        channel_type: activeChannel,
-        status: res.status || "CREATED",
+        id: orderResult.id,
+        reference_code: orderResult.order_number,
+        product_name: items.map((it) => it.name).join(", "),
+        product_image_url: items[0]?.primary_image_url || null,
+        items: items,
+        quantity: items.reduce((acc, it) => acc + it.quantity, 0),
+        delivery_city: selectedCity,
+        total_amount: orderResult.total_amount || totalAmount,
+        currency: currency,
+        status: orderResult.status || "PENDING_SELLER_ACCEPTANCE",
         client_status: "PENDING",
-        redirect_url: res.redirect_url,
-        customer_location_url: wantSendGps ? customerLocationUrl : null,
-        customer_coordinates: wantSendGps ? customerCoordinates : null,
-        created_at: res.created_at || new Date().toISOString(),
+        conversation_id: orderResult.conversation_id,
+        created_at: orderResult.created_at || new Date().toISOString(),
       });
 
-      if (onOrderCreated) onOrderCreated(res);
+      // Clear the local cart
+      if (onClearCart) onClearCart();
 
-      let finalRedirectUrl = res.redirect_url;
-      const rawWa = store?.contact_whatsapp || store?.channels?.find((c) => c.channel_type === "WHATSAPP")?.account_handle || "22670123456";
-      const cleanWa = rawWa.replace(/\D/g, "");
+      // Trigger native notification on device (status bar / lock screen)
+      sendNativeNotification(`📦 Commande #${orderResult.order_number} en attente`, {
+        body: `Votre commande de ${orderResult.total_amount?.toLocaleString("fr-FR")} ${currency} a été transmise à ${store?.name || "la boutique"}.`,
+        tag: `order-${orderResult.id}`,
+        url: window.location.origin,
+      });
 
-      if (activeChannel === "WHATSAPP") {
-        finalRedirectUrl = `https://wa.me/${cleanWa || "22670123456"}?text=${encodeURIComponent(finalMessage)}`;
-      } else if (activeChannel === "SMS") {
-        finalRedirectUrl = `sms:${rawWa || "+22670123456"}?body=${encodeURIComponent(finalMessage)}`;
-      }
-
-      showToast(`Redirection vers ${activeChannel}...`);
-      setTimeout(() => {
-        window.open(finalRedirectUrl, "_blank");
-        setIsSubmitting(false);
-        if (!customer) {
-          setOrderSuccessIntent(res);
-        } else {
-          setTimeout(() => onClose(), 1500);
-        }
-      }, 500);
+      showToast?.(`Commande #${orderResult.order_number} transmise avec succès !`);
+      if (onOrderCreated) onOrderCreated(orderResult);
+      setCreatedOrder(orderResult);
     } catch (err) {
-      showToast(err.message || "Erreur de redirection");
+      showToast?.(err.message || "Erreur lors de la validation de la commande");
+    } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Channel configuration
-  const getCtaConfig = () => {
-    switch (activeChannel) {
-      case "MESSENGER":
-        return {
-          bg: "bg-[#0084FF] text-white hover:bg-[#0073e6]",
-          icon: "forum",
-          label: "Discuter sur Messenger Facebook",
-        };
-      case "SMS":
-        return {
-          bg: "bg-white/[0.1] hover:bg-white/[0.15] text-white border border-white/20",
-          icon: "sms",
-          label: "Envoyer par SMS Direct",
-        };
-      case "CALL":
-        return {
-          bg: "bg-primary hover:brightness-105 text-white",
-          icon: "phone_in_talk",
-          label: "Appeler le commerçant",
-        };
-      default:
-        return {
-          bg: "bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 font-bold",
-          icon: "chat",
-          label: "Ouvrir WhatsApp et commander",
-        };
+  // Handle direct pending order cancellation
+  const handleCancelPendingOrder = async () => {
+    if (!createdOrder) return;
+    if (!window.confirm("Êtes-vous sûr de vouloir annuler cette commande ?")) return;
+
+    setIsCancellingOrder(true);
+    showToast?.("Annulation de la commande en cours...");
+    try {
+      const res = await cancelConversationalOrder(createdOrder.id, "Annulé par le client directement");
+      setCreatedOrder(res);
+      showToast?.(`Commande #${res.order_number} annulée avec succès.`);
+
+      sendNativeNotification(`❌ Commande #${res.order_number} annulée`, {
+        body: `Votre commande a bien été annulée.`,
+        tag: `order-cancel-${res.id}`,
+      });
+    } catch (err) {
+      showToast?.(err.message || "Erreur lors de l'annulation de la commande");
+    } finally {
+      setIsCancellingOrder(false);
     }
   };
 
-  const cta = getCtaConfig();
+  // =========================================================================
+  // VIEW: ORDER SUCCESS / PENDING STATUS
+  // =========================================================================
+  if (createdOrder) {
+    const isCancelled = createdOrder.status === "CANCELLED";
+    const isAccepted = createdOrder.status === "ACCEPTED";
+    const isPending = createdOrder.status === "PENDING_SELLER_ACCEPTANCE";
 
-  if (orderSuccessIntent) {
     return (
-      <div className="flex flex-col w-full max-w-lg mx-auto pb-safe space-y-4 pt-6 pb-24 text-center animate-fade-in">
-        {/* Success Icon */}
-        <div className="mx-auto w-14 h-14 rounded-2xl bg-secondary/15 text-secondary flex items-center justify-center border border-secondary/30 shadow-sm">
-          <Icon name="check_circle" className="text-[30px]" style={{ fontVariationSettings: "'FILL' 1" }} />
+      <div className="flex flex-col w-full max-w-lg mx-auto pb-safe space-y-4 pt-4 pb-24 text-center animate-fade-in">
+        {/* Status Icon */}
+        <div
+          className={`mx-auto w-16 h-16 rounded-2xl flex items-center justify-center border shadow-sm ${
+            isCancelled
+              ? "bg-rose-500/15 text-rose-500 border-rose-500/30"
+              : isAccepted
+              ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+              : "bg-amber-500/15 text-amber-500 border-amber-500/30 animate-pulse"
+          }`}
+        >
+          <Icon
+            name={isCancelled ? "cancel" : isAccepted ? "check_circle" : "hourglass_top"}
+            className="text-[34px]"
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          />
         </div>
 
-        {/* Title */}
-        <div className="space-y-1 px-4">
-          <span className="font-mono text-xs font-semibold text-secondary bg-secondary/10 px-3 py-1 rounded-full border border-secondary/20">
-            #{orderSuccessIntent.reference_code}
+        {/* Title & Status */}
+        <div className="space-y-1.5 px-4">
+          <span className="font-mono text-xs font-bold text-on-surface-variant bg-surface-secondary px-3 py-1 rounded-full border border-subtle">
+            COMMANDE #{createdOrder.order_number}
           </span>
-          <h2 className="text-xl font-bold text-on-surface pt-2 tracking-tight">
-            Commande Transmise avec Succès
+          <h2 className="text-xl font-bold text-on-surface pt-1 tracking-tight">
+            {isCancelled
+              ? "Commande Annulée"
+              : isAccepted
+              ? "Commande Acceptée par le Vendeur !"
+              : "Commande en attente de validation"}
           </h2>
           <p className="text-xs text-on-surface-variant max-w-xs mx-auto leading-relaxed">
-            La discussion directe avec {store?.name || "le commerçant"} est initiée. Votre demande a bien été enregistrée.
+            {isCancelled
+              ? "Cette commande a été annulée. Aucun prélèvement ne sera effectué."
+              : isAccepted
+              ? "Le vendeur a validé votre commande. Vous pouvez échanger directement dans la messagerie intégrée."
+              : `Votre commande a été transmise à ${store?.name || "la boutique"}. Vous recevrez une alerte dès son acceptation.`}
           </p>
         </div>
 
-        {/* Account Activation Banner */}
-        <div className="rounded-2xl bg-surface-card p-5 text-left border border-subtle shadow-card space-y-3 mx-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Icon name="stars" className="text-primary text-[20px]" />
-              <span className="text-sm font-semibold text-on-surface">Espace Client Partagé</span>
-            </div>
-            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-              Reconnu Partout
+        {/* Items Summary in Post-Order Screen */}
+        <div className="rounded-2xl bg-surface-card p-4 text-left border border-subtle shadow-card space-y-3 mx-2">
+          <div className="flex items-center justify-between border-b border-subtle pb-2">
+            <span className="text-xs font-bold text-on-surface uppercase tracking-wide">
+              Détails des articles ({items.length})
+            </span>
+            <span className="text-xs font-bold text-primary">
+              {createdOrder.total_amount?.toLocaleString("fr-FR")} {currency}
             </span>
           </div>
 
-          <p className="text-xs text-on-surface-variant leading-relaxed">
-            Activez votre compte en 10 secondes (Nom &amp; WhatsApp) pour synchroniser vos adresses de livraison et suivre vos commandes en direct.
-          </p>
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            {items.map((it, idx) => (
+              <div key={idx} className="flex items-center justify-between text-xs py-1 border-b border-subtle/50 last:border-0">
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="font-semibold text-on-surface truncate">{it.name}</p>
+                  <p className="text-[11px] text-on-surface-variant">
+                    {it.quantity} {it.unit_label} × {it.unit_price?.toLocaleString("fr-FR")} {currency}
+                    {it.customization_text && (
+                      <span className="block text-primary text-[10px] italic">
+                        Note: {it.customization_text}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <span className="font-bold text-on-surface shrink-0">
+                  {(it.quantity * it.unit_price).toLocaleString("fr-FR")} {currency}
+                </span>
+              </div>
+            ))}
+          </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (onOpenCustomerAuth) onOpenCustomerAuth();
-              onClose();
-            }}
-            className="w-full h-11 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-          >
-            <Icon name="bolt" className="text-[16px]" />
-            <span>Activer mon profil client</span>
-          </button>
+          <div className="pt-2 border-t border-subtle flex items-center justify-between text-xs text-on-surface-variant">
+            <span>Mode de règlement :</span>
+            <span className="font-semibold text-on-surface">Paiement direct sur GotoShop</span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-on-surface-variant">
+            <span>Destination de livraison :</span>
+            <span className="font-semibold text-on-surface">{selectedCity} {customLocality ? `(${customLocality})` : ""}</span>
+          </div>
         </div>
 
-        {/* Secondary Actions */}
-        <div className="flex flex-col gap-2 px-3 pt-2">
+        {/* Action Buttons */}
+        <div className="flex flex-col gap-2.5 px-3 pt-1">
+          {createdOrder.conversation_id && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenChat) onOpenChat(createdOrder.conversation_id);
+                onClose?.();
+              }}
+              className="w-full h-11 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+            >
+              <Icon name="forum" className="text-[18px]" />
+              <span>Ouvrir la discussion avec le vendeur</span>
+            </button>
+          )}
+
+          {/* Direct Cancel Button while Pending */}
+          {isPending && (
+            <button
+              type="button"
+              disabled={isCancellingOrder}
+              onClick={handleCancelPendingOrder}
+              className="w-full h-10 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-xs font-bold flex items-center justify-center gap-2 border border-rose-500/30 transition-all cursor-pointer"
+            >
+              <Icon name="close" className="text-[16px]" />
+              <span>{isCancellingOrder ? "Annulation en cours..." : "Annuler directement cette commande"}</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
               if (onNavigateToOrders) onNavigateToOrders();
-              onClose();
+              onClose?.();
             }}
-            className="w-full h-11 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-medium flex items-center justify-center gap-2 border border-subtle transition-colors cursor-pointer"
+            className="w-full h-10 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-semibold flex items-center justify-center gap-2 border border-subtle transition-colors cursor-pointer"
           >
-            <Icon name="receipt_long" className="text-[17px]" />
-            <span>Suivre ma commande</span>
+            <Icon name="receipt_long" className="text-[16px]" />
+            <span>Suivre mes commandes</span>
           </button>
+
           <button
             type="button"
             onClick={onClose}
@@ -310,6 +465,9 @@ export default function TunnelHandoffModal({
     );
   }
 
+  // =========================================================================
+  // VIEW: EDIT & VALIDATE MULTI-PRODUCT CART TUNNEL
+  // =========================================================================
   return (
     <div className="flex flex-col w-full max-w-lg mx-auto pb-safe space-y-4 pt-2 pb-24 animate-fade-in">
       {/* Top Header */}
@@ -319,354 +477,313 @@ export default function TunnelHandoffModal({
           className="flex items-center gap-1.5 text-xs text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
         >
           <Icon name="arrow_back" className="text-[16px]" />
-          <span>Retour</span>
+          <span>Continuer mes achats</span>
         </button>
-        <span className="text-xs text-on-surface-variant font-mono">Commande Directe</span>
+
+        {items.length > 0 && (
+          <button
+            onClick={handleCancelCartDirectly}
+            className="flex items-center gap-1 text-xs text-rose-500 hover:text-rose-600 font-semibold transition-colors cursor-pointer"
+          >
+            <Icon name="delete_sweep" className="text-[16px]" />
+            <span>Vider / Annuler</span>
+          </button>
+        )}
       </div>
 
-      {/* Selected Product Summary Card */}
-      <div className="rounded-2xl bg-surface-card p-4 border border-subtle shadow-card">
-        <div className="flex gap-3.5 items-center">
-          <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-surface-secondary border border-subtle">
-            <img
-              className="w-full h-full object-cover"
-              src={getMediaUrl(product?.primary_image_url)}
-              alt={product?.name}
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = "/media/products/samsung_galaxy_a15.jpg";
-              }}
-            />
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <span className="text-[11px] font-semibold text-primary uppercase tracking-wide block">
-              Article sélectionné
-            </span>
-            <h2 className="text-sm sm:text-base font-semibold text-on-surface truncate mt-0.5">
-              {product?.name}
-            </h2>
-
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-lg font-bold text-on-surface tabular-nums">
-                {totalPrice.toLocaleString("fr-FR")}
-              </span>
-              <span className="text-xs text-on-surface-variant font-medium">
-                {product?.currency || "FCFA"}
-              </span>
-            </div>
-
-            <div className="mt-2 flex items-center justify-between bg-surface-secondary border border-subtle px-2.5 py-1 rounded-lg">
-              <span className="text-[11px] text-on-surface-variant font-mono">
-                RÉF #{referenceCode}
-              </span>
-              <button
-                onClick={copyRefCode}
-                className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
-              >
-                <span>{copied ? "Copié !" : "Copier"}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Customization Options */}
-      <div className="bg-surface-card rounded-2xl p-4 border border-subtle shadow-card space-y-3.5">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
-            <Icon name="tune" className="text-primary text-[17px]" />
-            <span>Options de livraison</span>
-          </h3>
-          <span className="text-[11px] text-on-surface-variant">Paiement à la remise</span>
+      {/* Cart Items Review Section */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-sm font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
+            <Icon name="shopping_cart" className="text-primary text-[18px]" />
+            <span>Articles de votre commande ({items.length})</span>
+          </h2>
+          <span className="text-xs font-bold text-primary">
+            {subtotal.toLocaleString("fr-FR")} {currency}
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          {/* Color Variant */}
-          <div className="space-y-1">
-            <label className="text-xs text-on-surface-variant font-medium">Variante / Couleur</label>
-            <div className="flex gap-1 p-1 bg-surface-secondary rounded-xl border border-subtle">
-              {colorOptions.map((cName) => (
-                <button
-                  key={cName}
-                  onClick={() => setSelectedColor(cName)}
-                  className={`flex-1 py-1.5 rounded-lg text-center text-xs font-medium transition-all cursor-pointer ${
-                    selectedColor === cName
-                      ? "bg-primary/15 text-primary border border-primary/30 font-semibold"
-                      : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-                >
-                  {cName.split(" ")[0]}
-                </button>
-              ))}
-            </div>
+        {items.length === 0 ? (
+          <div className="rounded-2xl bg-surface-card p-8 border border-subtle text-center space-y-3">
+            <Icon name="remove_shopping_cart" className="text-[36px] text-on-surface-variant mx-auto" />
+            <p className="text-sm font-semibold text-on-surface">Votre panier est vide</p>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold"
+            >
+              Parcourir les produits
+            </button>
           </div>
+        ) : (
+          <div className="space-y-3">
+            {items.map((it, idx) => (
+              <div
+                key={it.id || idx}
+                className="rounded-2xl bg-surface-card p-3.5 border border-subtle shadow-card space-y-3"
+              >
+                {/* Product row */}
+                <div className="flex items-start gap-3">
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-surface-secondary border border-subtle">
+                    <img
+                      className="w-full h-full object-cover"
+                      src={getMediaUrl(it.primary_image_url)}
+                      alt={it.name}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "/media/products/samsung_galaxy_a15.jpg";
+                      }}
+                    />
+                  </div>
 
-          {/* Quantity Stepper */}
-          <div className="space-y-1">
-            <label className="text-xs text-on-surface-variant font-medium">Quantité</label>
-            <div className="flex items-center justify-between p-1 bg-surface-secondary rounded-xl border border-subtle h-9">
-              <button
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="w-7 h-7 rounded-lg flex items-center justify-center bg-surface-card text-on-surface hover:bg-surface-elevated active:scale-95 transition-all cursor-pointer"
-              >
-                <Icon name="remove" className="text-[15px]" />
-              </button>
-              <span className="text-sm font-semibold text-on-surface">{quantity}</span>
-              <button
-                onClick={() => setQuantity((q) => Math.min(10, q + 1))}
-                className="w-7 h-7 rounded-lg flex items-center justify-center bg-surface-card text-on-surface hover:bg-surface-elevated active:scale-95 transition-all cursor-pointer"
-              >
-                <Icon name="add" className="text-[15px]" />
-              </button>
-            </div>
-          </div>
-        </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-xs sm:text-sm font-bold text-on-surface truncate">
+                        {it.name}
+                      </h3>
+                      <button
+                        onClick={() => handleRemoveItem(idx)}
+                        className="text-on-surface-variant hover:text-rose-500 transition-colors p-1"
+                        title="Supprimer cet article"
+                      >
+                        <Icon name="delete" className="text-[16px]" />
+                      </button>
+                    </div>
 
-        {/* City Selection */}
-        <div className="space-y-1">
-          <label className="text-xs text-on-surface-variant font-medium">Ville de destination</label>
-          <div className="grid grid-cols-4 gap-1.5">
-            {cities.map((city) => (
-              <button
-                key={city.id}
-                onClick={() => setSelectedCity(city.name)}
-                className={`py-2 px-1 rounded-xl text-center text-xs font-medium transition-all cursor-pointer ${
-                  selectedCity === city.name
-                    ? "bg-primary/15 text-primary font-semibold border border-primary/30"
-                    : "bg-surface-secondary text-on-surface-variant hover:text-on-surface border border-subtle"
-                }`}
-              >
-                {city.display_label}
-              </button>
+                    <p className="text-xs text-primary font-bold mt-0.5">
+                      {it.unit_price.toLocaleString("fr-FR")} {currency}
+                      <span className="text-[10px] text-on-surface-variant font-normal"> / {it.unit_label}</span>
+                    </p>
+
+                    {/* Stepper & Subtotal */}
+                    <div className="flex items-center justify-between mt-2 pt-1 border-t border-subtle/60">
+                      <div className="flex items-center gap-2 bg-surface-secondary rounded-lg p-0.5 border border-subtle">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateItemQuantity(idx, -1)}
+                          className="w-6 h-6 rounded flex items-center justify-center bg-surface-card text-on-surface hover:bg-surface-elevated active:scale-95 transition-all cursor-pointer"
+                        >
+                          <Icon name="remove" className="text-[13px]" />
+                        </button>
+                        <span className="text-xs font-bold text-on-surface px-1 min-w-[20px] text-center">
+                          {it.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateItemQuantity(idx, 1)}
+                          className="w-6 h-6 rounded flex items-center justify-center bg-surface-card text-on-surface hover:bg-surface-elevated active:scale-95 transition-all cursor-pointer"
+                        >
+                          <Icon name="add" className="text-[13px]" />
+                        </button>
+                      </div>
+
+                      <span className="text-xs font-bold text-on-surface">
+                        Total: {(it.unit_price * it.quantity).toLocaleString("fr-FR")} {currency}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Per-item Personalization Input */}
+                <div className="pt-2 border-t border-subtle/60">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Icon name="edit" className="text-[13px] text-primary" />
+                    <label className="text-[11px] font-semibold text-on-surface-variant">
+                      Personnalisation (taille, couleur, mesure ou note spéciale) :
+                    </label>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Ex: Taille XL, motif bleu, sans piment, gravure..."
+                    value={it.customization_text}
+                    onChange={(e) => handleUpdateCustomization(idx, e.target.value)}
+                    className="w-full h-8 px-2.5 rounded-lg bg-surface-secondary border border-subtle text-on-surface placeholder:text-on-surface-variant/50 text-[11px] focus:outline-none focus:border-strong transition-all"
+                  />
+                </div>
+              </div>
             ))}
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Quartier / Repère text field */}
-        <div className="space-y-1">
-          <label className="text-xs text-on-surface-variant font-medium">
-            Quartier ou repère de livraison (champ libre)
-          </label>
-          <input
-            type="text"
-            placeholder="Ex: Ouaga 2000, face pharmacie, Zone 4..."
-            value={customLocality}
-            onChange={(e) => setCustomLocality(e.target.value)}
-            className="w-full h-10 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface placeholder:text-on-surface-variant/50 text-xs focus:outline-none focus:border-strong transition-all"
-          />
-        </div>
+      {items.length > 0 && (
+        <>
+          {/* Customer Identification */}
+          <div className="bg-surface-card rounded-2xl p-4 border border-subtle shadow-card space-y-3">
+            <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+              <Icon name="person" className="text-primary text-[17px]" />
+              <span>Vos coordonnées de livraison</span>
+            </h3>
 
-        {/* Optional GPS Location Toggle */}
-        <div className="pt-2 border-t border-subtle space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Icon name="pin_drop" className="text-primary text-[18px]" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <span className="text-xs font-medium text-on-surface block">
-                  Partager ma position GPS exacte
-                </span>
-                <span className="text-[11px] text-on-surface-variant">
-                  {wantSendGps ? "Transmise au livreur dans le message" : "Optionnel • Non partagée par défaut"}
-                </span>
+                <label className="text-[11px] font-semibold text-on-surface-variant block mb-1">
+                  Votre Nom complet *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Awa Traoré"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface text-xs focus:outline-none focus:border-strong"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-on-surface-variant block mb-1">
+                  Numéro de Téléphone *
+                </label>
+                <input
+                  type="tel"
+                  placeholder="Ex: 70 12 34 56"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface text-xs focus:outline-none focus:border-strong"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery & GPS Section */}
+          <div className="bg-surface-card rounded-2xl p-4 border border-subtle shadow-card space-y-3.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+                <Icon name="local_shipping" className="text-primary text-[17px]" />
+                <span>Adresse &amp; Géolocalisation</span>
+              </h3>
+              <span className="text-[11px] font-semibold text-secondary">
+                Frais: {deliveryFee.toLocaleString("fr-FR")} {currency}
+              </span>
+            </div>
+
+            {/* City Selection */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-on-surface-variant">Ville de livraison</label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {cities.map((city) => (
+                  <button
+                    key={city.id}
+                    type="button"
+                    onClick={() => setSelectedCity(city.name)}
+                    className={`py-2 px-1 rounded-xl text-center text-xs font-medium transition-all cursor-pointer ${
+                      selectedCity === city.name
+                        ? "bg-primary/15 text-primary font-bold border border-primary/30"
+                        : "bg-surface-secondary text-on-surface-variant hover:text-on-surface border border-subtle"
+                    }`}
+                  >
+                    {city.display_label || city.name}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <label className="relative inline-flex items-center cursor-pointer">
+            {/* Quartier / Repère text field */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-on-surface-variant">
+                Quartier, rue ou repère exact
+              </label>
               <input
-                type="checkbox"
-                checked={wantSendGps}
-                onChange={(e) => {
-                  const val = e.target.checked;
-                  setWantSendGps(val);
-                  if (val && !customerCoordinates) {
-                    handleCaptureLocation();
-                  } else if (val) {
-                    showToast("Position GPS activée");
-                  } else {
-                    showToast("Position GPS désactivée");
-                  }
-                }}
-                className="sr-only peer"
+                type="text"
+                placeholder="Ex: Kossodo, près de l'école, Zone 4..."
+                value={customLocality}
+                onChange={(e) => setCustomLocality(e.target.value)}
+                className="w-full h-9 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface placeholder:text-on-surface-variant/50 text-xs focus:outline-none focus:border-strong transition-all"
               />
-              <div className="w-10 h-5 bg-surface-elevated peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-secondary"></div>
-            </label>
-          </div>
+            </div>
 
-          {wantSendGps && (
-            <div className="pt-1">
-              {!customerCoordinates ? (
+            {/* Notes for courier */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-on-surface-variant">
+                Instructions particulières pour le livreur (optionnel)
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Portail bleu, appeler avant d'arriver..."
+                value={deliveryNotes}
+                onChange={(e) => setDeliveryNotes(e.target.value)}
+                className="w-full h-9 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface placeholder:text-on-surface-variant/50 text-xs focus:outline-none focus:border-strong transition-all"
+              />
+            </div>
+
+            {/* GPS Location Toggle */}
+            <div className="pt-2 border-t border-subtle space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Icon name="pin_drop" className="text-primary text-[18px]" />
+                  <div>
+                    <span className="text-xs font-semibold text-on-surface block">
+                      Ma position GPS actuelle
+                    </span>
+                    <span className="text-[10px] text-on-surface-variant">
+                      {wantSendGps && latitude ? "Coordonnées capturées avec succès" : "Aide le coursier à vous trouver sans hésiter"}
+                    </span>
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleCaptureLocation}
                   disabled={isLocating}
-                  className="w-full py-2 px-3 rounded-xl bg-surface-secondary border border-subtle text-secondary text-xs font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.99] cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl bg-secondary/15 hover:bg-secondary/25 text-secondary text-xs font-bold flex items-center gap-1.5 transition-all border border-secondary/30 active:scale-95 cursor-pointer"
                 >
-                  <Icon name={isLocating ? "progress_activity" : "my_location"} className={`text-[16px] ${isLocating ? "animate-spin" : ""}`} />
-                  <span>{isLocating ? "Recherche satellite GPS..." : "Capturer ma position GPS"}</span>
+                  <Icon name={isLocating ? "progress_activity" : "my_location"} className={`text-[15px] ${isLocating ? "animate-spin" : ""}`} />
+                  <span>{isLocating ? "Recherche GPS..." : "Capturer GPS"}</span>
                 </button>
-              ) : (
+              </div>
+
+              {wantSendGps && latitude && longitude && (
                 <div className="p-2.5 rounded-xl bg-secondary/10 border border-secondary/20 flex items-center justify-between text-xs text-secondary">
-                  <div className="flex items-center gap-2">
-                    <Icon name="check_circle" className="text-[18px]" />
-                    <span>Position capturée : {customerCoordinates}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Icon name="check_circle" className="text-[17px] shrink-0" />
+                    <span className="truncate">Position: {latitude}, {longitude} ({locationAccuracy ? `±${locationAccuracy}m` : "précis"})</span>
                   </div>
                   <button
                     type="button"
                     onClick={handleClearLocation}
-                    className="text-on-surface-variant hover:text-on-surface cursor-pointer"
+                    className="text-on-surface-variant hover:text-on-surface cursor-pointer p-1"
                   >
                     ✕
                   </button>
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* Channel Selector */}
-      <div className="space-y-2">
-        <label className="text-xs font-semibold text-on-surface uppercase tracking-wider px-1">
-          Canal de discussion
-        </label>
+          {/* Order Summary & Breakdown */}
+          <div className="bg-surface-card rounded-2xl p-4 border border-subtle shadow-card space-y-2">
+            <div className="flex items-center justify-between text-xs text-on-surface-variant">
+              <span>Sous-total articles ({items.length})</span>
+              <span className="font-semibold text-on-surface">{subtotal.toLocaleString("fr-FR")} {currency}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-on-surface-variant">
+              <span>Frais de livraison</span>
+              <span className="font-semibold text-on-surface">{deliveryFee.toLocaleString("fr-FR")} {currency}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm font-bold text-on-surface pt-2 border-t border-subtle">
+              <span>Total à régler</span>
+              <span className="text-primary text-base tabular-nums">{totalAmount.toLocaleString("fr-FR")} {currency}</span>
+            </div>
+          </div>
 
-        <div className="space-y-2">
-          {/* WhatsApp highlighted */}
-          <div
-            onClick={() => setActiveChannel("WHATSAPP")}
-            className={`cursor-pointer p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-              activeChannel === "WHATSAPP"
-                ? "bg-surface-card border-[#25D366]/40 shadow-sm"
-                : "bg-surface-card hover:bg-surface-secondary border-subtle"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#25D366]/15 text-[#25D366] flex items-center justify-center shrink-0">
-                <Icon name="chat" className="text-[20px]" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-on-surface">WhatsApp Direct</span>
-                  <span className="px-2 py-0.2 rounded-full bg-[#25D366]/15 text-[#25D366] text-[10px] font-semibold">
-                    Recommandé
-                  </span>
-                </div>
-                <p className="text-xs text-on-surface-variant">Réponse moyenne en moins de 3 minutes</p>
+          {/* Sticky Bottom Actions */}
+          <div className="sticky bottom-2 z-20 pt-2 space-y-2">
+            <div className="p-2 rounded-2xl bg-surface/95 backdrop-blur-xl border border-subtle shadow-card-hover space-y-2">
+              <button
+                type="button"
+                onClick={handleConfirmOrder}
+                disabled={isSubmitting}
+                className="w-full h-12 rounded-xl bg-primary hover:brightness-105 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] cursor-pointer"
+              >
+                <Icon name="lock" className="text-[18px]" />
+                <span>{isSubmitting ? "Enregistrement en cours..." : "Confirmer ma commande sur GotoShop"}</span>
+              </button>
+
+              <div className="flex items-center justify-between px-2 text-[10px] text-on-surface-variant">
+                <span>🛡️ Paiement sécurisé sur la plateforme</span>
+                <span>💬 Suivi &amp; chat direct</span>
               </div>
             </div>
-            <span
-              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-                activeChannel === "WHATSAPP"
-                  ? "bg-[#25D366] text-slate-900"
-                  : "border border-subtle text-transparent"
-              }`}
-            >
-              ✓
-            </span>
           </div>
-
-          {/* Messenger */}
-          <div
-            onClick={() => setActiveChannel("MESSENGER")}
-            className={`cursor-pointer p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-              activeChannel === "MESSENGER"
-                ? "bg-surface-card border-[#0084FF]/40 shadow-sm"
-                : "bg-surface-card hover:bg-surface-secondary border-subtle"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#0084FF]/15 text-[#0084FF] flex items-center justify-center shrink-0">
-                <Icon name="forum" className="text-[20px]" />
-              </div>
-              <div>
-                <span className="text-sm font-semibold text-on-surface">Messenger Facebook</span>
-                <p className="text-xs text-on-surface-variant">Messagerie officielle de la page</p>
-              </div>
-            </div>
-            <span
-              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-                activeChannel === "MESSENGER"
-                  ? "bg-[#0084FF] text-white"
-                  : "border border-subtle text-transparent"
-              }`}
-            >
-              ✓
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Dedicated Editable Message Card */}
-      <div className="bg-surface-card rounded-2xl p-4 border border-subtle shadow-card space-y-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Icon name="edit_note" className="text-primary text-[17px]" />
-            <label className="text-xs font-semibold text-on-surface uppercase tracking-wider">
-              Message prérempli pour le vendeur
-            </label>
-          </div>
-          {isMessageEdited && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsMessageEdited(false);
-                setCustomMessage(getDefaultMessage());
-                showToast("Message réinitialisé");
-              }}
-              className="text-xs text-primary hover:underline font-medium flex items-center gap-0.5 cursor-pointer"
-            >
-              <Icon name="refresh" className="text-[13px]" />
-              <span>Réinitialiser</span>
-            </button>
-          )}
-        </div>
-
-        <textarea
-          rows={3}
-          value={customMessage}
-          onChange={(e) => {
-            setIsMessageEdited(true);
-            setCustomMessage(e.target.value);
-          }}
-          placeholder="Personnalisez vos consignes ou votre message..."
-          className="w-full p-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface placeholder:text-on-surface-variant/50 text-xs focus:outline-none focus:border-strong leading-relaxed resize-none transition-all"
-        />
-
-        <div className="flex items-center justify-between text-[11px] text-on-surface-variant px-1">
-          <span>Vous pourrez modifier ce texte directement dans {activeChannel === "WHATSAPP" ? "WhatsApp" : activeChannel}</span>
-          <span className="font-mono">{customMessage.length} car.</span>
-        </div>
-      </div>
-
-      {/* Trust Guarantees */}
-      <div className="grid grid-cols-2 gap-2 pt-1">
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-surface-card border border-subtle">
-          <Icon name="verified_user" className="text-secondary text-[18px]" />
-          <span className="text-xs text-on-surface-variant">Paiement après vérification</span>
-        </div>
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-surface-card border border-subtle">
-          <Icon name="handshake" className="text-primary text-[18px]" />
-          <span className="text-xs text-on-surface-variant">Zéro intermédiaire</span>
-        </div>
-      </div>
-
-      {/* Sticky Bottom Final CTA Button */}
-      <div className="sticky bottom-2 z-20 pt-2">
-        <div className="p-2 rounded-2xl bg-surface/90 backdrop-blur-xl border border-subtle shadow-card-hover">
-          <button
-            onClick={handleLaunchHandshake}
-            disabled={isSubmitting}
-            className={`w-full h-12 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md active:scale-[0.99] ${cta.bg}`}
-          >
-            <Icon name={cta.icon} className="text-[19px]" />
-            <span>{isSubmitting ? "Connexion..." : cta.label}</span>
-          </button>
-          <p className="text-center text-[11px] text-on-surface-variant mt-1.5">
-            Référence #{referenceCode} préremplie
-          </p>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
