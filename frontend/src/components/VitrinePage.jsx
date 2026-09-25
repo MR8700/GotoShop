@@ -107,7 +107,7 @@ export default function VitrinePage({
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto space-y-5 px-3 sm:px-4 pb-32">
+    <div className="flex flex-col w-full max-w-3xl mx-auto space-y-6 px-3 sm:px-4 pb-32">
       {/* Personalized Welcome Banner for Client */}
       {mode === "client" && customer && (
         <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-surface-container border border-subtle shadow-sm animate-fade-in">
@@ -534,11 +534,11 @@ export default function VitrinePage({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
           {feedProducts.map((p) => (
             <article
               key={p.id}
-              className="group bg-surface-card rounded-2xl border border-subtle hover:border-strong overflow-hidden shadow-card transition-all duration-200 flex flex-col justify-between"
+              className="group bg-surface-card rounded-2xl border-2 border-slate-300 dark:border-slate-700/80 hover:border-primary/60 overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-200 flex flex-col justify-between"
             >
               {/* Product Image */}
               <div className="relative w-full h-52 sm:h-56 bg-surface-secondary overflow-hidden">

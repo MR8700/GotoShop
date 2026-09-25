@@ -10,6 +10,7 @@ import {
   updateLocalGuestOrder,
   fetchBatchOrders,
   recordClientOrderAction,
+  dataCache,
 } from "../api/client";
 import { formatSalesQuantity } from "../utils/salesEngine";
 import Footer from "./Footer";
@@ -21,8 +22,18 @@ export default function ClientCommandesPage({
   showToast,
   onOpenChat,
 }) {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState(() => {
+    const local = getLocalGuestOrders();
+    const token = customer?.session_token || getCustomerToken();
+    const cachedCust = token ? (dataCache.get(`customer:orders:${token}`) || []) : [];
+    return cachedCust.length > 0 ? cachedCust : local;
+  });
+  const [loading, setLoading] = useState(() => {
+    const local = getLocalGuestOrders();
+    const token = customer?.session_token || getCustomerToken();
+    const hasCached = token ? dataCache.has(`customer:orders:${token}`) : false;
+    return !hasCached && local.length === 0;
+  });
 
   // Modals for satisfaction and cancellation
   const [actionOrder, setActionOrder] = useState(null);
@@ -38,7 +49,9 @@ export default function ClientCommandesPage({
   }, [customer]);
 
   const loadOrders = async () => {
-    setLoading(true);
+    if (!orders.length) {
+      setLoading(true);
+    }
     try {
       const token = customer?.session_token || getCustomerToken();
       let combined = [];
@@ -202,7 +215,7 @@ export default function ClientCommandesPage({
   const isGuest = !customer;
 
   return (
-    <div className="flex flex-col w-full gap-space-md max-w-lg mx-auto pb-32">
+    <div className="flex flex-col w-full gap-5 sm:gap-6 max-w-2xl sm:max-w-3xl mx-auto pb-32">
       {/* Header Profile Bar */}
       <div className="flex items-center justify-between px-space-xs pt-1">
         <div>

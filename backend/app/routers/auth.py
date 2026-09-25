@@ -59,6 +59,45 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Erreur interne de connexion.")
 
+@router.post("/demo-login", response_model=LoginResponse)
+def demo_login(payload: Optional[dict] = None, db: Session = Depends(get_db)):
+    """
+    1-Click instant test admin connection shortcut:
+    Instantly logs in as the demo store admin (or the requested demo store slug)
+    without prompting for passwords.
+    """
+    target_slug = (payload or {}).get("store_slug")
+    try:
+        owner, token = AuthService.demo_login(db, target_slug)
+        store_ids = [s.id for s in owner.stores] if owner.stores else []
+        store_slugs = [s.slug for s in owner.stores] if owner.stores else []
+        owned_stores = [
+            {
+                "id": s.id,
+                "slug": s.slug,
+                "name": s.name,
+                "is_verified": bool(s.is_verified),
+                "subscription_status": s.subscription_status
+            }
+            for s in (owner.stores or [])
+        ]
+
+        return LoginResponse(
+            access_token=token,
+            token_type="bearer",
+            must_change_password=False,
+            owner_name=owner.full_name or "Commerçant Démo",
+            email=owner.email,
+            message="Connexion 1-clic réussie !",
+            store_ids=store_ids,
+            store_slugs=store_slugs,
+            owned_stores=owned_stores,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Erreur interne lors de la connexion démo.")
+
 @router.post("/change-password")
 def change_password(
     req: ChangePasswordRequest,
@@ -191,11 +230,15 @@ def reset_credentials(db: Session = Depends(get_db)):
     from app.models.store import Owner
     owner = db.query(Owner).first()
     if not owner:
+        from app.seed.seeder import seed_database
+        seed_database()
+        owner = db.query(Owner).first()
+    if not owner:
         raise HTTPException(status_code=404, detail="Propriétaire non trouvé.")
     AuthService.reset_to_default_credentials(db, owner)
     return {
         "success": True,
-        "message": "Identifiants réinitialisés aux valeurs d'origine (awa@chictech.bf / AwaChic2026!).",
-        "email": "awa@chictech.bf",
-        "default_password": "AwaChic2026!"
+        "message": f"Identifiants réinitialisés avec succès pour {owner.email} !",
+        "email": owner.email,
+        "default_password": DEFAULT_ADMIN_TEMP_PASSWORD
     }

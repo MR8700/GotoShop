@@ -7,6 +7,7 @@ import {
   fetchMerchantClientDetail,
   moderateMerchantClient,
   grantMerchantClientPerk,
+  dataCache,
 } from "../api/client";
 import ProductManageModal from "./ProductManageModal";
 import ShareSocialModal from "./ShareSocialModal";
@@ -14,11 +15,11 @@ import ShareSocialModal from "./ShareSocialModal";
 export default function StatsPage({ store, products, onNavigateToCatalog, onProductUpdated, onProductDeleted, showToast }) {
   const [activeMainTab, setActiveMainTab] = useState("analytics"); // "analytics" or "clients"
   const [period, setPeriod] = useState("today");
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState(() => dataCache.get("analytics:today") || null);
+  const [loading, setLoading] = useState(() => !dataCache.has("analytics:today"));
 
   // CRM Clients state
-  const [clientsList, setClientsList] = useState([]);
+  const [clientsList, setClientsList] = useState(() => dataCache.get("clients:merchant:") || []);
   const [clientsLoading, setClientsLoading] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   const [clientFilter, setClientFilter] = useState("ALL"); // "ALL", "VIP", "BUYERS", "BLOCKED"
@@ -38,7 +39,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
 
   const loadClients = async (search = "") => {
     try {
-      setClientsLoading(true);
+      if (!clientsList.length) setClientsLoading(true);
       const data = await fetchMerchantClients(search);
       setClientsList(data);
     } catch (err) {
@@ -58,7 +59,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
 
   const loadStats = async (p) => {
     try {
-      setLoading(true);
+      if (!analytics) setLoading(true);
       const data = await fetchAnalytics(p);
       setAnalytics(data);
     } catch (e) {
@@ -143,7 +144,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
   ];
 
   return (
-    <div className="flex flex-col w-full gap-y-space-md max-w-lg mx-auto pb-32">
+    <div className="flex flex-col w-full gap-y-6 max-w-3xl mx-auto pb-32">
       {/* Top Main Navigation Switcher */}
       <div className="flex rounded-2xl bg-surface-container p-1 shadow-md border border-white/5">
         <button

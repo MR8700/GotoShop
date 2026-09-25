@@ -391,7 +391,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
   };
 
   return (
-    <div className="flex flex-col w-full gap-space-md max-w-lg mx-auto pb-32">
+    <div className="flex flex-col w-full gap-6 max-w-3xl mx-auto pb-32">
       <div className="flex items-center justify-between px-space-xs pt-1">
         <h2 className="font-headline-sm text-headline-sm text-on-surface">Configuration Boutique</h2>
         <span className="px-2.5 py-0.5 rounded-full bg-secondary/15 text-secondary font-label-sm text-label-sm uppercase font-semibold">

@@ -59,7 +59,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
       : "bg-primary/15 text-primary border-primary/30";
 
   return (
-    <div className="flex flex-col w-full gap-space-md max-w-lg mx-auto pb-32">
+    <div className="flex flex-col w-full gap-6 max-w-2xl sm:max-w-3xl mx-auto pb-32">
       {/* Header */}
       <div className="flex items-center justify-between px-space-xs pt-1">
         <div>

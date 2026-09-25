@@ -12,17 +12,20 @@ import {
   markAllNotificationsRead,
   archiveIntent,
   deleteIntent,
+  dataCache,
 } from "../api/client";
 import NewProductModal from "./NewProductModal";
 import ShareSocialModal from "./ShareSocialModal";
 import { formatSalesQuantity } from "../utils/salesEngine";
 
 export default function CommandesPage({ store, categories, showToast, onSaleConfirmed, onProductCreated, onOpenChat }) {
-  const [pendingList, setPendingList] = useState([]);
-  const [feedList, setFeedList] = useState([]);
-  const [discrepanciesList, setDiscrepanciesList] = useState([]);
-  const [notificationsData, setNotificationsData] = useState({ unread_count: 0, discrepancies_count: 0, notifications: [] });
-  const [loading, setLoading] = useState(true);
+  const [pendingList, setPendingList] = useState(() => dataCache.get("intents:pending-followup") || []);
+  const [feedList, setFeedList] = useState(() => dataCache.get("intents:feed:?include_archived=true") || dataCache.get("intents:feed:") || []);
+  const [discrepanciesList, setDiscrepanciesList] = useState(() => dataCache.get("intents:discrepancies") || []);
+  const [notificationsData, setNotificationsData] = useState(() => dataCache.get("notifications:{}") || { unread_count: 0, discrepancies_count: 0, notifications: [] });
+  const [loading, setLoading] = useState(() => {
+    return !dataCache.has("intents:pending-followup") && !dataCache.has("intents:feed:?include_archived=true");
+  });
   const [confirmedSuccess, setConfirmedSuccess] = useState(false);
   const [confirmedAmount, setConfirmedAmount] = useState(85000);
   const [abandoned, setAbandoned] = useState(false);
@@ -42,7 +45,10 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
   const [showArchivedOnly, setShowArchivedOnly] = useState(false);
   const [visibleLimit, setVisibleLimit] = useState(30);
 
-  const loadData = async () => {
+  const loadData = async (forceSpinner = false) => {
+    if (forceSpinner || (!pendingList.length && !feedList.length)) {
+      setLoading(true);
+    }
     try {
       const [pending, feed, disc, notifs] = await Promise.all([
         fetchPendingFollowups(),
@@ -198,7 +204,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
   const hasDiscrepancies = discrepanciesList.length > 0;
 
   return (
-    <div className="flex flex-col w-full gap-space-md max-w-lg mx-auto pb-32">
+    <div className="flex flex-col w-full gap-5 sm:gap-6 max-w-3xl mx-auto pb-32">
       {/* Top Merchant Header Bar with Notifications Bell */}
       <div className="flex items-center justify-between px-space-xs pt-1">
         <div>

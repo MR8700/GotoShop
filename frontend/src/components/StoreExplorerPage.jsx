@@ -633,7 +633,7 @@ export default function StoreExplorerPage({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
             {paginatedStores.map((st) => {
               const stCtx = getBusinessContext(st);
               const isRecent = Boolean(
@@ -647,7 +647,7 @@ export default function StoreExplorerPage({
                 <div
                   key={st.id}
                   onClick={() => onSelectStore(st.slug)}
-                  className="group relative bg-surface-container rounded-2xl border-2 border-slate-200 dark:border-slate-800 hover:border-primary/60 transition-all duration-200 cursor-pointer flex flex-col justify-between overflow-hidden shadow-card hover:shadow-card-hover"
+                  className="group relative bg-surface-container rounded-2xl border-2 border-slate-300 dark:border-slate-700/80 hover:border-primary/60 transition-all duration-200 cursor-pointer flex flex-col justify-between overflow-hidden shadow-card hover:shadow-card-hover"
                 >
                   <div className="p-5 space-y-4">
                     {/* Top Identity Row */}

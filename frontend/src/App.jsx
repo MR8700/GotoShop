@@ -46,20 +46,35 @@ import NotificationDrawer from "./components/NotificationDrawer";
 import StoreQrModal from "./components/StoreQrModal";
 import MyStoresPage from "./components/MyStoresPage";
 import DecisionSupportWidget from "./components/DecisionSupportWidget";
-import { getActiveStoreSlug, setActiveStoreSlug, trackQrScan } from "./api/client";
+import { getActiveStoreSlug, setActiveStoreSlug, trackQrScan, dataCache } from "./api/client";
 
 export default function App() {
-  const [store, setStore] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [channels, setChannels] = useState([]);
+  const [store, setStore] = useState(() => {
+    const slug = getActiveStoreSlug();
+    return dataCache.get(`store:${slug || "default"}`) || null;
+  });
+  const [categories, setCategories] = useState(() => {
+    const slug = getActiveStoreSlug();
+    return dataCache.get(`categories:${slug || "default"}`) || [];
+  });
+  const [products, setProducts] = useState(() => {
+    const slug = getActiveStoreSlug();
+    return dataCache.get(`products:${slug || "default"}`) || [];
+  });
+  const [channels, setChannels] = useState(() => {
+    const slug = getActiveStoreSlug();
+    return dataCache.get(`channels:${slug || "default"}`) || [];
+  });
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [activeTab, setActiveTab] = useState("boutique");
   const [tunnelProduct, setTunnelProduct] = useState(null);
   const [tunnelInitialChannel, setTunnelInitialChannel] = useState("WHATSAPP");
   const [tunnelInitialColor, setTunnelInitialColor] = useState("Bleu Nuit");
   const [confirmToken, setConfirmToken] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    const slug = getActiveStoreSlug();
+    return !dataCache.has(`store:${slug || "default"}`);
+  });
 
   // Conversational Commerce State
   const [conversationalOrderProduct, setConversationalOrderProduct] = useState(null);
@@ -202,9 +217,12 @@ export default function App() {
   };
 
   const loadAllData = async (targetSlug = null) => {
-    try {
+    const activeSlug = targetSlug || getActiveStoreSlug();
+    const hasCached = dataCache.has(`store:${activeSlug || "default"}`);
+    if (!hasCached) {
       setLoading(true);
-      const activeSlug = targetSlug || getActiveStoreSlug();
+    }
+    try {
       const [s, cats, prods, chs] = await Promise.all([
         fetchStore(activeSlug),
         fetchCategories(activeSlug),
@@ -215,8 +233,6 @@ export default function App() {
       setCategories(cats);
       setProducts(prods);
       setChannels(chs);
-
-      // Cart remains empty until customer explicitly clicks to add a product
     } catch (e) {
       console.warn("Erreur de synchronisation des données serveur :", e);
     } finally {
@@ -1007,7 +1023,13 @@ export default function App() {
       />
 
       {/* Main Screen Container */}
-      <main className={`flex flex-col relative w-full pt-16 bg-surface flex-grow ${activeTab === "chat" ? "max-w-4xl px-2 sm:px-4" : "max-w-lg px-margin"} mx-auto`}>
+      <main className={`flex flex-col relative w-full pt-16 bg-surface flex-grow ${
+        activeTab === "chat"
+          ? "max-w-4xl px-2 sm:px-4"
+          : activeTab === "commandes" || activeTab === "stats" || activeTab === "reglages"
+          ? "max-w-3xl px-3 sm:px-6"
+          : "max-w-2xl px-3 sm:px-5"
+      } mx-auto`}>
         {/* Merchant Decision Support & Operational Priorities */}
         {effectiveAppMode === "owner" && isCurrentStoreOwner && (activeTab === "commandes" || activeTab === "stats") && (
           <div className="w-full pt-2">

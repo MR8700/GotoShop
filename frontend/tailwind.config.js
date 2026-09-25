@@ -99,6 +99,14 @@ export default {
         "label-sm": ["11px", { lineHeight: "14px", fontWeight: "500" }],
         "currency-display": ["26px", { lineHeight: "32px", fontWeight: "700" }],
       },
+      spacing: {
+        "space-xs": "0.5rem",
+        "space-sm": "0.75rem",
+        "space-md": "1.25rem",
+        "space-lg": "1.75rem",
+        "space-xl": "2.5rem",
+        "margin": "1rem",
+      },
       boxShadow: {
         "card": "var(--shadow-card)",
         "card-hover": "var(--shadow-card-hover)",

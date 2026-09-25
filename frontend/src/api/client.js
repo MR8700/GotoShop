@@ -1,4 +1,5 @@
 import safeStorage from "../utils/safeStorage";
+import dataCache from "../utils/dataCache";
 import {
   FALLBACK_PUBLIC_STORES,
   getFallbackStore,
@@ -7,7 +8,7 @@ import {
   FALLBACK_SUBSCRIPTION_PUBLIC_INFO,
 } from "./fallbackData";
 
-export { FALLBACK_PUBLIC_STORES, FALLBACK_SUBSCRIPTION_PUBLIC_INFO };
+export { FALLBACK_PUBLIC_STORES, FALLBACK_SUBSCRIPTION_PUBLIC_INFO, dataCache };
 
 const getApiBase = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
@@ -151,22 +152,30 @@ export const getMediaUrl = (path) => {
 
 export async function fetchStore(explicitSlug = null) {
   const slug = explicitSlug || getActiveStoreSlug();
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const res = await fetchWithStore(`${API_BASE}/store`, { signal: controller.signal }, slug);
-    clearTimeout(timeoutId);
-    if (res.ok) {
-      const data = await safeParseJson(res);
-      // Strictly verify that the returned store matches the requested slug
-      if (data && data.name && (!slug || data.slug?.toLowerCase() === slug.toLowerCase())) {
-        return data;
+  const cacheKey = `store:${slug || "default"}`;
+
+  return dataCache.swr(
+    cacheKey,
+    async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const res = await fetchWithStore(`${API_BASE}/store`, { signal: controller.signal }, slug);
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await safeParseJson(res);
+          // Strictly verify that the returned store matches the requested slug
+          if (data && data.name && (!slug || data.slug?.toLowerCase() === slug.toLowerCase())) {
+            return data;
+          }
+        }
+      } catch (e) {
+        console.warn("fetchStore fallback used for slug:", slug, e);
       }
-    }
-  } catch (e) {
-    console.warn("fetchStore fallback used for slug:", slug, e);
-  }
-  return getFallbackStore(slug);
+      return getFallbackStore(slug);
+    },
+    { ttl: 45000, persist: true }
+  );
 }
 
 export async function updateStore(storeId, data) {
@@ -180,6 +189,7 @@ export async function updateStore(storeId, data) {
   });
   const resData = await safeParseJson(res);
   if (!res.ok) throw new Error(formatErrorMessage(resData, "Erreur lors de la mise à jour de la boutique"));
+  dataCache.invalidate("store:");
   return resData;
 }
 
@@ -272,39 +282,53 @@ export async function registerMerchantStore(payload) {
 
 export async function fetchCategories(explicitSlug = null) {
   const slug = explicitSlug || getActiveStoreSlug();
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const res = await fetchWithStore(`${API_BASE}/catalog/categories`, { signal: controller.signal }, slug);
-    clearTimeout(timeoutId);
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) return data;
-    }
-  } catch (e) {
-    console.warn("fetchCategories fallback used for slug:", slug, e);
-  }
-  return getFallbackCategories(slug);
+  const cacheKey = `categories:${slug || "default"}`;
+  return dataCache.swr(
+    cacheKey,
+    async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const res = await fetchWithStore(`${API_BASE}/catalog/categories`, { signal: controller.signal }, slug);
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) return data;
+        }
+      } catch (e) {
+        console.warn("fetchCategories fallback used for slug:", slug, e);
+      }
+      return getFallbackCategories(slug);
+    },
+    { ttl: 45000, persist: true }
+  );
 }
 
 export async function fetchProducts(categoryId = null, explicitSlug = null) {
   const slug = explicitSlug || getActiveStoreSlug();
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const url = categoryId
-      ? `${API_BASE}/catalog/products?category_id=${categoryId}`
-      : `${API_BASE}/catalog/products`;
-    const res = await fetchWithStore(url, { signal: controller.signal }, slug);
-    clearTimeout(timeoutId);
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) return data;
-    }
-  } catch (e) {
-    console.warn("fetchProducts fallback used for slug:", slug, e);
-  }
-  return getFallbackProducts(slug, categoryId);
+  const cacheKey = `products:${categoryId || "all"}:${slug || "default"}`;
+  return dataCache.swr(
+    cacheKey,
+    async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const url = categoryId
+          ? `${API_BASE}/catalog/products?category_id=${categoryId}`
+          : `${API_BASE}/catalog/products`;
+        const res = await fetchWithStore(url, { signal: controller.signal }, slug);
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) return data;
+        }
+      } catch (e) {
+        console.warn("fetchProducts fallback used for slug:", slug, e);
+      }
+      return getFallbackProducts(slug, categoryId);
+    },
+    { ttl: 45000, persist: true }
+  );
 }
 
 export async function fetchHeroProduct(explicitSlug = null) {
@@ -338,6 +362,7 @@ export async function createProduct(payload) {
   if (!res.ok) {
     throw new Error(formatErrorMessage(data, "Erreur de création de produit"));
   }
+  dataCache.invalidate("products:");
   return data;
 }
 
@@ -354,6 +379,7 @@ export async function updateProduct(productId, payload) {
   if (!res.ok) {
     throw new Error(formatErrorMessage(data, "Erreur de mise à jour du produit"));
   }
+  dataCache.invalidate("products:");
   return data;
 }
 
@@ -368,6 +394,7 @@ export async function deleteProduct(productId, hard = false) {
   });
   const data = await safeParseJson(res);
   if (!res.ok) throw new Error(formatErrorMessage(data, "Erreur de suppression du produit"));
+  dataCache.invalidate("products:");
   return data;
 }
 
@@ -383,20 +410,27 @@ export async function trackVisit(source = "direct") {
 
 export async function fetchChannels(explicitSlug = null) {
   const slug = explicitSlug || getActiveStoreSlug();
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const res = await fetchWithStore(`${API_BASE}/channels`, { signal: controller.signal }, slug);
-    clearTimeout(timeoutId);
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) return data;
-    }
-  } catch (e) {
-    console.warn("fetchChannels fallback used:", e);
-  }
-  const st = getFallbackStore(slug);
-  return st?.channels || [];
+  const cacheKey = `channels:${slug || "default"}`;
+  return dataCache.swr(
+    cacheKey,
+    async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const res = await fetchWithStore(`${API_BASE}/channels`, { signal: controller.signal }, slug);
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) return data;
+        }
+      } catch (e) {
+        console.warn("fetchChannels fallback used:", e);
+      }
+      const st = getFallbackStore(slug);
+      return st?.channels || [];
+    },
+    { ttl: 60000, persist: true }
+  );
 }
 
 export async function updateChannel(channelId, data) {
@@ -451,9 +485,15 @@ export async function createOrderIntent(payload) {
 }
 
 export async function fetchPendingFollowups() {
-  const res = await fetch(`${API_BASE}/intents/pending-followup`);
-  if (!res.ok) throw new Error("Erreur de chargement des relances");
-  return res.json();
+  return dataCache.swr(
+    "intents:pending-followup",
+    async () => {
+      const res = await fetch(`${API_BASE}/intents/pending-followup`);
+      if (!res.ok) throw new Error("Erreur de chargement des relances");
+      return res.json();
+    },
+    { ttl: 15000, persist: true }
+  );
 }
 
 export async function fetchIntentFeed(params = {}) {
@@ -465,9 +505,17 @@ export async function fetchIntentFeed(params = {}) {
   if (params.limit) query.append("limit", params.limit);
   
   const queryString = query.toString() ? `?${query.toString()}` : "";
-  const res = await fetch(`${API_BASE}/intents/feed${queryString}`);
-  if (!res.ok) throw new Error("Erreur de chargement du flux d'intentions");
-  return res.json();
+  const cacheKey = `intents:feed:${queryString}`;
+
+  return dataCache.swr(
+    cacheKey,
+    async () => {
+      const res = await fetch(`${API_BASE}/intents/feed${queryString}`);
+      if (!res.ok) throw new Error("Erreur de chargement du flux d'intentions");
+      return res.json();
+    },
+    { ttl: 15000, persist: true }
+  );
 }
 
 export async function archiveIntent(intentId) {
@@ -475,6 +523,7 @@ export async function archiveIntent(intentId) {
     method: "POST",
   });
   if (!res.ok) throw new Error("Erreur lors de l'archivage de l'intention");
+  dataCache.invalidate("intents:");
   return res.json();
 }
 
@@ -483,6 +532,7 @@ export async function deleteIntent(intentId) {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Erreur lors de la suppression de l'intention");
+  dataCache.invalidate("intents:");
   return res.json();
 }
 
@@ -493,6 +543,8 @@ export async function confirmSale(intentId, payload) {
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Erreur de confirmation de vente");
+  dataCache.invalidate("intents:");
+  dataCache.invalidate("analytics:");
   return res.json();
 }
 
@@ -503,13 +555,20 @@ export async function confirmByToken(token, payload) {
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Erreur de confirmation par lien");
+  dataCache.invalidate("intents:");
   return res.json();
 }
 
 export async function fetchAnalytics(period = "today") {
-  const res = await fetch(`${API_BASE}/analytics/overview?period=${period}`);
-  if (!res.ok) throw new Error("Erreur de chargement des statistiques");
-  return res.json();
+  return dataCache.swr(
+    `analytics:${period}`,
+    async () => {
+      const res = await fetch(`${API_BASE}/analytics/overview?period=${period}`);
+      if (!res.ok) throw new Error("Erreur de chargement des statistiques");
+      return res.json();
+    },
+    { ttl: 30000, persist: true }
+  );
 }
 
 // Authentication & Security APIs
@@ -552,6 +611,31 @@ export async function loginOwner(identifier, password) {
   const data = await safeParseJson(res);
   if (!res.ok) {
     throw new Error(formatErrorMessage(data, "Identifiants incorrects ou compte verrouillé"));
+  }
+  if (data.access_token) {
+    setAuthToken(data.access_token);
+    if (data.store_slugs && data.store_slugs.length > 0) {
+      safeStorage.setItem("conversastore_owner_store_slug", data.store_slugs[0]);
+    }
+    if (data.store_ids && data.store_ids.length > 0) {
+      safeStorage.setItem("conversastore_owner_store_id", data.store_ids[0]);
+    }
+    if (data.owned_stores) {
+      safeStorage.setItem("conversastore_owned_stores", JSON.stringify(data.owned_stores));
+    }
+  }
+  return data;
+}
+
+export async function loginDemoOwner(targetSlug = "faso-danfani") {
+  const res = await fetch(`${API_BASE}/auth/demo-login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target_slug: targetSlug }),
+  });
+  const data = await safeParseJson(res);
+  if (!res.ok) {
+    throw new Error(formatErrorMessage(data, "Erreur de connexion démo"));
   }
   if (data.access_token) {
     setAuthToken(data.access_token);
@@ -781,11 +865,17 @@ export async function updateCustomerProfile(payload) {
 export async function fetchCustomerOrders() {
   const token = getCustomerToken();
   if (!token) return [];
-  const res = await fetch(`${API_BASE}/customer/orders`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return [];
-  return res.json();
+  return dataCache.swr(
+    `customer:orders:${token}`,
+    async () => {
+      const res = await fetch(`${API_BASE}/customer/orders`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    { ttl: 20000, persist: true }
+  );
 }
 
 export async function fetchCustomerStats() {
@@ -870,6 +960,7 @@ export async function resolveDiscrepancy(intentId, resolution, notes = null) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur lors de la résolution du litige");
   }
+  dataCache.invalidate("intents:");
   return res.json();
 }
 
@@ -906,13 +997,20 @@ export async function linkGuestOrdersToAccount(orderIds) {
   });
   if (!res.ok) return 0;
   const data = await res.json();
+  dataCache.invalidate("customer:orders:");
   return data.linked_count || 0;
 }
 
 export async function fetchDiscrepancies() {
-  const res = await fetch(`${API_BASE}/intents/discrepancies`);
-  if (!res.ok) return [];
-  return res.json();
+  return dataCache.swr(
+    "intents:discrepancies",
+    async () => {
+      const res = await fetch(`${API_BASE}/intents/discrepancies`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    { ttl: 15000, persist: true }
+  );
 }
 
 
@@ -935,6 +1033,7 @@ export function saveLocalGuestOrder(order) {
     const existing = getLocalGuestOrders();
     const updated = [order, ...existing.filter((o) => o.id !== order.id && o.reference_code !== order.reference_code)];
     safeStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify(updated.slice(0, 20)));
+    dataCache.invalidate("customer:orders:");
   } catch (e) {
     console.warn("Could not persist guest order to localStorage:", e);
   }
@@ -945,6 +1044,7 @@ export function updateLocalGuestOrder(orderId, patch) {
     const existing = getLocalGuestOrders();
     const updated = existing.map((o) => (o.id === orderId ? { ...o, ...patch } : o));
     safeStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify(updated));
+    dataCache.invalidate("customer:orders:");
   } catch (e) {
     console.warn("Could not update guest order in localStorage:", e);
   }
@@ -953,6 +1053,7 @@ export function updateLocalGuestOrder(orderId, patch) {
 export function clearLocalGuestOrders() {
   try {
     safeStorage.removeItem(GUEST_ORDERS_KEY);
+    dataCache.invalidate("customer:orders:");
   } catch {}
 }
 
@@ -961,9 +1062,16 @@ export function clearLocalGuestOrders() {
 // ----------------------------------------------------------------------------
 export async function fetchMerchantClients(search = "") {
   const query = search ? `?search=${encodeURIComponent(search)}` : "";
-  const res = await fetch(`${API_BASE}/customer/merchant/clients${query}`);
-  if (!res.ok) throw new Error("Erreur de chargement des clients");
-  return res.json();
+  const cacheKey = `clients:merchant:${search}`;
+  return dataCache.swr(
+    cacheKey,
+    async () => {
+      const res = await fetch(`${API_BASE}/customer/merchant/clients${query}`);
+      if (!res.ok) throw new Error("Erreur de chargement des clients");
+      return res.json();
+    },
+    { ttl: 20000, persist: true }
+  );
 }
 
 export async function fetchMerchantClientDetail(customerId) {
@@ -979,6 +1087,7 @@ export async function moderateMerchantClient(customerId, data) {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Erreur lors de la modération du client");
+  dataCache.invalidate("clients:merchant:");
   return res.json();
 }
 
@@ -989,6 +1098,7 @@ export async function grantMerchantClientPerk(customerId, data) {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Erreur lors de l'attribution de l'avantage");
+  dataCache.invalidate("clients:merchant:");
   return res.json();
 }
 
@@ -1049,20 +1159,32 @@ export async function logoutSuperAdmin() {
 
 export async function fetchSuperAdminOverview() {
   const token = getSuperAdminToken();
-  const res = await fetch(`${API_BASE}/super-admin/overview`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error("Erreur chargement aperçu plateforme");
-  return res.json();
+  return dataCache.swr(
+    "superadmin:overview",
+    async () => {
+      const res = await fetch(`${API_BASE}/super-admin/overview`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Erreur chargement aperçu plateforme");
+      return res.json();
+    },
+    { ttl: 25000, persist: false }
+  );
 }
 
 export async function fetchSuperAdminStores() {
   const token = getSuperAdminToken();
-  const res = await fetch(`${API_BASE}/super-admin/stores`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error("Erreur chargement des boutiques");
-  return res.json();
+  return dataCache.swr(
+    "superadmin:stores",
+    async () => {
+      const res = await fetch(`${API_BASE}/super-admin/stores`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Erreur chargement des boutiques");
+      return res.json();
+    },
+    { ttl: 25000, persist: false }
+  );
 }
 
 export async function createSuperAdminStore(payload) {
@@ -1079,6 +1201,8 @@ export async function createSuperAdminStore(payload) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur lors de la création de la boutique");
   }
+  dataCache.invalidate("superadmin:");
+  dataCache.invalidate("stores:public");
   return res.json();
 }
 
@@ -1096,6 +1220,8 @@ export async function updateSuperAdminStoreStatus(storeId, payload) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur mise à jour statut boutique");
   }
+  dataCache.invalidate("superadmin:");
+  dataCache.invalidate("stores:public");
   return res.json();
 }
 
@@ -1113,6 +1239,8 @@ export async function verifySuperAdminStore(storeId, isVerified = true) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur de validation de la boutique");
   }
+  dataCache.invalidate("superadmin:");
+  dataCache.invalidate("stores:public");
   return res.json();
 }
 
@@ -1136,23 +1264,31 @@ export async function deleteSuperAdminStore(storeId) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Impossible de supprimer la boutique");
   }
+  dataCache.invalidate("superadmin:");
+  dataCache.invalidate("stores:public");
   return res.json();
 }
 
 export async function fetchPublicStores() {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const res = await fetch(`${API_BASE}/store/list/public`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) return data;
-    }
-  } catch (e) {
-    console.warn("fetchPublicStores fallback used:", e);
-  }
-  return FALLBACK_PUBLIC_STORES;
+  return dataCache.swr(
+    "stores:public",
+    async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(`${API_BASE}/store/list/public`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) return data;
+        }
+      } catch (e) {
+        console.warn("fetchPublicStores fallback used:", e);
+      }
+      return FALLBACK_PUBLIC_STORES;
+    },
+    { ttl: 45000, persist: true }
+  );
 }
 
 // ==========================================
@@ -1402,6 +1538,10 @@ export async function createConversationalOrder(orderData) {
   if (!res.ok) {
     throw new Error(formatErrorMessage(data, "Erreur lors de la création de la commande"));
   }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("notifications:");
+  dataCache.invalidate("intents:");
   return data;
 }
 
@@ -1412,9 +1552,18 @@ export async function fetchConversationalOrders({ store_id, customer_id, custome
   if (customer_token) query.set("customer_token", customer_token);
   if (status) query.set("status", status);
 
-  const res = await fetch(`${API_BASE}/orders?${query.toString()}`);
-  if (!res.ok) return [];
-  return res.json();
+  const queryString = query.toString();
+  const cacheKey = `orders:conv:${queryString}`;
+
+  return dataCache.swr(
+    cacheKey,
+    async () => {
+      const res = await fetch(`${API_BASE}/orders?${queryString}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    { ttl: 15000, persist: true }
+  );
 }
 
 export async function fetchOrderDetail(orderId) {
@@ -1433,6 +1582,9 @@ export async function acceptOrder(orderId, sellerName = "Commerçant") {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur acceptation commande");
   }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("notifications:");
   return res.json();
 }
 
@@ -1446,6 +1598,9 @@ export async function rejectOrder(orderId, reason = "Indisponible", sellerName =
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur refus commande");
   }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("notifications:");
   return res.json();
 }
 
@@ -1459,6 +1614,9 @@ export async function cancelConversationalOrder(orderId, reason = "Annulé par l
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur lors de l'annulation de la commande");
   }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("notifications:");
   return res.json();
 }
 
@@ -1472,6 +1630,9 @@ export async function submitPaymentProof(orderId, proofData) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur soumission de la preuve");
   }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("notifications:");
   return res.json();
 }
 
@@ -1484,6 +1645,9 @@ export async function uploadPaymentProof(orderId, formData) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur upload preuve de paiement");
   }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("notifications:");
   return res.json();
 }
 
@@ -1497,6 +1661,9 @@ export async function confirmOrderPayment(orderId, verifiedBy = "Commerçant", v
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur confirmation paiement");
   }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("notifications:");
   return res.json();
 }
 
@@ -1510,6 +1677,9 @@ export async function rejectOrderPayment(orderId, reason = "Montant incorrect", 
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur rejet paiement");
   }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("notifications:");
   return res.json();
 }
 
@@ -1523,6 +1693,9 @@ export async function updateOrderStatus(orderId, status, notes = null, actorName
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur mise à jour statut");
   }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("notifications:");
   return res.json();
 }
 
@@ -1581,38 +1754,48 @@ export async function fetchCallHistory({ conversation_id, store_id, limit = 50 }
 // ============================================================================
 
 export async function fetchNotifications(options = {}) {
-  try {
-    const {
-      recipient_type = null,
-      recipient_id = null,
-      store_id = null,
-      category = null,
-      limit = 50,
-    } = typeof options === "object" && options !== null ? options : {};
+  const opts = typeof options === "object" && options !== null ? options : {};
+  const cacheKey = `notifications:${JSON.stringify(opts)}`;
 
-    const query = new URLSearchParams();
-    if (recipient_type) query.set("recipient_type", recipient_type);
-    if (recipient_id) query.set("recipient_id", recipient_id);
-    if (store_id) query.set("store_id", store_id);
-    if (category) query.set("category", category);
-    query.set("limit", limit);
+  return dataCache.swr(
+    cacheKey,
+    async () => {
+      try {
+        const {
+          recipient_type = null,
+          recipient_id = null,
+          store_id = null,
+          category = null,
+          limit = 50,
+        } = opts;
 
-    const res = await fetch(`${API_BASE}/notifications?${query.toString()}`);
-    if (!res.ok) return { unread_count: 0, discrepancies_count: 0, notifications: [] };
-    const data = await res.json();
-    return {
-      unread_count: data.unread_count || 0,
-      discrepancies_count: data.discrepancies_count || 0,
-      notifications: data.notifications || [],
-    };
-  } catch (e) {
-    return { unread_count: 0, discrepancies_count: 0, notifications: [] };
-  }
+        const query = new URLSearchParams();
+        if (recipient_type) query.set("recipient_type", recipient_type);
+        if (recipient_id) query.set("recipient_id", recipient_id);
+        if (store_id) query.set("store_id", store_id);
+        if (category) query.set("category", category);
+        query.set("limit", limit);
+
+        const res = await fetch(`${API_BASE}/notifications?${query.toString()}`);
+        if (!res.ok) return { unread_count: 0, discrepancies_count: 0, notifications: [] };
+        const data = await res.json();
+        return {
+          unread_count: data.unread_count || 0,
+          discrepancies_count: data.discrepancies_count || 0,
+          notifications: data.notifications || [],
+        };
+      } catch (e) {
+        return { unread_count: 0, discrepancies_count: 0, notifications: [] };
+      }
+    },
+    { ttl: 10000, persist: false }
+  );
 }
 
 export async function markNotificationRead(notificationId) {
   try {
     const res = await fetch(`${API_BASE}/notifications/${notificationId}/read`, { method: "POST" });
+    dataCache.invalidate("notifications:");
     return res.ok;
   } catch (e) {
     return false;
@@ -1627,6 +1810,7 @@ export async function markAllNotificationsRead({ recipient_type = null, recipien
     if (store_id) query.set("store_id", store_id);
 
     const res = await fetch(`${API_BASE}/notifications/read-all?${query.toString()}`, { method: "POST" });
+    dataCache.invalidate("notifications:");
     if (!res.ok) return { success: false, count: 0 };
     return await res.json();
   } catch (e) {
@@ -1637,6 +1821,7 @@ export async function markAllNotificationsRead({ recipient_type = null, recipien
 export async function deleteNotification(notificationId) {
   try {
     const res = await fetch(`${API_BASE}/notifications/${notificationId}`, { method: "DELETE" });
+    dataCache.invalidate("notifications:");
     return res.ok;
   } catch (e) {
     return false;

@@ -19,6 +19,7 @@ import {
   fetchSuperAdminUssdConfigs,
   updateSuperAdminUssdConfig,
   getMediaUrl,
+  dataCache,
 } from "../api/client";
 
 export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
@@ -31,9 +32,9 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
   // Tabs: "stores", "requests", "configs"
   const [superTab, setSuperTab] = useState("stores");
 
-  const [overview, setOverview] = useState(null);
-  const [stores, setStores] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState(() => dataCache.get("superadmin:overview") || null);
+  const [stores, setStores] = useState(() => dataCache.get("superadmin:stores") || []);
+  const [loading, setLoading] = useState(() => !dataCache.has("superadmin:stores"));
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
@@ -106,7 +107,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
 
   const loadDashboardData = async () => {
     try {
-      setLoading(true);
+      if (!stores.length) setLoading(true);
       const [ov, stList, reqs, pls, ussds] = await Promise.all([
         fetchSuperAdminOverview(),
         fetchSuperAdminStores(),
