@@ -54,6 +54,8 @@ backend/conversastore.db
 .env.development.local
 .env.test.local
 .env.production.local
+TEST_CREDENTIALS_LOCAL.md
+*.local.md
 
 # Vercel
 .vercel

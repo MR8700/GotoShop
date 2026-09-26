@@ -434,12 +434,21 @@ export async function fetchChannels(explicitSlug = null) {
 }
 
 export async function updateChannel(channelId, data) {
+  const token = getAuthToken();
   const res = await fetch(`${API_BASE}/channels/${channelId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Erreur lors de la mise à jour du canal");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors de la mise à jour du canal");
+  }
+  dataCache.invalidate("channels:");
+  dataCache.invalidate("store:");
   return res.json();
 }
 
@@ -559,12 +568,22 @@ export async function confirmByToken(token, payload) {
   return res.json();
 }
 
-export async function fetchAnalytics(period = "today") {
+export async function fetchAnalytics(period = "today", storeSlug = null) {
+  const activeSlug = storeSlug || getActiveStoreSlug();
+  const query = `?period=${period}${activeSlug ? `&store=${encodeURIComponent(activeSlug)}` : ""}`;
   return dataCache.swr(
-    `analytics:${period}`,
+    `analytics:${activeSlug || ""}:${period}`,
     async () => {
-      const res = await fetch(`${API_BASE}/analytics/overview?period=${period}`);
-      if (!res.ok) throw new Error("Erreur de chargement des statistiques");
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/analytics/overview${query}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(activeSlug ? { "X-Store-Slug": activeSlug } : {}),
+        },
+      });
+      if (!res.ok) {
+        return null;
+      }
       return res.json();
     },
     { ttl: 30000, persist: true }
@@ -1147,22 +1166,37 @@ export function clearLocalGuestOrders() {
 // ----------------------------------------------------------------------------
 // Merchant CRM / Customer Management
 // ----------------------------------------------------------------------------
-export async function fetchMerchantClients(search = "") {
+export async function fetchMerchantClients(search = "", storeSlug = null) {
   const query = search ? `?search=${encodeURIComponent(search)}` : "";
-  const cacheKey = `clients:merchant:${search}`;
+  const activeSlug = storeSlug || getActiveStoreSlug();
+  const cacheKey = `clients:merchant:${activeSlug || ""}:${search}`;
   return dataCache.swr(
     cacheKey,
     async () => {
-      const res = await fetch(`${API_BASE}/customer/merchant/clients${query}`);
-      if (!res.ok) throw new Error("Erreur de chargement des clients");
-      return res.json();
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/customer/merchant/clients${query}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(activeSlug ? { "X-Store-Slug": activeSlug } : {}),
+        },
+      });
+      if (!res.ok) return [];
+      const json = await res.json();
+      return Array.isArray(json) ? json : [];
     },
     { ttl: 20000, persist: true }
   );
 }
 
-export async function fetchMerchantClientDetail(customerId) {
-  const res = await fetch(`${API_BASE}/customer/merchant/clients/${customerId}`);
+export async function fetchMerchantClientDetail(customerId, storeSlug = null) {
+  const activeSlug = storeSlug || getActiveStoreSlug();
+  const token = getAuthToken();
+  const res = await fetch(`${API_BASE}/customer/merchant/clients/${customerId}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(activeSlug ? { "X-Store-Slug": activeSlug } : {}),
+    },
+  });
   if (!res.ok) throw new Error("Erreur de chargement de la fiche client");
   return res.json();
 }

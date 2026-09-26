@@ -27,6 +27,7 @@ export default function VitrinePage({
   onOpenConversationalOrder,
   onOpenChat,
   onOpenQrModal,
+  channels = [],
 }) {
   const ctx = getBusinessContext(store);
   const [selectedHeroColor, setSelectedHeroColor] = useState("Bleu Nuit");
@@ -297,6 +298,77 @@ export default function VitrinePage({
             <span className="italic">{store.owner_bio}</span>
           </div>
         )}
+
+        {/* Conversational Channels & Direct Inquiry */}
+        <div className="pt-2.5 border-t-2 border-slate-200 dark:border-slate-800 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-on-surface flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Canaux de discussion en direct</span>
+            </span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              Vendeur en ligne
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+            {/* WhatsApp Direct */}
+            <a
+              href={`https://wa.me/${(store?.contact_whatsapp || "22670123456").replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-xs font-semibold text-[#128C7E] dark:text-[#25D366] transition-all shrink-0 cursor-pointer shadow-2xs"
+              title="Discuter sur WhatsApp"
+            >
+              <Icon name="chat" className="text-[18px] text-[#25D366]" />
+              <span>WhatsApp Direct</span>
+            </a>
+
+            {/* Other active channels */}
+            {Array.isArray(channels) &&
+              channels
+                .filter((c) => c.is_active !== false && c.channel_type !== "WHATSAPP")
+                .map((chan, idx) => {
+                  const isMessenger = chan.channel_type === "MESSENGER";
+                  const isTiktok = chan.channel_type === "TIKTOK";
+                  const href = isMessenger
+                    ? `https://m.me/${chan.account_handle}`
+                    : isTiktok
+                    ? `https://www.tiktok.com/@${chan.account_handle?.replace("@", "")}`
+                    : `tel:${chan.account_handle}`;
+                  return (
+                    <a
+                      key={idx}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-secondary hover:bg-surface-container-highest border border-slate-300 dark:border-slate-700 text-xs font-semibold text-on-surface transition-all shrink-0 cursor-pointer shadow-2xs"
+                      title={chan.subtitle || chan.display_title}
+                    >
+                      <Icon
+                        name={chan.icon_name || (isMessenger ? "forum" : isTiktok ? "smart_display" : "call")}
+                        className="text-[18px]"
+                        style={{ color: chan.theme_color || "var(--color-primary)" }}
+                      />
+                      <span>{chan.display_title || chan.channel_type}</span>
+                    </a>
+                  );
+                })}
+
+            {/* Direct Inquiry button for GotoShop Internal Chat */}
+            {onOpenChat && (
+              <button
+                type="button"
+                onClick={() => onOpenChat(null)}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-bold shadow-xs transition-all shrink-0 cursor-pointer active:scale-98"
+                title="Poser une question directement au commerçant"
+              >
+                <Icon name="forum" className="text-[18px]" />
+                <span>Poser une question</span>
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Trust Badges - Superimposed distinct cards */}
         <div className="grid grid-cols-3 gap-2 pt-2 border-t-2 border-slate-200 dark:border-slate-800">

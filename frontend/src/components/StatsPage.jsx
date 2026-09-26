@@ -19,7 +19,11 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
   const [loading, setLoading] = useState(() => !dataCache?.has?.("analytics:today"));
 
   // CRM Clients state
-  const [clientsList, setClientsList] = useState(() => dataCache.get("clients:merchant:") || []);
+  const [clientsList, setClientsList] = useState(() => {
+    const cached = dataCache.get("clients:merchant:");
+    return Array.isArray(cached) ? cached : [];
+  });
+  const safeClients = Array.isArray(clientsList) ? clientsList : [];
   const [clientsLoading, setClientsLoading] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   const [clientFilter, setClientFilter] = useState("ALL"); // "ALL", "VIP", "BUYERS", "BLOCKED"
@@ -39,11 +43,12 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
 
   const loadClients = async (search = "") => {
     try {
-      if (!clientsList.length) setClientsLoading(true);
-      const data = await fetchMerchantClients(search);
-      setClientsList(data);
+      if (!safeClients.length) setClientsLoading(true);
+      const data = await fetchMerchantClients(search, store?.slug);
+      setClientsList(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error loading clients:", err);
+      setClientsList((prev) => (Array.isArray(prev) ? prev : []));
     } finally {
       setClientsLoading(false);
     }
@@ -60,10 +65,12 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
   const loadStats = async (p) => {
     try {
       if (!analytics) setLoading(true);
-      const data = await fetchAnalytics(p);
-      setAnalytics(data);
+      const data = await fetchAnalytics(p, store?.slug);
+      if (data) {
+        setAnalytics(data);
+      }
     } catch (e) {
-      console.error(e);
+      console.error("Error loading analytics:", e);
     } finally {
       setLoading(false);
     }
@@ -172,7 +179,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
           }`}
         >
           <Icon name="group" className="text-[18px]" />
-          <span>Fichier Clients ({clientsList.length})</span>
+          <span>Fichier Clients ({safeClients.length})</span>
         </button>
       </div>
 
@@ -546,7 +553,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                 <h2 className="font-headline-sm text-base font-bold text-on-surface">Annuaire Clients &amp; CRM</h2>
               </div>
               <span className="font-label-sm text-xs text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">
-                {clientsList.length} clients enregistrés
+                {safeClients.length} clients enregistrés
               </span>
             </div>
 
@@ -580,7 +587,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                   clientFilter === "ALL" ? "bg-primary text-surface shadow-sm" : "bg-surface-container-high text-on-surface-variant hover:text-on-surface"
                 }`}
               >
-                Tous ({clientsList.length})
+                Tous ({safeClients.length})
               </button>
               <button
                 type="button"
@@ -621,7 +628,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
               <div className="p-10 text-center text-xs text-on-surface-variant animate-pulse">
                 Chargement du fichier clients...
               </div>
-            ) : clientsList.filter((c) => {
+            ) : safeClients.filter((c) => {
                 if (clientFilter === "VIP" && !c.loyalty_tier?.includes("VIP") && !c.loyalty_tier?.includes("Or") && !c.loyalty_tier?.includes("Argent")) return false;
                 if (clientFilter === "BUYERS" && (!c.confirmed_sales_count || c.confirmed_sales_count === 0)) return false;
                 if (clientFilter === "BLOCKED" && !c.is_blocked) return false;
@@ -642,7 +649,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                 )}
               </div>
             ) : (
-              clientsList
+              safeClients
                 .filter((c) => {
                   if (clientFilter === "VIP" && !c.loyalty_tier?.includes("VIP") && !c.loyalty_tier?.includes("Or") && !c.loyalty_tier?.includes("Argent")) return false;
                   if (clientFilter === "BUYERS" && (!c.confirmed_sales_count || c.confirmed_sales_count === 0)) return false;

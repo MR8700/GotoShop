@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useId } from "react";
 import Icon from "./Icon";
 import { payMobileMoneyOrder } from "../api/client";
 
@@ -12,10 +12,17 @@ export default function MobileMoneyPaymentModal({
 }) {
   if (!isOpen || !order) return null;
 
-  // Selected operator: "ORANGE_MONEY" | "MOOV_MONEY"
-  const [operator, setOperator] = useState("ORANGE_MONEY");
+  // Language state: 'fr' | 'en'
+  const [lang, setLang] = useState("fr");
 
-  // Phone number state with initial customer phone fallback
+  // Step state: 1 (Choose Operator) | 2 (Enter Phone & OTP)
+  const [step, setStep] = useState(1);
+
+  // Selected operator: "ORANGE_MONEY" | "MOOV_MONEY" | "LIGDICASH"
+  const [operator, setOperator] = useState(null);
+  const [operatorError, setOperatorError] = useState(false);
+
+  // Phone number state
   const initialPhone = customer?.phone || order.customer_phone || "";
   const [phoneNumber, setPhoneNumber] = useState(initialPhone);
   const [phoneError, setPhoneError] = useState("");
@@ -23,23 +30,41 @@ export default function MobileMoneyPaymentModal({
   // OTP Code state (6 digits strict)
   const [otpCode, setOtpCode] = useState("");
   const [otpError, setOtpError] = useState("");
-  const [showOtp, setShowOtp] = useState(false);
 
-  // Test mode flag and helper
-  const [isTestMode, setIsTestMode] = useState(true);
-  const DEMO_OTP = "749201";
+  // Banners / Alerts dismiss state
+  const [dismissOperatorInfo, setDismissOperatorInfo] = useState(false);
+  const [dismissUssdInfo, setDismissUssdInfo] = useState(false);
+  const [dismissAmountInfo, setDismissAmountInfo] = useState(false);
 
   // Submitting state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generalError, setGeneralError] = useState("");
 
   const totalAmount = order.total_amount || 0;
-  const currency = order.currency || "FCFA";
+  const currency = "Francs"; // Conforme à l'affichage LigdiCash (ex: "100 Francs")
+  const DEMO_OTP = "749201";
+
+  // Deterministic or persistent transaction ID matching screenshots (e.g. P2812330811615)
+  const rawTx = order.order_number || order.reference_code || order.id || "2812330811615";
+  const cleanTx = rawTx.toString().replace(/\D/g, "");
+  const transactionId = `P${cleanTx.padEnd(13, "0").slice(0, 13) || "2812330811615"}`;
+
+  // USSD instructions based on operator
+  const getUssdCode = () => {
+    if (operator === "MOOV_MONEY") {
+      return `*555*6*${totalAmount}#`;
+    }
+    return `*144*4*6*${totalAmount}#`;
+  };
 
   const validatePhone = (val) => {
     const digits = val.replace(/\D/g, "");
     if (digits.length < 8) {
-      setPhoneError("Le numéro doit comporter au moins 8 chiffres (ex: 70 12 34 56)");
+      setPhoneError(
+        lang === "fr"
+          ? "Le numéro doit comporter au moins 8 chiffres (sans indicatif)"
+          : "Phone number must have at least 8 digits"
+      );
       return false;
     }
     setPhoneError("");
@@ -49,36 +74,33 @@ export default function MobileMoneyPaymentModal({
   const validateOtp = (val) => {
     const clean = val.trim();
     if (!/^\d{6}$/.test(clean)) {
-      setOtpError("Le code OTP doit être composé d'exactement 6 chiffres");
+      setOtpError(
+        lang === "fr"
+          ? "Le code OTP doit être composé d'exactement 6 chiffres"
+          : "OTP code must be exactly 6 digits"
+      );
       return false;
     }
     setOtpError("");
     return true;
   };
 
-  const handlePhoneChange = (e) => {
-    const val = e.target.value;
-    setPhoneNumber(val);
-    if (phoneError) validatePhone(val);
+  const handleNextStep = () => {
+    if (!operator) {
+      setOperatorError(true);
+      return;
+    }
+    setOperatorError(false);
+    setStep(2);
   };
 
-  const handleOtpChange = (e) => {
-    const val = e.target.value.replace(/\D/g, "").slice(0, 6);
-    setOtpCode(val);
-    if (otpError && val.length === 6) {
-      setOtpError("");
-    }
-  };
-
-  const handleFillDemoCredentials = () => {
-    if (!phoneNumber.trim()) {
-      setPhoneNumber("70 12 34 56");
-    }
+  const handleFillDemoOtp = () => {
     setOtpCode(DEMO_OTP);
-    setPhoneError("");
     setOtpError("");
-    setGeneralError("");
-    showToast?.("🧪 Identifiants et OTP de test (749201) insérés en 1 clic !");
+    if (!phoneNumber.trim()) {
+      setPhoneNumber("70123456");
+      setPhoneError("");
+    }
   };
 
   const handleProcessPayment = async (e) => {
@@ -95,14 +117,21 @@ export default function MobileMoneyPaymentModal({
     setIsSubmitting(true);
     try {
       const res = await payMobileMoneyOrder(order.id, {
-        operator,
+        operator: operator === "LIGDICASH" ? "ORANGE_MONEY" : operator,
         phoneNumber,
         otpCode,
         customerName: customer?.name || order.customer_name || "Client GotoShop",
-        isTestMode,
+        isTestMode: true,
       });
 
-      showToast?.(`🎉 Paiement validé avec succès (${operator === "ORANGE_MONEY" ? "Orange Money" : "Moov Money"}) !`);
+      const opName =
+        operator === "ORANGE_MONEY"
+          ? "Orange Money"
+          : operator === "MOOV_MONEY"
+          ? "Moov Money"
+          : "LigdiCash";
+
+      showToast?.(`Paiement validé avec succès (${opName}) !`);
       if (onSuccess) {
         onSuccess(res);
       }
@@ -117,251 +146,373 @@ export default function MobileMoneyPaymentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-md bg-surface border-2 border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-foreground max-h-[92vh]">
-        {/* Modal Header */}
-        <div className="px-5 py-3.5 border-b border-subtle bg-surface-elevated flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center font-bold">
-              <Icon name="payments" className="text-[20px]" />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="relative w-full max-w-sm sm:max-w-md bg-white text-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-slate-100 font-sans max-h-[95vh]">
+        {/* Close Button top-right */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+          title="Fermer"
+        >
+          <Icon name="close" className="text-[18px]" />
+        </button>
+
+        {/* Top Error Alert Banner if user clicked Suivant without choosing */}
+        {step === 1 && operatorError && (
+          <div className="bg-[#e53e3e] text-white px-4 py-2.5 flex items-center justify-between text-xs font-medium animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-2.5 h-2.5 bg-white rounded-xs shrink-0" />
+              <span>{lang === "fr" ? "Choisissez un opérateur svp" : "Please select an operator"}</span>
             </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-on-surface flex items-center gap-1.5">
-                <span>Règlement Mobile Money</span>
-                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30">
-                  LigdiCash API
-                </span>
-              </h3>
-              <p className="text-[11px] text-on-surface-variant">
-                Commande #{order.order_number || order.reference_code || order.id?.substring(0, 8)}
-              </p>
+            <button
+              type="button"
+              onClick={() => setOperatorError(false)}
+              className="text-white hover:text-slate-200 text-base font-bold px-1 cursor-pointer"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4">
+          {/* Language Selector: Anglais | 🇫🇷 Français */}
+          <div className="flex justify-center pt-1">
+            <div className="inline-flex rounded-md border border-slate-200 overflow-hidden bg-white text-xs shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setLang("en")}
+                className={`px-5 py-1.5 transition-colors cursor-pointer font-medium ${
+                  lang === "en" ? "bg-slate-100 text-slate-900 font-bold" : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Anglais
+              </button>
+              <button
+                type="button"
+                onClick={() => setLang("fr")}
+                className={`px-5 py-1.5 flex items-center gap-1.5 transition-colors cursor-pointer font-medium border-l border-slate-200 ${
+                  lang === "fr" ? "bg-slate-100 text-slate-900 font-bold" : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <span>🇫🇷</span>
+                <span>Français</span>
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-secondary transition-colors cursor-pointer"
-          >
-            <Icon name="close" className="text-[18px]" />
-          </button>
-        </div>
 
-        {/* Modal Scrollable Body */}
-        <form onSubmit={handleProcessPayment} className="p-5 space-y-4 overflow-y-auto flex-1">
-          {/* Order Summary Strip */}
-          <div className="p-3 rounded-xl bg-surface-secondary border border-subtle flex items-center justify-between">
-            <span className="text-xs text-on-surface-variant font-medium">Montant total à solder :</span>
-            <span className="text-base font-bold text-primary tabular-nums">
-              {totalAmount.toLocaleString("fr-FR")} {currency}
+          {/* Red Transaction ID Badge */}
+          <div className="flex justify-center">
+            <span className="inline-block bg-[#d9534f] text-white font-mono text-[11px] sm:text-xs font-bold px-4 py-1 rounded-md shadow-2xs tracking-wide">
+              Transaction ID : {transactionId}
             </span>
           </div>
 
-          {/* Delivery Guarantee Pill */}
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-xs text-emerald-600 dark:text-emerald-400">
-            <Icon name="electric_moped" className="text-[20px] shrink-0" />
-            <span className="leading-tight font-medium">
-              <strong>Livraison express garantie :</strong> Votre colis est expédié et livré sous <strong>45 min à 2h</strong> dès confirmation du paiement.
-            </span>
-          </div>
+          {/* STEP 1: OPERATOR SELECTION */}
+          {step === 1 && (
+            <div className="space-y-4 animate-fadeIn">
+              {/* Info Alert Box */}
+              {!dismissOperatorInfo && (
+                <div className="bg-[#f8f9fa] border border-[#e9ecef] rounded-lg p-3 text-xs text-slate-600 relative flex items-start gap-2.5">
+                  <div className="w-5 h-5 rounded-full border border-slate-400 flex items-center justify-center text-slate-600 font-bold text-[11px] shrink-0 mt-0.5">
+                    !
+                  </div>
+                  <div className="flex-1 pr-4 leading-relaxed">
+                    <p className="font-medium text-slate-700">
+                      {lang === "fr" ? "Veuillez bien choisir un opérateur svp." : "Please select an operator."}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      {lang === "fr"
+                        ? "Pour le faire, vous devez cliquer sur le logo dudit opérateur"
+                        : "To do so, please click on the operator logo"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDismissOperatorInfo(true)}
+                    className="text-slate-400 hover:text-slate-600 text-sm font-bold absolute top-2 right-2 cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
 
-          {/* Error Message if any */}
-          {generalError && (
-            <div className="p-3 bg-red-500/10 border border-red-500/40 rounded-xl text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
-              <Icon name="error" className="text-[18px] shrink-0" />
-              <span>{generalError}</span>
+              {/* 3 Operator Cards Grid */}
+              <div className="grid grid-cols-3 gap-2.5 pt-1">
+                {/* 1. Compte LigdiCash */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOperator("LIGDICASH");
+                    setOperatorError(false);
+                  }}
+                  className={`flex flex-col items-center justify-between rounded-xl border transition-all cursor-pointer overflow-hidden p-2 text-center h-28 sm:h-32 ${
+                    operator === "LIGDICASH"
+                      ? "border-emerald-600 ring-2 ring-emerald-500/30 bg-emerald-50/30 shadow-xs"
+                      : "border-slate-200 bg-[#f8f9fa] hover:border-slate-300"
+                  }`}
+                >
+                  <div className="w-full flex-1 flex items-center justify-center p-1">
+                    <img
+                      src="/media/payments/ligdicash.svg"
+                      alt="LigdiCash"
+                      className="max-h-12 w-auto object-contain"
+                    />
+                  </div>
+                  <div className="w-full pt-1 border-t border-slate-100">
+                    <span className="text-[10px] sm:text-[11px] font-medium text-slate-600 block leading-tight">
+                      Compte
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-slate-700 block leading-tight">
+                      ligdicash ™
+                    </span>
+                  </div>
+                </button>
+
+                {/* 2. Orange Burkina */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOperator("ORANGE_MONEY");
+                    setOperatorError(false);
+                  }}
+                  className={`flex flex-col items-center justify-between rounded-xl border transition-all cursor-pointer overflow-hidden p-2 text-center h-28 sm:h-32 ${
+                    operator === "ORANGE_MONEY"
+                      ? "border-orange-500 ring-2 ring-orange-500/30 bg-orange-50/30 shadow-xs"
+                      : "border-slate-200 bg-[#f8f9fa] hover:border-slate-300"
+                  }`}
+                >
+                  <div className="w-full flex-1 flex items-center justify-center p-1">
+                    <img
+                      src="/orangeMoney.png"
+                      alt="Orange Money Burkina"
+                      className="max-h-12 w-auto object-contain"
+                    />
+                  </div>
+                  <div className="w-full pt-1 border-t border-slate-100">
+                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 block uppercase tracking-tight">
+                      Orange
+                    </span>
+                    <span className="text-[9px] sm:text-[10px] font-medium text-slate-500 block uppercase tracking-tight">
+                      Burkina
+                    </span>
+                  </div>
+                </button>
+
+                {/* 3. Moov Africa Burkina */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOperator("MOOV_MONEY");
+                    setOperatorError(false);
+                  }}
+                  className={`flex flex-col items-center justify-between rounded-xl border transition-all cursor-pointer overflow-hidden p-2 text-center h-28 sm:h-32 ${
+                    operator === "MOOV_MONEY"
+                      ? "border-blue-600 ring-2 ring-blue-500/30 bg-blue-50/30 shadow-xs"
+                      : "border-slate-200 bg-[#f8f9fa] hover:border-slate-300"
+                  }`}
+                >
+                  <div className="w-full flex-1 flex items-center justify-center p-1">
+                    <img
+                      src="/MoovMoney.png"
+                      alt="Moov Africa Burkina"
+                      className="max-h-12 w-auto object-contain"
+                    />
+                  </div>
+                  <div className="w-full pt-1 border-t border-slate-100">
+                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 block uppercase tracking-tight">
+                      Moov Africa
+                    </span>
+                    <span className="text-[9px] sm:text-[10px] font-medium text-slate-500 block uppercase tracking-tight">
+                      Burkina
+                    </span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Navigation Action */}
+              <div className="pt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="bg-[#00a65a] hover:bg-[#008d4c] active:scale-98 text-white font-medium text-xs sm:text-sm px-6 py-2.5 rounded-md shadow-xs transition-all cursor-pointer"
+                >
+                  {lang === "fr" ? "Suivant" : "Next"}
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Operator Selector with Official Logos */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-on-surface block">
-              Choisissez votre opérateur Mobile Money :
-            </label>
-            <div className="grid grid-cols-2 gap-2.5">
-              {/* Orange Money */}
-              <button
-                type="button"
-                onClick={() => setOperator("ORANGE_MONEY")}
-                className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${
-                  operator === "ORANGE_MONEY"
-                    ? "border-orange-500 bg-orange-500/10 ring-2 ring-orange-500/20 shadow-xs"
-                    : "border-subtle bg-surface-secondary hover:border-slate-400 dark:hover:border-slate-600"
-                }`}
-              >
-                <div className="w-16 h-10 flex items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-2xs">
-                  <img
-                    src="/media/payments/orange_money.png"
-                    alt="Orange Money"
-                    className="max-h-full max-w-full object-contain"
-                  />
+          {/* STEP 2: ENTER PHONE & OTP */}
+          {step === 2 && (
+            <form onSubmit={handleProcessPayment} className="space-y-3.5 animate-fadeIn">
+              {/* Alert 1: USSD Instructions */}
+              {!dismissUssdInfo && (
+                <div className="bg-[#f8f9fa] border border-[#e9ecef] rounded-lg p-3 text-xs text-slate-700 relative flex items-start gap-2.5">
+                  <Icon name="warning" className="text-[#333] text-[18px] shrink-0 mt-0.5" />
+                  <div className="flex-1 pr-4 leading-relaxed">
+                    <span>{lang === "fr" ? "Composez " : "Dial "}</span>
+                    <strong className="text-[#e11d48] font-mono font-bold text-sm tracking-wide">
+                      {getUssdCode()}
+                    </strong>
+                    <span>
+                      {lang === "fr"
+                        ? " sur votre portable. Puis saisissez votre numéro de paiement et le code OTP reçu dans les champs ci-dessous"
+                        : " on your phone. Then enter your payment number and the OTP code received in the fields below"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDismissUssdInfo(true)}
+                    className="text-slate-400 hover:text-slate-600 text-sm font-bold absolute top-2 right-2 cursor-pointer"
+                  >
+                    ×
+                  </button>
                 </div>
-                <div className="text-center">
-                  <span className="text-xs font-bold text-on-surface block">Orange Money</span>
-                  <span className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold">Burkina Faso</span>
-                </div>
-              </button>
-
-              {/* Moov Money */}
-              <button
-                type="button"
-                onClick={() => setOperator("MOOV_MONEY")}
-                className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${
-                  operator === "MOOV_MONEY"
-                    ? "border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/20 shadow-xs"
-                    : "border-subtle bg-surface-secondary hover:border-slate-400 dark:hover:border-slate-600"
-                }`}
-              >
-                <div className="w-16 h-10 flex items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-2xs">
-                  <img
-                    src="/media/payments/moov_money.png"
-                    alt="Moov Money"
-                    className="max-h-full max-w-full object-contain"
-                  />
-                </div>
-                <div className="text-center">
-                  <span className="text-xs font-bold text-on-surface block">Moov Money</span>
-                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">Burkina Faso</span>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Test Mode Interactive Helper Box */}
-          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                <Icon name="science" className="text-[16px]" />
-                Mode Test Démonstration
-              </span>
-              <span className="text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono px-2 py-0.5 rounded-full font-bold">
-                OTP Suggéré : {DEMO_OTP}
-              </span>
-            </div>
-            <p className="text-[11px] text-on-surface-variant leading-relaxed">
-              Pour tester sans débit réel, utilisez votre numéro ou insérez l'OTP de démo en 1 clic :
-            </p>
-            <button
-              type="button"
-              onClick={handleFillDemoCredentials}
-              className="w-full py-1.5 px-3 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-amber-500/30"
-            >
-              <Icon name="content_copy" className="text-[14px]" />
-              <span>📋 Copier / Insérer l'OTP de test ({DEMO_OTP})</span>
-            </button>
-          </div>
-
-          {/* Phone Number Input */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-on-surface flex items-center justify-between">
-              <span>Numéro de téléphone {operator === "ORANGE_MONEY" ? "Orange" : "Moov"} :</span>
-              <span className="text-[10px] text-on-surface-variant font-normal">8 chiffres minimum</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
-                <Icon name="phone" className="text-[18px]" />
-              </div>
-              <input
-                type="tel"
-                value={phoneNumber}
-                onChange={handlePhoneChange}
-                placeholder="Ex: 70 12 34 56 ou +226 ..."
-                className={`w-full h-11 pl-10 pr-3 rounded-xl bg-surface-secondary border text-xs font-mono transition-colors focus:outline-none ${
-                  phoneError
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-subtle focus:border-primary"
-                }`}
-                required
-              />
-            </div>
-            {phoneError && (
-              <p className="text-[11px] text-red-500 flex items-center gap-1 mt-0.5">
-                <Icon name="warning" className="text-[14px]" />
-                <span>{phoneError}</span>
-              </p>
-            )}
-          </div>
-
-          {/* Secure 6-Digit OTP Code Input */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-on-surface flex items-center justify-between">
-              <span>Code secret OTP (6 chiffres) :</span>
-              <span className="text-[10px] text-primary font-semibold">Champ sécurisé</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
-                <Icon name="lock" className="text-[18px]" />
-              </div>
-              <input
-                type={showOtp ? "text" : "password"}
-                maxLength={6}
-                value={otpCode}
-                onChange={handleOtpChange}
-                placeholder="Ex: 749201"
-                className={`w-full h-11 pl-10 pr-10 rounded-xl bg-surface-secondary border text-sm font-mono tracking-widest transition-colors focus:outline-none ${
-                  otpError
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-subtle focus:border-primary"
-                }`}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowOtp(!showOtp)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-on-surface cursor-pointer"
-                title={showOtp ? "Masquer" : "Afficher"}
-              >
-                <Icon name={showOtp ? "visibility_off" : "visibility"} className="text-[18px]" />
-              </button>
-            </div>
-            {otpError && (
-              <p className="text-[11px] text-red-500 flex items-center gap-1 mt-0.5">
-                <Icon name="warning" className="text-[14px]" />
-                <span>{otpError}</span>
-              </p>
-            )}
-            <p className="text-[10px] text-on-surface-variant">
-              Reçu par SMS de votre opérateur (ou généré via #144# / *166#).
-            </p>
-          </div>
-
-          {/* Security Badge */}
-          <div className="pt-1 flex items-center justify-center gap-2 text-[10px] text-on-surface-variant opacity-80">
-            <Icon name="verified_user" className="text-[14px] text-emerald-500" />
-            <span>Chiffrement SSL 256-bit • Transaction garantie par LigdiCash</span>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="pt-2 flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 h-11 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-semibold border border-subtle transition-colors cursor-pointer"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`flex-[2] h-11 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 cursor-pointer ${
-                operator === "ORANGE_MONEY"
-                  ? "bg-orange-600 hover:bg-orange-500"
-                  : "bg-blue-600 hover:bg-blue-500"
-              }`}
-            >
-              {isSubmitting ? (
-                <>
-                  <Icon name="sync" className="animate-spin text-[16px]" />
-                  <span>Validation LigdiCash...</span>
-                </>
-              ) : (
-                <>
-                  <Icon name="check" className="text-[18px]" />
-                  <span>Payer {totalAmount.toLocaleString("fr-FR")} {currency}</span>
-                </>
               )}
-            </button>
+
+              {/* Alert 2: Amount to Pay */}
+              {!dismissAmountInfo && (
+                <div className="bg-[#f8f9fa] border border-[#e9ecef] rounded-lg p-3 text-xs text-slate-700 relative flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon name="warning" className="text-[#333] text-[18px] shrink-0" />
+                    <span className="font-medium">
+                      {lang === "fr" ? "Montant à payer : " : "Amount to pay: "}
+                    </span>
+                    <span className="text-[#e11d48] font-bold text-sm">
+                      {totalAmount.toLocaleString("fr-FR")} {currency}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDismissAmountInfo(true)}
+                    className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              {/* General Error Message */}
+              {generalError && (
+                <div className="p-2.5 bg-red-50 border border-red-300 rounded-lg text-red-600 text-xs flex items-center gap-2">
+                  <Icon name="error" className="text-[16px] shrink-0" />
+                  <span>{generalError}</span>
+                </div>
+              )}
+
+              {/* Phone Input Field */}
+              <div className="space-y-1">
+                <label className="text-xs text-slate-800 font-medium block">
+                  {lang === "fr"
+                    ? "Numéro de téléphone (sans indicatif)"
+                    : "Phone number (without country code)"}
+                </label>
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPhoneNumber(val);
+                    if (phoneError) validatePhone(val);
+                  }}
+                  placeholder="Ex: 70 12 34 56"
+                  className={`w-full h-11 px-3 rounded-lg bg-white border text-sm text-slate-800 font-mono transition-colors focus:outline-none ${
+                    phoneError
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
+                  }`}
+                  required
+                />
+                {phoneError && <p className="text-[11px] text-red-500 mt-0.5">{phoneError}</p>}
+              </div>
+
+              {/* OTP Code Field */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <label className="text-slate-800 font-medium">
+                    {lang === "fr" ? "Code OTP Tapez " : "OTP Code Dial "}
+                    <span className="text-[#e11d48] font-mono font-bold">{getUssdCode()}</span>
+                  </label>
+                </div>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setOtpCode(val);
+                    if (otpError && val.length === 6) setOtpError("");
+                  }}
+                  placeholder="Ex: 749201"
+                  className={`w-full h-11 px-3 rounded-lg bg-white border text-base font-mono tracking-widest text-slate-800 transition-colors focus:outline-none ${
+                    otpError
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
+                  }`}
+                  required
+                />
+                {otpError && <p className="text-[11px] text-red-500 mt-0.5">{otpError}</p>}
+
+                {/* Simulation helper chip */}
+                <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Code reçu par SMS de l'opérateur</span>
+                  <button
+                    type="button"
+                    onClick={handleFillDemoOtp}
+                    className="text-emerald-700 hover:text-emerald-800 font-medium underline cursor-pointer"
+                  >
+                    OTP de test ({DEMO_OTP})
+                  </button>
+                </div>
+              </div>
+
+              {/* Action Buttons: Précédent & Payer */}
+              <div className="pt-3 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="bg-[#00a65a] hover:bg-[#008d4c] text-white font-medium text-xs sm:text-sm px-5 py-2.5 rounded-md transition-all cursor-pointer"
+                >
+                  {lang === "fr" ? "Précédent" : "Previous"}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-[#00a65a] hover:bg-[#008d4c] active:scale-98 text-white font-medium text-xs sm:text-sm px-6 py-2.5 rounded-md shadow-xs transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Icon name="sync" className="animate-spin text-[16px]" />
+                      <span>{lang === "fr" ? "Traitement..." : "Processing..."}</span>
+                    </>
+                  ) : (
+                    <span>{lang === "fr" ? "Payer" : "Pay"}</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Pagination Indicator Dots */}
+          <div className="pt-2 flex justify-center items-center gap-2">
+            <span
+              className={`w-2.5 h-2.5 rounded-full transition-all ${
+                step === 1 ? "bg-[#00a65a]" : "bg-emerald-200"
+              }`}
+            />
+            <span
+              className={`w-2.5 h-2.5 rounded-full transition-all ${
+                step === 2 ? "bg-[#00a65a]" : "bg-emerald-200"
+              }`}
+            />
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

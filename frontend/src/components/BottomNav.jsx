@@ -21,7 +21,7 @@ export default function BottomNav({ activeTab, onSelectTab, pendingCount = 0, mo
       ];
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 pb-safe bg-surface/90 backdrop-blur-md border-t border-subtle">
+    <nav className="fixed bottom-0 inset-x-0 z-50 pb-safe bg-surface/95 backdrop-blur-md border-t border-subtle shadow-lg">
       <div className="flex justify-around items-center h-15 px-3 max-w-md mx-auto">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;

@@ -252,13 +252,16 @@ class CommerceService:
             intent.status = "SOLD"
             # Update product sales count and stock only if it wasn't already marked sold
             if not was_already_sold:
+                qty = int(intent.quantity or 1)
+                total = int(intent.total_amount or 0)
                 if intent.product:
-                    intent.product.sales_count += intent.quantity
-                    intent.product.revenue += intent.total_amount
-                    intent.product.stock = max(0, intent.product.stock - intent.quantity)
+                    intent.product.sales_count = int(intent.product.sales_count or 0) + qty
+                    intent.product.revenue = int(intent.product.revenue or 0) + total
+                    prod_stock = int(intent.product.stock) if intent.product.stock is not None else 10
+                    intent.product.stock = max(0, prod_stock - qty)
                 if intent.store:
-                    intent.store.sales_count += 1
-                    intent.store.revenue += intent.total_amount
+                    intent.store.sales_count = int(intent.store.sales_count or 0) + 1
+                    intent.store.revenue = int(intent.store.revenue or 0) + total
                 db.add(TrackingEvent(
                     store_id=intent.store_id,
                     product_id=intent.product_id,
@@ -290,13 +293,16 @@ class CommerceService:
         else:
             # If was sold previously, adjust stock and revenue back
             if was_already_sold:
+                qty = int(intent.quantity or 1)
+                total = int(intent.total_amount or 0)
                 if intent.product:
-                    intent.product.sales_count = max(0, intent.product.sales_count - intent.quantity)
-                    intent.product.revenue = max(0, intent.product.revenue - intent.total_amount)
-                    intent.product.stock += intent.quantity
+                    intent.product.sales_count = max(0, int(intent.product.sales_count or 0) - qty)
+                    intent.product.revenue = max(0, int(intent.product.revenue or 0) - total)
+                    prod_stock = int(intent.product.stock) if intent.product.stock is not None else 10
+                    intent.product.stock = prod_stock + qty
                 if intent.store:
-                    intent.store.sales_count = max(0, intent.store.sales_count - 1)
-                    intent.store.revenue = max(0, intent.store.revenue - intent.total_amount)
+                    intent.store.sales_count = max(0, int(intent.store.sales_count or 0) - 1)
+                    intent.store.revenue = max(0, int(intent.store.revenue or 0) - total)
 
             intent.status = "NOT_SOLD"
             db.add(TrackingEvent(
@@ -454,13 +460,16 @@ class CommerceService:
         if res_upper == "ACCEPT_CANCELLATION":
             # Merchant accepts cancellation / returns product
             if was_sold_previously:
+                qty = int(intent.quantity or 1)
+                total = int(intent.total_amount or 0)
                 if intent.product:
-                    intent.product.sales_count = max(0, intent.product.sales_count - intent.quantity)
-                    intent.product.revenue = max(0, intent.product.revenue - intent.total_amount)
-                    intent.product.stock += intent.quantity
+                    intent.product.sales_count = max(0, int(intent.product.sales_count or 0) - qty)
+                    intent.product.revenue = max(0, int(intent.product.revenue or 0) - total)
+                    prod_stock = int(intent.product.stock) if intent.product.stock is not None else 10
+                    intent.product.stock = prod_stock + qty
                 if intent.store:
-                    intent.store.sales_count = max(0, intent.store.sales_count - 1)
-                    intent.store.revenue = max(0, intent.store.revenue - intent.total_amount)
+                    intent.store.sales_count = max(0, int(intent.store.sales_count or 0) - 1)
+                    intent.store.revenue = max(0, int(intent.store.revenue or 0) - total)
 
             intent.status = "CANCELLED"
             if not intent.sale_confirmation:
@@ -482,13 +491,16 @@ class CommerceService:
         elif res_upper == "FORCE_CONFIRM_SALE":
             # Merchant confirms delivery happened
             if not was_sold_previously:
+                qty = int(intent.quantity or 1)
+                total = int(intent.total_amount or 0)
                 if intent.product:
-                    intent.product.sales_count += intent.quantity
-                    intent.product.revenue += intent.total_amount
-                    intent.product.stock = max(0, intent.product.stock - intent.quantity)
+                    intent.product.sales_count = int(intent.product.sales_count or 0) + qty
+                    intent.product.revenue = int(intent.product.revenue or 0) + total
+                    prod_stock = int(intent.product.stock) if intent.product.stock is not None else 10
+                    intent.product.stock = max(0, prod_stock - qty)
                 if intent.store:
-                    intent.store.sales_count += 1
-                    intent.store.revenue += intent.total_amount
+                    intent.store.sales_count = int(intent.store.sales_count or 0) + 1
+                    intent.store.revenue = int(intent.store.revenue or 0) + total
 
             intent.status = "SOLD"
             if not intent.sale_confirmation:

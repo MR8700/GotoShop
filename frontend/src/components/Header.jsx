@@ -127,8 +127,8 @@ export default function Header({
 
           {/* Right: Actions & Navigation */}
           <div className="flex items-center gap-2 xs:gap-2.5 sm:gap-3 md:gap-3.5 shrink-0 ml-auto">
-            {/* Explorer button (Boutique) */}
-            {onOpenExplorer && (
+            {/* Explorer button (Shown ONLY for non-authenticated guests/clients) */}
+            {onOpenExplorer && !authStatus?.is_authenticated && (
               <button
                 onClick={onOpenExplorer}
                 className="h-8.5 sm:h-9.5 px-2 xs:px-2.5 sm:px-3 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface text-xs font-medium border border-slate-300 dark:border-slate-700 flex items-center gap-1.5 transition-all active:scale-95 shrink-0 cursor-pointer"
@@ -140,11 +140,23 @@ export default function Header({
               </button>
             )}
 
+            {/* Mes Boutiques button for authenticated merchants with multiple stores */}
+            {authStatus?.is_authenticated && onOpenMyStores && (
+              <button
+                onClick={onOpenMyStores}
+                className="h-8.5 sm:h-9.5 px-2 sm:px-2.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface text-xs font-semibold border border-slate-300 dark:border-slate-700 flex items-center gap-1.5 transition-all active:scale-95 shrink-0 cursor-pointer"
+                title="Gérer mes boutiques"
+              >
+                <Icon name="store" className="text-[17px] sm:text-[18px] text-secondary" />
+                <span className="hidden sm:inline">Mes Boutiques</span>
+              </button>
+            )}
+
             {/* Persona mode toggle ONLY when owner authenticated AND owns this store */}
             {authStatus?.is_authenticated && isCurrentStoreOwner && (
               <button
                 onClick={onToggleMode}
-                className={`h-8.5 sm:h-9.5 px-2.5 sm:px-3 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all active:scale-95 border cursor-pointer ${
+                className={`h-8.5 sm:h-9.5 px-2 sm:px-2.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all active:scale-95 border cursor-pointer shrink-0 ${
                   mode === "owner"
                     ? "bg-secondary/15 text-secondary border-secondary/30"
                     : "bg-primary/15 text-primary border-primary/30"
@@ -152,7 +164,7 @@ export default function Header({
                 title={mode === "owner" ? "Basculer en vue client" : "Basculer en vue gestion"}
               >
                 <Icon name={mode === "owner" ? "visibility" : "admin_panel_settings"} className="text-[17px] sm:text-[18px]" />
-                <span className="hidden sm:inline">{mode === "owner" ? "Vue Client" : "Vue Admin"}</span>
+                <span className="hidden md:inline">{mode === "owner" ? "Vue Client" : "Vue Admin"}</span>
               </button>
             )}
 
@@ -185,25 +197,22 @@ export default function Header({
 
             {/* Authenticated Owner Avatar & Menu */}
             {authStatus?.is_authenticated && (
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button
+                  type="button"
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="relative flex items-center justify-center p-0.5 rounded-xl border border-subtle hover:border-secondary/50 transition-colors shrink-0 cursor-pointer"
-                  title={authStatus?.owner_name || "Gérante"}
+                  className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full ring-2 ring-secondary/40 hover:ring-secondary overflow-hidden flex items-center justify-center p-0 transition-all shrink-0 cursor-pointer shadow-xs"
+                  title={authStatus?.owner_name || "Gérant"}
                 >
                   <img
-                    alt="Profil Commerçante"
+                    alt="Profil"
                     src={getMediaUrl(store?.avatar_url) || "/media/store/awa_portrait.jpg"}
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.style.display = "none";
-                      if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+                      e.target.src = "/media/store/awa_portrait.jpg";
                     }}
-                    className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-lg object-cover"
+                    className="w-full h-full object-cover shrink-0"
                   />
-                  <div className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-lg bg-secondary/20 text-secondary hidden items-center justify-center font-bold text-xs">
-                    {authStatus?.owner_name ? authStatus.owner_name.charAt(0).toUpperCase() : "M"}
-                  </div>
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-secondary ring-1 ring-surface" />
                 </button>
 
@@ -279,8 +288,8 @@ export default function Header({
                         }}
                         className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface"
                       >
-                        <Icon name="storefront" className="text-[16px] text-primary" />
-                        <span>Changer de boutique</span>
+                        <Icon name="search" className="text-[16px] text-primary" />
+                        <span>Rechercher une boutique</span>
                       </button>
 
                       <button

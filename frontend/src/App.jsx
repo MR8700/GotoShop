@@ -337,6 +337,11 @@ export default function App() {
           setViewMode("store");
           setActiveStoreSlug(match[1]);
           loadAllData(match[1]);
+        } else if (authStatus?.is_authenticated) {
+          const defaultMerchantSlug = authStatus.store_slug || authStatus.store_slugs?.[0] || myStoreSlug || "faso-danfani";
+          setViewMode("store");
+          setActiveStoreSlug(defaultMerchantSlug);
+          loadAllData(defaultMerchantSlug);
         } else {
           setViewMode("explorer");
           setActiveStoreSlug("");
@@ -549,6 +554,7 @@ export default function App() {
         owned_stores: ownedStores,
       });
       setIsLoginOpen(false);
+      setViewMode("store");
 
       // SuperAdmin direct routing to the central dashboard
       if (loginData?.role === "superadmin") {
@@ -823,6 +829,10 @@ export default function App() {
   };
 
   const handleOpenExplorer = () => {
+    if (authStatus?.is_authenticated) {
+      setIsStoreSwitcherOpen(true);
+      return;
+    }
     setViewMode("explorer");
     try {
       const url = new URL(window.location);
@@ -890,7 +900,8 @@ export default function App() {
   }
 
   // If viewMode is "explorer", show the Store Explorer Page after splash screen
-  if (!showSplash && viewMode === "explorer") {
+  // Strictly prevent authenticated merchants from being redirected to the public gallery
+  if (!showSplash && viewMode === "explorer" && !authStatus?.is_authenticated) {
     return (
       <div className="bg-surface font-body-md text-on-surface flex flex-col min-h-screen antialiased selection:bg-primary-container selection:text-on-primary-container">
         <StoreExplorerPage
@@ -1087,6 +1098,7 @@ export default function App() {
             onOpenConversationalOrder={handleOpenConversationalOrder}
             onOpenChat={handleOpenChat}
             onOpenQrModal={() => setIsStoreQrModalOpen(true)}
+            channels={channels}
           />
         )}
 

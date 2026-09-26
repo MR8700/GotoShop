@@ -1,10 +1,8 @@
 import Icon from "./Icon";
 import React, { useState } from "react";
-import { trackVisit } from "../api/client";
 
 export default function ShareSocialModal({ store, onClose, showToast }) {
   const [activeNetwork, setActiveNetwork] = useState("tiktok_bio");
-  const [testing, setTesting] = useState(false);
 
   const networks = [
     {
@@ -69,15 +67,6 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
     }
   };
 
-  const handleTestClick = async () => {
-    setTesting(true);
-    showToast(`Simulation d'un clic client depuis ${currentNet.name}...`);
-    await trackVisit(currentNet.sourceTag);
-    setTimeout(() => {
-      setTesting(false);
-      showToast(`+1 Visite enregistrée en base pour ${currentNet.name} ! Vérifiez l'onglet Stats.`);
-    }, 400);
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md">
@@ -164,21 +153,13 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2 pt-1">
+          <div className="pt-1">
             <button
               onClick={handleShareNative}
-              className="h-11 rounded-xl bg-primary-container text-on-primary-container font-label-md text-label-md font-bold flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-transform"
+              className="w-full h-11 rounded-xl bg-primary-container text-on-primary-container font-label-md text-label-md font-bold flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-transform"
             >
               <Icon name="send" className="text-[18px]" />
-              <span>Partager</span>
-            </button>
-            <button
-              disabled={testing}
-              onClick={handleTestClick}
-              className="h-11 rounded-xl bg-surface-container-highest text-secondary font-label-md text-label-md font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform hover:bg-surface-bright"
-            >
-              <Icon name="touch_app" className="text-[18px]" />
-              <span>Tester Clic (+1)</span>
+              <span>Partager sur mes réseaux</span>
             </button>
           </div>
         </div>

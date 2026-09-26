@@ -741,7 +741,7 @@ export default function ChatPage({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex bg-background text-foreground antialiased overflow-hidden animate-fadeIn">
+    <div className="fixed top-14 sm:top-16 bottom-15 inset-x-0 z-30 flex bg-background text-foreground antialiased overflow-hidden animate-fadeIn">
       
       {/* ==================================================================== */}
       {/* COLUMN 1 : CONVERSATIONS & CALLS LIST (Desktop 320px / Mobile Full) */}

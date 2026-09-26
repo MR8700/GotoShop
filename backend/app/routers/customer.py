@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
@@ -113,9 +113,12 @@ def link_guest_orders(
 @router.get("/merchant/clients", response_model=List[MerchantClientItem])
 def list_merchant_clients(
     search: Optional[str] = None,
+    store_slug: Optional[str] = Query(None, alias="store"),
+    x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
     db: Session = Depends(get_db)
 ):
-    store = StoreService.get_default_store(db)
+    slug = x_store_slug or store_slug
+    store = StoreService.resolve_store(db, slug=slug) if slug else StoreService.get_default_store(db)
     if not store:
         return []
     return CustomerService.get_merchant_clients(db, store.id, search=search)
@@ -123,9 +126,12 @@ def list_merchant_clients(
 @router.get("/merchant/clients/{customer_id}", response_model=MerchantClientDetail)
 def get_merchant_client_detail(
     customer_id: str,
+    store_slug: Optional[str] = Query(None, alias="store"),
+    x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
     db: Session = Depends(get_db)
 ):
-    store = StoreService.get_default_store(db)
+    slug = x_store_slug or store_slug
+    store = StoreService.resolve_store(db, slug=slug) if slug else StoreService.get_default_store(db)
     if not store:
         raise HTTPException(status_code=404, detail="Boutique introuvable")
     client = CustomerService.get_merchant_client_detail(db, store.id, customer_id)

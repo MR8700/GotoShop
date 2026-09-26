@@ -1,13 +1,12 @@
 import Icon from "./Icon";
 import React, { useState } from "react";
-import { loginOwner, resetOwnerCredentials, loginDemoOwner, loginSuperAdmin } from "../api/client";
+import { loginOwner } from "../api/client";
 
 export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegisterStore, showToast }) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   if (!isOpen) return null;
@@ -28,61 +27,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
       if (showToast) showToast(err.message || "Identifiants invalides");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleInstantDemoLogin = async (slug) => {
-    setIsLoading(true);
-    setErrorMessage("");
-    try {
-      let data;
-      if (slug === "superadmin") {
-        data = await loginSuperAdmin("admin@gotoshop.com", "SuperAdmin2026!");
-        if (showToast) showToast("Connecté en tant que Super-Administrateur !");
-        if (onLoginSuccess) {
-          onLoginSuccess({
-            ...data,
-            role: "superadmin",
-            owner_name: "Super-Admin",
-            store_slugs: ["superadmin"],
-          });
-        }
-      } else {
-        data = await loginDemoOwner(slug);
-        if (showToast) showToast(data?.message || `Connecté à ${data?.owner_name || slug} !`);
-        if (onLoginSuccess) {
-          onLoginSuccess(data);
-        }
-      }
-      onClose();
-    } catch (err) {
-      console.error("Demo login error:", err);
-      setErrorMessage(err.message || "Erreur de connexion démo");
-      if (showToast) showToast(err.message || "Erreur de connexion démo");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleQuickFill = (email, pwd) => {
-    setIdentifier(email);
-    setPassword(pwd);
-    setErrorMessage("");
-  };
-
-  const handleResetDemo = async () => {
-    setIsResetting(true);
-    setErrorMessage("");
-    try {
-      const res = await resetOwnerCredentials();
-      setIdentifier(res.email || "mariam.kabore@fasodanfani.bf");
-      setPassword(res.default_password || "FasoDanfani2026!");
-      if (showToast) showToast(res.message || "Identifiants démo réinitialisés avec succès !");
-    } catch (err) {
-      setErrorMessage(err.message || "Erreur lors de la réinitialisation");
-      if (showToast) showToast(err.message || "Erreur de réinitialisation");
-    } finally {
-      setIsResetting(false);
     }
   };
 
@@ -173,125 +117,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
           </button>
         </form>
 
-        {/* Instant 1-Click Test Admin Shortcut */}
-        <div className="mt-4 pt-3 border-t border-subtle">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold text-primary flex items-center gap-1">
-              <Icon name="bolt" className="text-[14px]" />
-              <span>Accès 1-Clic Admin Test</span>
-            </span>
-            <span className="text-[10px] text-on-surface-variant">0 saisie requise</span>
-          </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => handleInstantDemoLogin("faso-danfani")}
-              className="p-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 text-left transition-all cursor-pointer group disabled:opacity-50"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-on-surface group-hover:text-primary block truncate">
-                  Faso Danfani
-                </span>
-                <Icon name="arrow_forward" className="text-[14px] text-primary" />
-              </div>
-              <span className="text-[10px] text-on-surface-variant block truncate">
-                Mariam Kaboré
-              </span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => handleInstantDemoLogin("ouaga-tech")}
-              className="p-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 text-left transition-all cursor-pointer group disabled:opacity-50"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-on-surface group-hover:text-primary block truncate">
-                  Ouaga Tech
-                </span>
-                <Icon name="arrow_forward" className="text-[14px] text-primary" />
-              </div>
-              <span className="text-[10px] text-on-surface-variant block truncate">
-                Ousmane O.
-              </span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => handleInstantDemoLogin("sya-bio-cosmetiques")}
-              className="p-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 text-left transition-all cursor-pointer group disabled:opacity-50"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-on-surface group-hover:text-primary block truncate">
-                  Sya Bio
-                </span>
-                <Icon name="arrow_forward" className="text-[14px] text-primary" />
-              </div>
-              <span className="text-[10px] text-on-surface-variant block truncate">
-                Fatoumata T.
-              </span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => handleInstantDemoLogin("superadmin")}
-              className="p-2.5 rounded-xl bg-secondary/15 hover:bg-secondary/25 border border-secondary/35 text-left transition-all cursor-pointer group disabled:opacity-50"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-secondary block truncate">
-                  SuperAdmin
-                </span>
-                <Icon name="shield" className="text-[14px] text-secondary" />
-              </div>
-              <span className="text-[10px] text-on-surface-variant block truncate">
-                Plateforme
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* Demo Credentials Quick Fill */}
-        <div className="mt-3 pt-2.5 border-t border-subtle/50">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider">
-              Identifiants de test pré-remplis
-            </span>
-            <button
-              type="button"
-              onClick={handleResetDemo}
-              disabled={isResetting}
-              className="text-[10px] text-primary hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
-              title="Réinitialiser l'accès démo par défaut"
-            >
-              <Icon name="refresh" className="text-[12px]" />
-              <span>{isResetting ? "Réinit..." : "Réinitialiser"}</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleQuickFill("mariam.kabore@fasodanfani.bf", "FasoDanfani2026!")}
-              className="px-2 py-1.5 rounded-lg bg-surface-secondary hover:bg-surface-elevated border border-subtle text-left transition-all cursor-pointer text-[10px]"
-            >
-              <span className="font-semibold text-on-surface block truncate">mariam.kabore@...</span>
-              <span className="text-on-surface-variant/70 font-mono block">FasoDanfani2026!</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickFill("ousmane.ouedraogo@ouagatech.bf", "OuagaTech2026!")}
-              className="px-2 py-1.5 rounded-lg bg-surface-secondary hover:bg-surface-elevated border border-subtle text-left transition-all cursor-pointer text-[10px]"
-            >
-              <span className="font-semibold text-on-surface block truncate">ousmane.o@...</span>
-              <span className="text-on-surface-variant/70 font-mono block">OuagaTech2026!</span>
-            </button>
-          </div>
-        </div>
 
         {/* Register CTA */}
         {onOpenRegisterStore && (
