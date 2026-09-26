@@ -34,7 +34,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
 
   const [overview, setOverview] = useState(() => dataCache.get("superadmin:overview") || null);
   const [stores, setStores] = useState(() => dataCache.get("superadmin:stores") || []);
-  const [loading, setLoading] = useState(() => !dataCache.has("superadmin:stores"));
+  const [loading, setLoading] = useState(() => !dataCache?.has?.("superadmin:stores"));
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 

@@ -16,7 +16,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
   const [activeMainTab, setActiveMainTab] = useState("analytics"); // "analytics" or "clients"
   const [period, setPeriod] = useState("today");
   const [analytics, setAnalytics] = useState(() => dataCache.get("analytics:today") || null);
-  const [loading, setLoading] = useState(() => !dataCache.has("analytics:today"));
+  const [loading, setLoading] = useState(() => !dataCache?.has?.("analytics:today"));
 
   // CRM Clients state
   const [clientsList, setClientsList] = useState(() => dataCache.get("clients:merchant:") || []);

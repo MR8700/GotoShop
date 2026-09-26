@@ -24,6 +24,50 @@ export function isDifferent(a, b) {
 }
 
 export const dataCache = {
+  has(key) {
+    if (!key) return false;
+    if (memoryCache.has(key)) {
+      const entry = memoryCache.get(key);
+      return entry?.data !== undefined && entry?.data !== null;
+    }
+    // Try localStorage safe fallback
+    try {
+      const stored = safeStorage.getItem(`gotoshop_cache_${key}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.data !== undefined && parsed.data !== null) {
+          memoryCache.set(key, { data: parsed.data, time: parsed.time });
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  },
+
+  delete(key) {
+    if (!key) return;
+    memoryCache.delete(key);
+    try {
+      safeStorage.removeItem(`gotoshop_cache_${key}`);
+    } catch (e) {}
+  },
+
+  clear() {
+    memoryCache.clear();
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        const toRemove = [];
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const k = window.localStorage.key(i);
+          if (k && k.startsWith("gotoshop_cache_")) {
+            toRemove.push(k);
+          }
+        }
+        toRemove.forEach((k) => safeStorage.removeItem(k));
+      }
+    } catch (e) {}
+  },
+
   get(key) {
     if (memoryCache.has(key)) {
       const entry = memoryCache.get(key);

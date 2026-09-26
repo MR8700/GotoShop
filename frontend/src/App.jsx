@@ -73,7 +73,7 @@ export default function App() {
   const [confirmToken, setConfirmToken] = useState(null);
   const [loading, setLoading] = useState(() => {
     const slug = getActiveStoreSlug();
-    return !dataCache.has(`store:${slug || "default"}`);
+    return !dataCache?.has?.(`store:${slug || "default"}`);
   });
 
   // Conversational Commerce State
@@ -218,7 +218,7 @@ export default function App() {
 
   const loadAllData = async (targetSlug = null) => {
     const activeSlug = targetSlug || getActiveStoreSlug();
-    const hasCached = dataCache.has(`store:${activeSlug || "default"}`);
+    const hasCached = !!dataCache?.has?.(`store:${activeSlug || "default"}`);
     if (!hasCached) {
       setLoading(true);
     }

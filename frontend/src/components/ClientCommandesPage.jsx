@@ -32,7 +32,7 @@ export default function ClientCommandesPage({
   const [loading, setLoading] = useState(() => {
     const local = getLocalGuestOrders();
     const token = customer?.session_token || getCustomerToken();
-    const hasCached = token ? dataCache.has(`customer:orders:${token}`) : false;
+    const hasCached = token ? !!dataCache?.has?.(`customer:orders:${token}`) : false;
     return !hasCached && local.length === 0;
   });
 

@@ -41,7 +41,7 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
   const [discrepanciesList, setDiscrepanciesList] = useState(() => dataCache.get("intents:discrepancies") || []);
   const [notificationsData, setNotificationsData] = useState(() => dataCache.get("notifications:{}") || { unread_count: 0, discrepancies_count: 0, notifications: [] });
   const [loading, setLoading] = useState(() => {
-    return !dataCache.has("intents:pending-followup") && !dataCache.has("intents:feed:?include_archived=true") && !conversationalOrders.length;
+    return !dataCache?.has?.("intents:pending-followup") && !dataCache?.has?.("intents:feed:?include_archived=true") && !conversationalOrders.length;
   });
   const [confirmedSuccess, setConfirmedSuccess] = useState(false);
   const [confirmedAmount, setConfirmedAmount] = useState(85000);
