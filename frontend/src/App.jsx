@@ -533,47 +533,58 @@ export default function App() {
   };
 
   const handleLoginSuccess = (loginData) => {
-    const storeIds = loginData.store_ids || (loginData.store_id ? [loginData.store_id] : []);
-    const storeSlugs = loginData.store_slugs || (loginData.store_slug ? [loginData.store_slug] : []);
-    const ownedStores = loginData.owned_stores || [];
+    try {
+      const storeIds = loginData?.store_ids || (loginData?.store_id ? [loginData.store_id] : []);
+      const storeSlugs = loginData?.store_slugs || (loginData?.store_slug ? [loginData.store_slug] : []);
+      const ownedStores = loginData?.owned_stores || [];
 
-    setAuthStatus({
-      is_authenticated: true,
-      must_change_password: loginData.must_change_password,
-      owner_name: loginData.owner_name,
-      email: loginData.email,
-      role: loginData.role || "merchant",
-      store_ids: storeIds,
-      store_slugs: storeSlugs,
-      owned_stores: ownedStores,
-    });
-    setIsLoginOpen(false);
+      setAuthStatus({
+        is_authenticated: true,
+        must_change_password: Boolean(loginData?.must_change_password),
+        owner_name: loginData?.owner_name || "Commerçant",
+        email: loginData?.email,
+        role: loginData?.role || "merchant",
+        store_ids: storeIds,
+        store_slugs: storeSlugs,
+        owned_stores: ownedStores,
+      });
+      setIsLoginOpen(false);
 
-    // Multi-tenant check: if merchant owns the currently loaded store, stay and open admin
-    const currentSlug = (store?.slug || getActiveStoreSlug() || "").toLowerCase();
-    const ownsCurrent =
-      loginData.role === "superadmin" ||
-      storeSlugs.some((s) => s.toLowerCase() === currentSlug) ||
-      ownedStores.some((os) => os.slug?.toLowerCase() === currentSlug);
-
-    if (ownsCurrent) {
-      setAppMode("owner");
-      if (loginData.must_change_password) {
-        setIsChangePasswordOpen(true);
-        showToast("Changement de mot de passe obligatoire pour continuer");
-      } else if (pendingAdminTab) {
-        setActiveTab(pendingAdminTab);
-        setPendingAdminTab(null);
-      } else {
-        setActiveTab("commandes");
+      // SuperAdmin direct routing to the central dashboard
+      if (loginData?.role === "superadmin") {
+        setIsSuperAdminOpen(true);
+        showToast("Bienvenue sur le tableau de bord Super-Admin !");
+        return;
       }
-    } else if (storeSlugs.length > 0) {
-      // Direct merchant to their own store
-      handleSwitchStore(storeSlugs[0], true);
-      showToast("Bienvenue dans votre propre boutique !");
-    } else {
-      setAppMode("client");
-      setActiveTab("boutique");
+
+      // Multi-tenant check: if merchant owns the currently loaded store, stay and open admin
+      const currentSlug = (store?.slug || getActiveStoreSlug() || "").toLowerCase();
+      const ownsCurrent =
+        storeSlugs.some((s) => s.toLowerCase() === currentSlug) ||
+        ownedStores.some((os) => os.slug?.toLowerCase() === currentSlug);
+
+      if (ownsCurrent) {
+        setAppMode("owner");
+        if (loginData?.must_change_password) {
+          setIsChangePasswordOpen(true);
+          showToast("Changement de mot de passe obligatoire pour continuer");
+        } else if (pendingAdminTab) {
+          setActiveTab(pendingAdminTab);
+          setPendingAdminTab(null);
+        } else {
+          setActiveTab("commandes");
+        }
+      } else if (storeSlugs.length > 0) {
+        // Direct merchant to their own store
+        handleSwitchStore(storeSlugs[0], true);
+        showToast("Bienvenue dans votre propre boutique !");
+      } else {
+        setAppMode("client");
+        setActiveTab("boutique");
+      }
+    } catch (e) {
+      console.error("handleLoginSuccess error:", e);
+      showToast("Connexion validée");
     }
   };
 
@@ -942,13 +953,17 @@ export default function App() {
           isOpen={isLoginOpen}
           onClose={() => setIsLoginOpen(false)}
           onLoginSuccess={handleLoginSuccess}
+          onOpenRegisterStore={() => {
+            setIsLoginOpen(false);
+            handleOpenSubscriptionModal("NEW_STORE");
+          }}
           showToast={showToast}
         />
 
         {/* Global Subscription Modal */}
         <SubscriptionModal
           isOpen={isSubscriptionModalOpen}
-          onClose={() => setIsSubscriptionModalOpen(false)}
+          onClose={handleCloseSubscriptionModal}
           mode={subModalMode}
           initialStore={store}
           onSuccess={handleStoreRegistered}

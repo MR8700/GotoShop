@@ -66,7 +66,7 @@ def demo_login(payload: Optional[dict] = None, db: Session = Depends(get_db)):
     Instantly logs in as the demo store admin (or the requested demo store slug)
     without prompting for passwords.
     """
-    target_slug = (payload or {}).get("store_slug")
+    target_slug = (payload or {}).get("store_slug") or (payload or {}).get("target_slug") or (payload or {}).get("slug")
     try:
         owner, token = AuthService.demo_login(db, target_slug)
         store_ids = [s.id for s in owner.stores] if owner.stores else []

@@ -221,9 +221,9 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
             title="Notifications & Alertes"
           >
             <Icon name="notifications" className="text-[20px]" />
-            {(notificationsData.unread_count > 0 || notificationsData.discrepancies_count > 0) && (
+            {((notificationsData?.unread_count || 0) > 0 || (notificationsData?.discrepancies_count || 0) > 0) && (
               <span className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-rose-500 text-white font-bold text-[10px] flex items-center justify-center shadow animate-pulse">
-                {notificationsData.unread_count || notificationsData.discrepancies_count}
+                {notificationsData?.unread_count || notificationsData?.discrepancies_count}
               </span>
             )}
           </button>
@@ -1023,13 +1023,13 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
             </div>
 
             <div className="flex-1 overflow-y-auto py-3 space-y-2.5">
-              {notificationsData.notifications?.length === 0 ? (
+              {(notificationsData?.notifications || []).length === 0 ? (
                 <div className="p-8 text-center text-on-surface-variant text-xs space-y-2">
                   <Icon name="notifications_off" className="text-[32px] opacity-40" />
                   <p>Aucune notification pour le moment. Tout est à jour !</p>
                 </div>
               ) : (
-                notificationsData.notifications.map((n) => {
+                (notificationsData?.notifications || []).map((n) => {
                   const isUrgent = n.urgency === "HIGH";
                   return (
                     <div

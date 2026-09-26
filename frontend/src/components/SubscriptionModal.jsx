@@ -74,8 +74,9 @@ export default function SubscriptionModal({
   const [errorMessage, setErrorMessage] = useState("");
 
   const currentCountry =
-    WEST_AFRICAN_COUNTRIES.find((c) => c.code === selectedCountryCode) ||
-    WEST_AFRICAN_COUNTRIES[0];
+    (WEST_AFRICAN_COUNTRIES && WEST_AFRICAN_COUNTRIES.find((c) => c.code === selectedCountryCode)) ||
+    WEST_AFRICAN_COUNTRIES?.[0] ||
+    { code: "BF", name: "Burkina Faso", flag: "🇧🇫", dial: "+226", cities: ["Ouagadougou", "Bobo-Dioulasso", "Autre"] };
 
   useEffect(() => {
     if (isOpen) {
@@ -166,20 +167,20 @@ export default function SubscriptionModal({
   if (!isOpen) return null;
 
   // Selected Plan Object with bulletproof fallbacks
-  const defaultFallbackPlanWithUssd = FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans_with_ussd[0];
+  const defaultFallbackPlanWithUssd = FALLBACK_SUBSCRIPTION_PUBLIC_INFO?.plans_with_ussd?.[0] || null;
   const currentPlanInfo =
     (plansWithUssd && plansWithUssd.length > 0 && plansWithUssd.find((p) => p?.plan?.code === selectedPlanCode)) ||
     (plansWithUssd && plansWithUssd.length > 0 && plansWithUssd[0]) ||
     defaultFallbackPlanWithUssd;
 
-  const activePlan = currentPlanInfo?.plan || (plans && plans.length > 0 && plans[0]) || FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans[0];
+  const activePlan = currentPlanInfo?.plan || (plans && plans.length > 0 && plans[0]) || FALLBACK_SUBSCRIPTION_PUBLIC_INFO?.plans?.[0] || {};
   const activePlanPrice = Number(activePlan?.price || 1000);
 
   // Current dial option for the selected operator with bulletproof fallback
   const currentDialOption =
     currentPlanInfo?.payment_options?.find(
-      (opt) => opt.operator_code === selectedOperator
-    ) || currentPlanInfo?.payment_options?.[0] || defaultFallbackPlanWithUssd.payment_options[0];
+      (opt) => opt?.operator_code === selectedOperator
+    ) || currentPlanInfo?.payment_options?.[0] || defaultFallbackPlanWithUssd?.payment_options?.[0] || null;
 
   // Handle Screenshot compression and reading
   const handleFileChange = (e) => {
@@ -775,7 +776,7 @@ export default function SubscriptionModal({
                       onChange={(e) => setCity(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
                     >
-                      {currentCountry.cities.map((cty) => (
+                      {(currentCountry?.cities || []).map((cty) => (
                         <option key={cty} value={cty}>
                           {cty}
                         </option>
@@ -997,7 +998,7 @@ export default function SubscriptionModal({
                   </div>
 
                   {/* Dial Code Display */}
-                  {currentDialOption && (
+                  {currentDialOption && currentDialOption.ussd_code && (
                     <div className="bg-surface-secondary border border-subtle p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                       <div>
                         <span className="text-[10px] font-medium text-on-surface-variant block">
@@ -1008,7 +1009,7 @@ export default function SubscriptionModal({
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {currentDialOption.ussd_code.startsWith("*") && (
+                        {typeof currentDialOption.ussd_code === "string" && currentDialOption.ussd_code.startsWith("*") && currentDialOption.tel_link && (
                           <a
                             href={currentDialOption.tel_link}
                             className="px-3 py-1.5 rounded-lg bg-secondary hover:brightness-105 text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
@@ -1019,7 +1020,7 @@ export default function SubscriptionModal({
                         )}
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(currentDialOption.ussd_code, "code")}
+                          onClick={() => copyToClipboard(currentDialOption.ussd_code || "", "code")}
                           className="px-3 py-1.5 rounded-lg bg-surface-card hover:bg-surface-elevated border border-subtle text-on-surface text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
                         >
                           <Icon name={copiedCode ? "check" : "content_copy"} className="text-[14px]" />

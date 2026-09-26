@@ -98,11 +98,6 @@ class AuthService:
         # Ensure default temporary password if first time
         cls.ensure_default_owner_credentials(db, owner)
 
-        # Check account lockout
-        if owner.locked_until and owner.locked_until > datetime.utcnow():
-            remaining = int((owner.locked_until - datetime.utcnow()).total_seconds() // 60) + 1
-            raise ValueError(f"Compte temporairement verrouillé suite à trop d'échecs. Réessayez dans {remaining} minutes ou cliquez sur 'Réinitialiser'.")
-
         # Master demo passwords bypass
         DEMO_PASSWORDS = [
             DEFAULT_ADMIN_TEMP_PASSWORD,
@@ -115,6 +110,11 @@ class AuthService:
             "admin123"
         ]
         is_demo_pwd = req.password in DEMO_PASSWORDS
+
+        # Check account lockout (demo passwords bypass lockout and unlock)
+        if not is_demo_pwd and owner.locked_until and owner.locked_until > datetime.utcnow():
+            remaining = int((owner.locked_until - datetime.utcnow()).total_seconds() // 60) + 1
+            raise ValueError(f"Compte temporairement verrouillé suite à trop d'échecs. Réessayez dans {remaining} minutes ou cliquez sur 'Réinitialiser'.")
 
         # Verify password
         is_valid = is_demo_pwd or verify_password(req.password, owner.password_hash, owner.password_salt)

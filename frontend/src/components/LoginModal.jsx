@@ -49,13 +49,14 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
         }
       } else {
         data = await loginDemoOwner(slug);
-        if (showToast) showToast(data.message || `Connecté à ${data.owner_name || slug} !`);
+        if (showToast) showToast(data?.message || `Connecté à ${data?.owner_name || slug} !`);
         if (onLoginSuccess) {
           onLoginSuccess(data);
         }
       }
       onClose();
     } catch (err) {
+      console.error("Demo login error:", err);
       setErrorMessage(err.message || "Erreur de connexion démo");
       if (showToast) showToast(err.message || "Erreur de connexion démo");
     } finally {
@@ -300,7 +301,13 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
             </p>
             <button
               type="button"
-              onClick={onOpenRegisterStore}
+              onClick={() => {
+                try {
+                  if (onOpenRegisterStore) onOpenRegisterStore();
+                } catch (e) {
+                  console.error("onOpenRegisterStore error:", e);
+                }
+              }}
               className="w-full py-2.5 px-3 rounded-xl bg-secondary/15 hover:bg-secondary/25 border border-secondary/30 text-secondary text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
             >
               <Icon name="add_business" className="text-[16px]" />
