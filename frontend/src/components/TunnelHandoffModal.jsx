@@ -231,13 +231,13 @@ export default function TunnelHandoffModal({
       const payload = {
         store_id: resolvedStoreId,
         items: items.map((it) => ({
-          product_id: it.product_id,
-          product_name: it.name,
-          quantity: it.quantity,
-          unit_price: it.unit_price,
+          product_id: it.product_id || it.id,
+          product_name: it.name || it.product_name || "Produit",
+          quantity: Number(it.quantity) || 1,
+          unit_price: it.unit_price !== undefined ? Number(it.unit_price) : (Number(it.price) || 0),
           unit: it.unit || "PIECE",
           unit_label: it.unit_label || "pièce",
-          variant_name: it.selected_color || null,
+          variant_name: it.selected_color || it.variant_name || null,
           customization_text: it.customization_text || null,
         })),
         delivery: {
@@ -308,13 +308,14 @@ export default function TunnelHandoffModal({
     setIsCancellingOrder(true);
     showToast?.("Annulation de la commande en cours...");
     try {
-      const res = await cancelConversationalOrder(createdOrder.id, "Annulé par le client directement");
-      setCreatedOrder(res);
-      showToast?.(`Commande #${res.order_number} annulée avec succès.`);
+      const targetId = createdOrder.id || createdOrder.order_number || createdOrder.reference_code;
+      const res = await cancelConversationalOrder(targetId, "Annulé par le client directement");
+      setCreatedOrder((prev) => ({ ...prev, ...res, status: "CANCELLED" }));
+      showToast?.(`Commande #${res.order_number || targetId} annulée avec succès.`);
 
-      sendNativeNotification(`❌ Commande #${res.order_number} annulée`, {
+      sendNativeNotification(`❌ Commande #${res.order_number || targetId} annulée`, {
         body: `Votre commande a bien été annulée.`,
-        tag: `order-cancel-${res.id}`,
+        tag: `order-cancel-${targetId}`,
       });
     } catch (err) {
       showToast?.(err.message || "Erreur lors de l'annulation de la commande");

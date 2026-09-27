@@ -1163,6 +1163,34 @@ export function clearLocalGuestOrders() {
   } catch {}
 }
 
+export function hideLocalGuestOrder(orderId) {
+  try {
+    const existing = getLocalGuestOrders();
+    const updated = existing.filter(
+      (o) => o.id !== orderId && o.reference_code !== orderId && o.order_number !== orderId
+    );
+    safeStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify(updated));
+    dataCache.invalidate("customer:orders:");
+  } catch (e) {
+    console.warn("Could not hide guest order in localStorage:", e);
+  }
+}
+
+export function archiveLocalGuestOrder(orderId, isArchived = true) {
+  try {
+    const existing = getLocalGuestOrders();
+    const updated = existing.map((o) =>
+      o.id === orderId || o.reference_code === orderId || o.order_number === orderId
+        ? { ...o, is_client_archived: isArchived }
+        : o
+    );
+    safeStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify(updated));
+    dataCache.invalidate("customer:orders:");
+  } catch (e) {
+    console.warn("Could not archive guest order in localStorage:", e);
+  }
+}
+
 // ----------------------------------------------------------------------------
 // Merchant CRM / Customer Management
 // ----------------------------------------------------------------------------
@@ -1467,7 +1495,11 @@ export async function submitSubscriptionRequest(payload) {
     }
     const err = await res.json().catch(() => ({}));
     if (err.detail) throw new Error(err.detail);
+    throw new Error("Erreur lors du traitement de la demande d'abonnement");
   } catch (e) {
+    if (e.message && !e.message.includes("fetch") && !e.message.includes("abort")) {
+      throw e;
+    }
     console.warn("submitSubscriptionRequest server error, saving locally:", e);
   }
 
@@ -1755,6 +1787,48 @@ export async function cancelConversationalOrder(orderId, reason = "Annulé par l
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
   dataCache.invalidate("notifications:");
+  return res.json();
+}
+
+export async function archiveClientOrder(orderId) {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/archive-client`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors de l'archivage de la commande");
+  }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  return res.json();
+}
+
+export async function unarchiveClientOrder(orderId) {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/unarchive-client`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors du désarchivage de la commande");
+  }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
+  return res.json();
+}
+
+export async function hideClientOrder(orderId) {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/hide-client`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors du masquage de la commande");
+  }
+  dataCache.invalidate("orders:");
+  dataCache.invalidate("customer:orders:");
   return res.json();
 }
 

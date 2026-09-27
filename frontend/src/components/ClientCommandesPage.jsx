@@ -4,6 +4,11 @@ import {
   fetchCustomerOrders,
   fetchConversationalOrders,
   cancelConversationalOrder,
+  archiveClientOrder,
+  unarchiveClientOrder,
+  hideClientOrder,
+  archiveLocalGuestOrder,
+  hideLocalGuestOrder,
   getCustomerToken,
   getMediaUrl,
   getLocalGuestOrders,
@@ -182,11 +187,16 @@ export default function ClientCommandesPage({
       o.is_sold === true ||
       o.status === "SOLD");
 
+  // Client soft-lifecycle: exclude hidden orders, partition active vs archived
+  const visibleOrders = orders.filter((o) => !o.is_client_hidden);
+  const activeOrders = visibleOrders.filter((o) => !o.is_client_archived);
+  const archivedOrders = visibleOrders.filter((o) => !!o.is_client_archived);
+
   // Counts for tabs
-  const pendingOrders = orders.filter(isOrderPending);
-  const acceptedOrders = orders.filter(isOrderAccepted);
-  const paidOrders = orders.filter(isOrderPaid);
-  const deliveredOrders = orders.filter(isOrderDelivered);
+  const pendingOrders = activeOrders.filter(isOrderPending);
+  const acceptedOrders = activeOrders.filter(isOrderAccepted);
+  const paidOrders = activeOrders.filter(isOrderPaid);
+  const deliveredOrders = activeOrders.filter(isOrderDelivered);
 
   // Filtered orders according to selected tab
   const getFilteredOrders = () => {
@@ -199,9 +209,11 @@ export default function ClientCommandesPage({
         return paidOrders;
       case "DELIVERED":
         return deliveredOrders;
+      case "ARCHIVED":
+        return archivedOrders;
       case "ALL":
       default:
-        return orders;
+        return activeOrders;
     }
   };
 
@@ -210,7 +222,7 @@ export default function ClientCommandesPage({
   // Perks / Bonus points calculation (5% of paid/delivered orders or customer points)
   const calculateTotalBonusPoints = () => {
     if (customer?.bonus_points) return customer.bonus_points;
-    const eligibleAmount = orders
+    const eligibleAmount = activeOrders
       .filter((o) => isOrderPaid(o) || isOrderDelivered(o))
       .reduce((sum, o) => sum + (o.total_amount || 0), 0);
     return Math.round(eligibleAmount * 0.05);
@@ -231,6 +243,80 @@ export default function ClientCommandesPage({
     setCustomReason("");
   };
 
+  const handleArchiveOrder = async (order, e) => {
+    e?.stopPropagation();
+    const targetId = order.id || order.order_number || order.reference_code;
+    const isArchived = !order.is_client_archived;
+    try {
+      if (isArchived) {
+        await archiveClientOrder(targetId);
+        archiveLocalGuestOrder(targetId, true);
+        showToast("📦 Commande déplacée dans vos archives.");
+      } else {
+        await unarchiveClientOrder(targetId);
+        archiveLocalGuestOrder(targetId, false);
+        showToast("📦 Commande replacée dans vos commandes actives.");
+      }
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === order.id || o.reference_code === targetId || o.order_number === targetId
+            ? { ...o, is_client_archived: isArchived }
+            : o
+        )
+      );
+      if (
+        selectedOrderDetail &&
+        (selectedOrderDetail.id === order.id ||
+          selectedOrderDetail.reference_code === targetId ||
+          selectedOrderDetail.order_number === targetId)
+      ) {
+        setSelectedOrderDetail((prev) => ({ ...prev, is_client_archived: isArchived }));
+      }
+    } catch (err) {
+      archiveLocalGuestOrder(targetId, isArchived);
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === order.id || o.reference_code === targetId || o.order_number === targetId
+            ? { ...o, is_client_archived: isArchived }
+            : o
+        )
+      );
+      showToast(isArchived ? "📦 Commande archivée." : "📦 Commande restaurée.");
+    }
+  };
+
+  const handleHideOrder = async (order, e) => {
+    e?.stopPropagation();
+    const confirmMsg =
+      "Masquer définitivement cette commande de votre écran ?\n\n(Important : La commande reste enregistrée en toute sécurité dans la base de données pour la boutique et la comptabilité).";
+    if (!window.confirm(confirmMsg)) return;
+
+    const targetId = order.id || order.order_number || order.reference_code;
+    try {
+      await hideClientOrder(targetId);
+    } catch (err) {
+      console.warn("Hide client order notice:", err);
+    }
+    hideLocalGuestOrder(targetId);
+    setOrders((prev) =>
+      prev.filter(
+        (o) =>
+          o.id !== order.id &&
+          o.order_number !== targetId &&
+          o.reference_code !== targetId
+      )
+    );
+    if (
+      selectedOrderDetail &&
+      (selectedOrderDetail.id === order.id ||
+        selectedOrderDetail.reference_code === targetId ||
+        selectedOrderDetail.order_number === targetId)
+    ) {
+      setSelectedOrderDetail(null);
+    }
+    showToast("🗑️ Commande retirée de votre historique (sauvegardée en base pour la boutique).");
+  };
+
   const handleSubmitAction = async () => {
     if (!actionOrder) return;
     setSubmittingAction(true);
@@ -243,19 +329,28 @@ export default function ClientCommandesPage({
         reasonToSend = cancelReason === "Autre" ? customReason.trim() || "Annulation client" : cancelReason;
       }
 
+      const targetId = actionOrder.id || actionOrder.order_number || actionOrder.reference_code;
+
       if (actionType === "CANCEL") {
+        let cancelSuccess = false;
         try {
-          await cancelConversationalOrder(actionOrder.id, reasonToSend);
+          await cancelConversationalOrder(targetId, reasonToSend);
+          cancelSuccess = true;
         } catch (e) {
-          await recordClientOrderAction(actionOrder.id, actionType, reasonToSend, rating).catch(() => {});
+          try {
+            await recordClientOrderAction(targetId, actionType, reasonToSend, rating);
+            cancelSuccess = true;
+          } catch (e2) {
+            console.warn("Fallback cancel notice:", e2);
+          }
         }
       } else {
-        await recordClientOrderAction(actionOrder.id, actionType, reasonToSend, rating);
+        await recordClientOrderAction(targetId, actionType, reasonToSend, rating);
       }
 
       // Update local storage if guest
       if (!customer) {
-        updateLocalGuestOrder(actionOrder.id, {
+        updateLocalGuestOrder(targetId, {
           status: actionType === "CANCEL" ? "CANCELLED" : actionOrder.status,
           client_status: actionType === "CANCEL" ? "CANCELLED" : "SATISFIED",
           client_feedback: reasonToSend,
@@ -266,7 +361,7 @@ export default function ClientCommandesPage({
       // Update UI state
       setOrders((prev) =>
         prev.map((o) =>
-          o.id === actionOrder.id
+          o.id === actionOrder.id || o.reference_code === targetId || o.order_number === targetId
             ? {
                 ...o,
                 status: actionType === "CANCEL" ? "CANCELLED" : o.status,
@@ -278,7 +373,12 @@ export default function ClientCommandesPage({
         )
       );
 
-      if (selectedOrderDetail?.id === actionOrder.id) {
+      if (
+        selectedOrderDetail &&
+        (selectedOrderDetail.id === actionOrder.id ||
+          selectedOrderDetail.reference_code === targetId ||
+          selectedOrderDetail.order_number === targetId)
+      ) {
         setSelectedOrderDetail((prev) => ({
           ...prev,
           status: actionType === "CANCEL" ? "CANCELLED" : prev.status,
@@ -475,7 +575,25 @@ export default function ClientCommandesPage({
           )}
         </button>
 
-        {/* 6. Avantages (Perks & Loyalty) */}
+        {/* 6. Archivées */}
+        <button
+          onClick={() => setStatusTab("ARCHIVED")}
+          className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
+            statusTab === "ARCHIVED"
+              ? "bg-slate-700 text-white shadow-sm"
+              : "bg-surface-secondary text-on-surface-variant hover:text-on-surface hover:bg-surface-elevated"
+          }`}
+        >
+          <Icon name="archive" className="text-[16px]" />
+          <span>Archivées</span>
+          {archivedOrders.length > 0 && (
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-600 text-white font-mono">
+              {archivedOrders.length}
+            </span>
+          )}
+        </button>
+
+        {/* 7. Avantages (Perks & Loyalty) */}
         <button
           onClick={() => setStatusTab("AVANTAGES")}
           className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
@@ -833,6 +951,38 @@ export default function ClientCommandesPage({
                           <span>Confirmer la bonne réception / Noter</span>
                         </button>
                       )}
+
+                      {/* Secondary Management Actions: Archiver & Supprimer de mon écran (soft-delete sans effacement BDD) */}
+                      <div className="flex items-center justify-between pt-1.5 border-t border-subtle/60 text-xs">
+                        <span className="text-[11px] text-on-surface-variant flex items-center gap-1">
+                          {order.is_client_archived && (
+                            <span className="inline-flex items-center gap-1 text-slate-500 font-medium">
+                              <Icon name="archive" className="text-[13px]" /> Archivée
+                            </span>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => handleArchiveOrder(order, e)}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-on-surface-variant hover:text-on-surface bg-surface-secondary hover:bg-surface-elevated transition-colors flex items-center gap-1 cursor-pointer border border-subtle"
+                            title={order.is_client_archived ? "Désarchiver la commande" : "Archiver cette commande"}
+                          >
+                            <Icon name={order.is_client_archived ? "unarchive" : "archive"} className="text-[13px]" />
+                            <span>{order.is_client_archived ? "Désarchiver" : "Archiver"}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => handleHideOrder(order, e)}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-rose-500 hover:text-rose-600 bg-rose-500/10 hover:bg-rose-500/15 transition-colors flex items-center gap-1 cursor-pointer border border-rose-500/20"
+                            title="Masquer de votre écran (la commande reste conservée en base pour la boutique)"
+                          >
+                            <Icon name="delete_outline" className="text-[13px]" />
+                            <span>Supprimer</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
@@ -861,13 +1011,31 @@ export default function ClientCommandesPage({
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedOrderDetail(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-secondary transition-colors cursor-pointer"
-              >
-                <Icon name="close" className="text-[18px]" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={(e) => handleArchiveOrder(selectedOrderDetail, e)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-secondary transition-colors cursor-pointer"
+                  title={selectedOrderDetail.is_client_archived ? "Désarchiver" : "Archiver"}
+                >
+                  <Icon name={selectedOrderDetail.is_client_archived ? "unarchive" : "archive"} className="text-[18px]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleHideOrder(selectedOrderDetail, e)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  title="Masquer de l'écran (conservé en base pour la boutique)"
+                >
+                  <Icon name="delete_outline" className="text-[18px]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderDetail(null)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-secondary transition-colors cursor-pointer ml-1"
+                >
+                  <Icon name="close" className="text-[18px]" />
+                </button>
+              </div>
             </div>
 
             {/* Body */}
@@ -1019,6 +1187,19 @@ export default function ClientCommandesPage({
               >
                 Fermer
               </button>
+
+              {isOrderPending(selectedOrderDetail) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleOpenCancelModal(selectedOrderDetail);
+                  }}
+                  className="h-11 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-xs font-bold flex items-center justify-center gap-1.5 transition-all border border-rose-500/30 cursor-pointer"
+                >
+                  <Icon name="close" className="text-[16px]" />
+                  <span>Annuler</span>
+                </button>
+              )}
 
               {isOrderAccepted(selectedOrderDetail) && (
                 <button

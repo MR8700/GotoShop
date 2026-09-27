@@ -93,10 +93,23 @@ def run_migrations(engine):
                     ("client_action_at", "TIMESTAMP"),
                     ("coherence_status", "VARCHAR(50) DEFAULT 'HARMONIZED_PENDING'"),
                     ("coherence_notes", "VARCHAR(255)"),
+                    ("is_client_archived", "BOOLEAN DEFAULT FALSE"),
+                    ("is_client_hidden", "BOOLEAN DEFAULT FALSE"),
                 ]
                 for col_name, col_type in cols_to_add:
                     if col_name not in intent_cols:
                         conn.execute(text(f"ALTER TABLE order_intents ADD COLUMN {col_name} {col_type}"))
+
+            # 4b. Orders
+            if "orders" in table_names:
+                order_cols = [c["name"] for c in inspector.get_columns("orders")]
+                order_cols_to_add = [
+                    ("is_client_archived", "BOOLEAN DEFAULT FALSE"),
+                    ("is_client_hidden", "BOOLEAN DEFAULT FALSE"),
+                ]
+                for col_name, col_type in order_cols_to_add:
+                    if col_name not in order_cols:
+                        conn.execute(text(f"ALTER TABLE orders ADD COLUMN {col_name} {col_type}"))
 
             # 5. Delivery Cities
             if "delivery_cities" in table_names:

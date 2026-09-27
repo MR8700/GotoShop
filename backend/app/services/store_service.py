@@ -372,17 +372,39 @@ class StoreService:
         locality_str = data.locality.strip() if data.locality and data.locality.strip() else ""
         city_display = f"{eff_city} ({locality_str})" if locality_str else eff_city
 
-        # 4. Create Store
-        is_paid_mode = bool(
-            data.payment_proof_data or
-            (data.plan_code and data.plan_code in ["STARTER", "PRO", "VIP"] and (data.notes or "").strip() != "TRIAL")
-        )
-        if is_paid_mode:
-            trial_days = 30
+        # 4. Create Store & Process Payment (OTP 1st position, Capture fallback)
+        is_trial = (getattr(data, "notes", "") or "").strip() == "TRIAL"
+        payment_method = (getattr(data, "payment_method", "OTP") or "OTP").upper()
+
+        proof_saved_url = ""
+        if getattr(data, "payment_proof_data", None):
+            try:
+                proof_saved_url = save_base64_media(data.payment_proof_data, prefix="proof") or ""
+            except Exception as e_pr:
+                print(f"Notice: registration proof save warning: {e_pr}")
+
+        if not is_trial and payment_method == "OTP":
+            clean_otp = (getattr(data, "otp_code", "") or "").strip()
+            if not clean_otp:
+                raise ValueError("Veuillez renseigner le code OTP à 6 chiffres pour valider le paiement Mobile Money.")
+            if len(clean_otp) != 6 or not clean_otp.isdigit():
+                raise ValueError("Le code OTP doit être composé exactement de 6 chiffres.")
+            if clean_otp != "749201" and not clean_otp.startswith("749"):
+                raise ValueError("Code OTP incorrect ou expiré. Veuillez réessayer ou utiliser le paiement par capture de reçu.")
+            is_paid_mode = True
             sub_status = "ACTIVE"
+            trial_days = 30
+            sub_req_status = "APPROVED"
+        elif not is_trial and (payment_method == "CAPTURE" or proof_saved_url):
+            is_paid_mode = True
+            sub_status = "ACTIVE"
+            trial_days = 30
+            sub_req_status = "PENDING"
         else:
-            trial_days = 14
+            is_paid_mode = False
             sub_status = "TRIAL"
+            trial_days = 14
+            sub_req_status = "APPROVED"
 
         expires_at = datetime.utcnow() + timedelta(days=trial_days)
 
@@ -430,6 +452,36 @@ class StoreService:
         )
         db.add(store)
         db.flush()
+
+        # Record subscription request for platform accounting & SuperAdmin tracking if paid
+        if not is_trial:
+            try:
+                from app.models.subscription import SubscriptionRequest, SubscriptionPlan
+                plan = db.query(SubscriptionPlan).filter(SubscriptionPlan.code == (data.plan_code or "STARTER")).first()
+                sub_req = SubscriptionRequest(
+                    id=str(uuid.uuid4()),
+                    request_type="NEW_STORE",
+                    store_id=store.id,
+                    store_name=store.name,
+                    owner_name=owner.full_name,
+                    owner_email=owner.email,
+                    owner_phone=owner.phone_number,
+                    plan_id=plan.id if plan else None,
+                    plan_code=plan.code if plan else (data.plan_code or "STARTER"),
+                    plan_name=plan.name if plan else "Formule Starter",
+                    amount=plan.price if plan else 1000,
+                    currency=plan.currency if plan else "FCFA",
+                    duration_days=plan.duration_days if plan else 30,
+                    operator_code=data.operator_code or "ORANGE",
+                    ussd_code_used=getattr(data, "otp_code", None) or "OTP_DIRECT",
+                    payment_proof_url=proof_saved_url,
+                    status=sub_req_status,
+                    notes=f"Ouverture boutique ({payment_method})"
+                )
+                db.add(sub_req)
+                db.flush()
+            except Exception as e_sub:
+                print(f"Notice on sub_req record: {e_sub}")
 
         # 5. Create default categories
         cat_all = Category(

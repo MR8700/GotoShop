@@ -35,6 +35,10 @@ class Order(Base):
     notes = Column(Text, nullable=True)
     rejection_reason = Column(String(255), nullable=True)
 
+    # Client-specific soft-lifecycle (strictly preserves database records for merchant/audit)
+    is_client_archived = Column(Boolean, default=False, nullable=True, index=True)
+    is_client_hidden = Column(Boolean, default=False, nullable=True, index=True)
+
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

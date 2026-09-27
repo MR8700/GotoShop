@@ -107,6 +107,9 @@ class SubscriptionRequestSubmitSchema(BaseModel):
     owner_phone: str  # WhatsApp
     plan_code: str  # STARTER, PRO, VIP
     operator_code: str  # ORANGE, MOOV, etc.
+    payment_method: Optional[str] = "OTP"  # OTP or CAPTURE
+    otp_code: Optional[str] = None
+    transaction_reference: Optional[str] = None
     payment_proof_data: Optional[str] = None  # base64 data URI
     notes: Optional[str] = None
 

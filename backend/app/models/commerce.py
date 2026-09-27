@@ -36,6 +36,8 @@ class OrderIntent(Base):
     status = Column(String(50), default="CREATED", index=True)
     is_urgent_followup = Column(Boolean, default=False)
     is_archived = Column(Boolean, default=False)
+    is_client_archived = Column(Boolean, default=False, nullable=True, index=True)
+    is_client_hidden = Column(Boolean, default=False, nullable=True, index=True)
     
     # Client Feedback & Satisfaction: PENDING, SATISFIED, CANCELLED
     client_status = Column(String(50), default="PENDING", index=True)

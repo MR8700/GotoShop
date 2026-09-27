@@ -135,6 +135,9 @@ class StoreRegisterRequest(BaseModel):
     logo_url: Optional[str] = None
     plan_code: Optional[str] = "STARTER"
     operator_code: Optional[str] = "ORANGE"
+    payment_method: Optional[str] = "OTP" # "OTP" or "CAPTURE"
+    otp_code: Optional[str] = None
+    transaction_reference: Optional[str] = None
     payment_proof_data: Optional[str] = None
     notes: Optional[str] = None
 

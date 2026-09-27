@@ -347,6 +347,51 @@ class CommerceService:
             (OrderIntent.id == intent_id_or_ref) | (OrderIntent.reference_code == intent_id_or_ref.upper())
         ).first()
         if not intent:
+            from app.models.order import Order
+            from app.services.order_service import OrderService
+            order = db.query(Order).filter(
+                (Order.id == intent_id_or_ref) | (Order.order_number == intent_id_or_ref.upper())
+            ).first()
+            if order:
+                if req.action.strip().upper() == "CANCEL":
+                    OrderService.cancel_order(db, order.id, reason=req.reason or "Annulé par le client")
+                elif req.action.strip().upper() == "SATISFY":
+                    order.status = "COMPLETED"
+                    order.updated_at = datetime.utcnow()
+                    db.commit()
+
+                class OrderProxy:
+                    pass
+                p = OrderProxy()
+                p.id = order.id
+                p.reference_code = order.order_number
+                p.product_name = order.items[0].product_name if order.items else "Commande"
+                p.product_image_url = None
+                p.channel_type = "IN_APP_CHAT"
+                p.total_amount = order.total_amount
+                p.currency = order.currency
+                p.customer_name = order.customer_name
+                p.customer_phone = order.customer_phone
+                p.customer_source = "DIRECT"
+                p.customer_location_url = None
+                p.customer_coordinates = None
+                p.quantity = float(sum([it.quantity for it in order.items])) if order.items else 1.0
+                p.selected_color = order.items[0].variant_name if order.items else None
+                p.delivery_city = order.delivery.delivery_city if order.delivery else None
+                p.status = order.status
+                p.client_status = "SATISFIED" if req.action.strip().upper() == "SATISFY" else "CANCELLED"
+                p.client_feedback = req.reason
+                p.client_satisfaction_rating = req.rating
+                p.client_action_at = datetime.utcnow()
+                p.coherence_status = "CONSOLIDATED_SALE" if req.action.strip().upper() == "SATISFY" else "CLIENT_CANCELLED_EARLY"
+                p.coherence_notes = None
+                p.is_urgent_followup = False
+                p.is_archived = bool(getattr(order, "is_client_archived", False))
+                p.is_client_archived = bool(getattr(order, "is_client_archived", False))
+                p.is_client_hidden = bool(getattr(order, "is_client_hidden", False))
+                p.time_elapsed_display = "À l'instant"
+                p.created_at = order.created_at
+                return p
             raise ValueError("Commande introuvable")
 
         action_upper = req.action.strip().upper()

@@ -158,9 +158,10 @@ class CustomerService:
 
         # 1. Fetch full Conversational Orders
         real_orders = db.query(Order).filter(
-            (Order.customer_id == customer.id) |
-            (Order.customer_phone == customer.phone) |
-            (Order.customer_token == customer.session_token)
+            ((Order.customer_id == customer.id) |
+             (Order.customer_phone == customer.phone) |
+             (Order.customer_token == customer.session_token)),
+            (Order.is_client_hidden.is_(False) | Order.is_client_hidden.is_(None))
         ).order_by(Order.created_at.desc()).all()
 
         for o in real_orders:
@@ -208,13 +209,16 @@ class CustomerService:
                 customer_coordinates=f"{o.delivery.latitude}, {o.delivery.longitude}" if o.delivery and o.delivery.latitude else None,
                 items=items_list,
                 conversation_id=conv_id,
+                is_client_archived=bool(getattr(o, "is_client_archived", False)),
+                is_client_hidden=bool(getattr(o, "is_client_hidden", False)),
                 created_at=o.created_at,
             ))
 
         # 2. Legacy OrderIntents
         intents = db.query(OrderIntent).filter(
-            (OrderIntent.customer_id == customer.id) |
-            (OrderIntent.customer_phone == customer.phone)
+            ((OrderIntent.customer_id == customer.id) |
+             (OrderIntent.customer_phone == customer.phone)),
+            (OrderIntent.is_client_hidden.is_(False) | OrderIntent.is_client_hidden.is_(None))
         ).order_by(OrderIntent.created_at.desc()).all()
 
         for i in intents:
@@ -250,6 +254,8 @@ class CustomerService:
                 customer_coordinates=i.customer_coordinates,
                 items=None,
                 conversation_id=None,
+                is_client_archived=bool(getattr(i, "is_client_archived", False)),
+                is_client_hidden=bool(getattr(i, "is_client_hidden", False)),
                 created_at=i.created_at,
             ))
 

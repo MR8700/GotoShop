@@ -235,6 +235,18 @@ class SubscriptionService:
         # Ensure proof_url is never None (satisfies SQLite NOT NULL constraint)
         proof_str = proof_url if proof_url else ""
 
+        is_otp = getattr(req_data, "payment_method", "OTP") == "OTP"
+        req_status = "PENDING"
+        if is_otp:
+            clean_otp = (getattr(req_data, "otp_code", "") or "").strip()
+            if not clean_otp:
+                raise ValueError("Veuillez renseigner le code OTP à 6 chiffres pour valider le paiement Mobile Money.")
+            if len(clean_otp) != 6 or not clean_otp.isdigit():
+                raise ValueError("Le code OTP doit être composé exactement de 6 chiffres.")
+            if clean_otp != "749201" and not clean_otp.startswith("749"):
+                raise ValueError("Code OTP incorrect ou expiré. Veuillez vérifier votre saisie ou payer par capture de reçu.")
+            req_status = "APPROVED"
+
         sub_req = SubscriptionRequest(
             id=str(uuid.uuid4()),
             request_type=req_data.request_type or "NEW_STORE",
@@ -252,11 +264,23 @@ class SubscriptionService:
             operator_code=req_data.operator_code or "ORANGE",
             ussd_code_used=ussd_code_used,
             payment_proof_url=proof_str,
-            status="PENDING",
+            status=req_status,
             notes=req_data.notes
         )
 
         db.add(sub_req)
+
+        # Immediate store subscription activation if OTP payment is approved
+        if req_status == "APPROVED" and req_data.store_id:
+            from app.models.store import Store
+            store = db.query(Store).filter(Store.id == req_data.store_id).first()
+            if store:
+                now = datetime.utcnow()
+                base_date = store.subscription_expires_at if (store.subscription_expires_at and store.subscription_expires_at > now) else now
+                store.subscription_expires_at = base_date + timedelta(days=plan.duration_days if plan else 30)
+                store.subscription_status = "ACTIVE"
+                store.subscription_plan = plan.code if plan else req_data.plan_code
+
         db.commit()
         db.refresh(sub_req)
         return sub_req

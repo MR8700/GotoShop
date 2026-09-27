@@ -71,6 +71,8 @@ class CustomerOrderItem(BaseModel):
     customer_coordinates: Optional[str] = None
     items: Optional[List[Dict[str, Any]]] = None
     conversation_id: Optional[str] = None
+    is_client_archived: Optional[bool] = False
+    is_client_hidden: Optional[bool] = False
     created_at: datetime
 
 class CustomerStatsResponse(BaseModel):

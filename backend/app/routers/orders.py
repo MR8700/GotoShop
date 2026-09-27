@@ -37,7 +37,7 @@ class CreateOrderRequest(BaseModel):
     store_id: str
     items: List[OrderItemSchema]
     delivery: OrderDeliverySchema
-    customer_name: str
+    customer_name: Optional[str] = "Client GotoShop"
     customer_phone: Optional[str] = None
     customer_email: Optional[str] = None
     customer_id: Optional[str] = None
@@ -124,6 +124,7 @@ def list_orders(
     customer_id: Optional[str] = Query(None),
     customer_token: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
+    include_hidden: bool = Query(False),
     db: Session = Depends(get_db)
 ):
     return OrderService.list_orders(
@@ -131,7 +132,8 @@ def list_orders(
         store_id=store_id,
         customer_id=customer_id,
         customer_token=customer_token,
-        status=status
+        status=status,
+        include_hidden=include_hidden
     )
 
 
@@ -165,6 +167,30 @@ def cancel_order(order_id: str, req: Optional[CancelOrderRequest] = None, db: Se
         actor = req.actor_name if req else "Client"
         reason = req.reason if req else "Annulé par le client"
         return OrderService.cancel_order(db=db, order_id=order_id, reason=reason, actor_name=actor)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{order_id}/archive-client", summary="Archiver une commande dans l'espace client")
+def archive_order_client(order_id: str, db: Session = Depends(get_db)):
+    try:
+        return OrderService.archive_order_client(db=db, order_id=order_id, is_archived=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{order_id}/unarchive-client", summary="Désarchiver une commande dans l'espace client")
+def unarchive_order_client(order_id: str, db: Session = Depends(get_db)):
+    try:
+        return OrderService.archive_order_client(db=db, order_id=order_id, is_archived=False)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{order_id}/hide-client", summary="Masquer définitivement de l'historique client (sans suppression BDD)")
+def hide_order_client(order_id: str, db: Session = Depends(get_db)):
+    try:
+        return OrderService.hide_order_client(db=db, order_id=order_id)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

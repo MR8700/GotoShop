@@ -391,8 +391,99 @@ def test_ligdicash_mobile_money_payment():
     assert ligdi_msg is not None
     print("[PASS] Conversation contains LigdiCash confirmation message with express delivery guarantee (45 min - 2h)")
 
+def test_client_order_cancellation_archiving_and_soft_delete():
+    print("=== RUNNING CLIENT ORDER CANCELLATION, ARCHIVING & SOFT-DELETE TEST ===")
+
+    # 1. Fetch store
+    r = client.get("/api/store?slug=garbadrome-kossodo")
+    assert r.status_code == 200
+    store = r.json()
+    store_id = store["id"]
+
+    # 2. Create order with minimal customer name & flexible product mapping
+    unique_token = f"token_archive_test_{uuid.uuid4().hex[:8]}"
+    order_payload = {
+        "store_id": store_id,
+        "items": [
+            {
+                "product_name": "Garba Délicieux Spécial",
+                "quantity": 1,
+                "unit_price": 1500,
+                "unit": "PORTION",
+                "unit_label": "portion",
+            }
+        ],
+        "delivery": {
+            "delivery_mode": "ADDRESS_DESCRIPTION",
+            "delivery_city": "Ouagadougou",
+            "delivery_address": "Secteur 22, Kossodo",
+        },
+        "customer_name": "Fatou Sawadogo",
+        "customer_phone": "+22675001122",
+        "customer_token": unique_token,
+        "delivery_fee": 500
+    }
+    r = client.post("/api/orders", json=order_payload)
+    assert r.status_code == 200, f"Order creation failed: {r.text}"
+    order = r.json()
+    order_id = order["id"]
+    order_number = order["order_number"]
+    assert order["is_client_archived"] is False
+    assert order["is_client_hidden"] is False
+    print(f"[PASS] Order created successfully without popup errors: #{order_number}")
+
+    # 3. Test Cancellation using order_number (not just UUID id)
+    r = client.post(f"/api/orders/{order_number}/cancel", json={
+        "reason": "Changement d'avis du client",
+        "actor_name": "Fatou Sawadogo"
+    })
+    assert r.status_code == 200, f"Cancellation by order_number failed: {r.text}"
+    cancel_res = r.json()
+    assert cancel_res["status"] == "CANCELLED"
+    print(f"[PASS] Cancellation by order_number #{order_number} succeeded!")
+
+    # 4. Test Soft-Archiving
+    r = client.post(f"/api/orders/{order_id}/archive-client")
+    assert r.status_code == 200
+    assert r.json()["is_client_archived"] is True
+
+    # Verify detail returns is_client_archived == True
+    r = client.get(f"/api/orders/{order_id}")
+    assert r.status_code == 200
+    assert r.json()["is_client_archived"] is True
+    print(f"[PASS] Soft-archiving verified on #{order_number}")
+
+    # Test unarchive
+    r = client.post(f"/api/orders/{order_id}/unarchive-client")
+    assert r.status_code == 200
+    assert r.json()["is_client_archived"] is False
+    print(f"[PASS] Unarchiving verified on #{order_number}")
+
+    # 5. Test Soft-Delete ("suppression définitive pour l'utilisateur sans rien effacer en base de donnée")
+    r = client.post(f"/api/orders/{order_id}/hide-client")
+    assert r.status_code == 200
+    assert r.json()["is_client_hidden"] is True
+
+    # 5a. Client listing must NOT return the hidden order
+    r = client.get(f"/api/orders?customer_token={unique_token}")
+    assert r.status_code == 200
+    client_orders = r.json()
+    assert not any(o["id"] == order_id for o in client_orders), "Hidden order should not appear in customer list"
+    print(f"[PASS] Order #{order_number} is hidden from customer view")
+
+    # 5b. BUT in database: the order row is 100% PRESERVED for seller, accounting, and SuperAdmin!
+    r = client.get(f"/api/orders/{order_id}")
+    assert r.status_code == 200
+    db_order = r.json()
+    assert db_order["id"] == order_id
+    assert db_order["order_number"] == order_number
+    assert db_order["is_client_hidden"] is True
+    assert db_order["total_amount"] == 2000
+    print(f"[PASS] ZERO DATA LOSS: Order #{order_number} is 100% intact in database for merchant and audit logs!")
+
 if __name__ == "__main__":
     test_conversational_commerce_suite()
     test_multi_item_order_and_cancellation()
     test_ligdicash_mobile_money_payment()
+    test_client_order_cancellation_archiving_and_soft_delete()
 

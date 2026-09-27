@@ -67,6 +67,8 @@ class OrderService:
             if not items_data:
                 raise ValueError("Veuillez ajouter au moins un produit à votre commande.")
 
+            safe_customer_name = (customer_name or "").strip() or "Client GotoShop"
+
             # Validate or auto-create customer for seamless checkout onboarding
             actual_customer_id = None
             cust = None
@@ -88,12 +90,12 @@ class OrderService:
                     cust.city = city
                 if delivery_neighborhood:
                     cust.delivery_neighborhood = delivery_neighborhood
-            elif (register_account or customer_phone) and customer_name:
+            elif (register_account or customer_phone) and safe_customer_name:
                 new_session_token = customer_token or secrets.token_hex(24)
                 cust = Customer(
                     id=str(uuid.uuid4()),
                     store_id=actual_store_id,
-                    name=customer_name or "Client",
+                    name=safe_customer_name,
                     phone=customer_phone or "00000000",
                     email=customer_email,
                     country=country or "Burkina Faso",
@@ -111,7 +113,6 @@ class OrderService:
             order_id = str(uuid.uuid4())
 
             # Calculate items subtotal
-            # Calculate items subtotal
             subtotal = 0
             order_items = []
             for it in items_data:
@@ -127,17 +128,20 @@ class OrderService:
                     if not product and hasattr(Product, "slug"):
                         product = db.query(Product).filter(Product.slug == product_id).first()
 
-                if not product:
-                    product = db.query(Product).filter(Product.store_id == actual_store_id).first()
+                if not product and it.get("product_name"):
+                    product = db.query(Product).filter(
+                        Product.store_id == actual_store_id,
+                        Product.name == it.get("product_name")
+                    ).first()
 
                 # Polymorphic unit and pricing model resolution
                 unit = it.get("unit") or (getattr(product, "sales_unit", None) or "PIECE")
                 unit_label = it.get("unit_label") or (getattr(product, "sales_unit_label", None) or "pièce")
                 pricing_model = it.get("pricing_model") or (getattr(product, "pricing_model", None) or "FIXED_PER_UNIT")
 
-                # Validate constraints against product sales configuration if configured
+                # Validate constraints against product sales configuration only if real product matched
                 if product:
-                    min_q = getattr(product, "min_quantity", 0.1) or 0.1
+                    min_q = getattr(product, "min_quantity", 0.01) or 0.01
                     max_q = getattr(product, "max_quantity", 9999.0) or 9999.0
                     step_q = getattr(product, "quantity_step", 1.0) or 1.0
                     if qty < min_q:
@@ -145,23 +149,28 @@ class OrderService:
                     if qty > max_q:
                         raise ValueError(f"La quantité maximale pour {product.name} est de {max_q} {unit_label}.")
                     # Tolerant step validation
-                    quotient = qty / step_q
-                    if abs(quotient - round(quotient)) > 1e-3:
-                        raise ValueError(f"La quantité ({qty}) doit être un multiple de {step_q} {unit_label} pour {product.name}.")
+                    if step_q > 0:
+                        quotient = qty / step_q
+                        if abs(quotient - round(quotient)) > 1e-2:
+                            raise ValueError(f"La quantité ({qty}) doit être un multiple de {step_q} {unit_label} pour {product.name}.")
 
                 product_name = it.get("product_name") or (product.name if product else "Produit")
-                unit_price = int(it.get("unit_price", 0)) if it.get("unit_price") is not None else 0
-                if not unit_price and product:
-                    unit_price = product.price
+                raw_price = it.get("unit_price") if it.get("unit_price") is not None else it.get("price")
+                if raw_price is None or raw_price == 0:
+                    if product and getattr(product, "price", None):
+                        raw_price = product.price
+                    else:
+                        raw_price = 0
+                unit_price = int(round(float(raw_price or 0)))
 
                 var = None
-                variant_name = it.get("variant_name")
+                variant_name = it.get("variant_name") or it.get("selected_color")
                 if variant_id:
                     var = db.query(ProductVariant).filter(ProductVariant.id == variant_id).first()
                     if var:
                         variant_name = var.name
                         if var.price_override:
-                            unit_price = var.price_override
+                            unit_price = int(round(float(var.price_override)))
 
                 total_price = int(round(unit_price * qty))
                 subtotal += total_price
@@ -227,7 +236,7 @@ class OrderService:
                 store_id=actual_store_id,
                 customer_id=actual_customer_id,
                 customer_token=customer_token,
-                customer_name=customer_name,
+                customer_name=safe_customer_name,
                 customer_phone=customer_phone,
                 customer_email=customer_email,
                 status="PENDING_SELLER_ACCEPTANCE",
@@ -238,6 +247,8 @@ class OrderService:
                 total_amount=total_amount,
                 currency=store.currency or "FCFA",
                 notes=notes,
+                is_client_archived=False,
+                is_client_hidden=False,
                 created_at=datetime.utcnow()
             )
             db.add(order)
@@ -629,8 +640,35 @@ class OrderService:
 
     @staticmethod
     def cancel_order(db: Session, order_id: str, reason: Optional[str] = "Annulé par le client", actor_name: str = "Client") -> Dict[str, Any]:
-        order = db.query(Order).filter(Order.id == order_id).first()
+        order = db.query(Order).filter(
+            (Order.id == order_id) | (Order.order_number == order_id)
+        ).first()
+
         if not order:
+            from app.models.commerce import OrderIntent
+            intent = db.query(OrderIntent).filter(
+                (OrderIntent.id == order_id) | (OrderIntent.reference_code == order_id)
+            ).first()
+            if intent:
+                intent.status = "CANCELLED"
+                intent.client_status = "CANCELLED"
+                intent.client_feedback = reason or "Annulé par le client"
+                intent.client_action_at = datetime.utcnow()
+                db.commit()
+                db.refresh(intent)
+                return {
+                    "id": intent.id,
+                    "order_number": intent.reference_code,
+                    "reference_code": intent.reference_code,
+                    "status": "CANCELLED",
+                    "client_status": "CANCELLED",
+                    "total_amount": intent.total_amount,
+                    "currency": intent.currency,
+                    "customer_name": intent.customer_name,
+                    "customer_phone": intent.customer_phone,
+                    "is_client_archived": bool(getattr(intent, "is_client_archived", False)),
+                    "is_client_hidden": bool(getattr(intent, "is_client_hidden", False)),
+                }
             raise ValueError(f"Commande {order_id} introuvable")
 
         prev_status = order.status
@@ -698,18 +736,105 @@ class OrderService:
         return OrderService.format_order_dict(order)
 
     @staticmethod
+    def archive_order_client(db: Session, order_id: str, is_archived: bool = True) -> Dict[str, Any]:
+        """
+        Soft-archive an order from client perspective.
+        The order is moved to archived view for the user, but stays 100% intact in database for seller, audit and analytics.
+        """
+        order = db.query(Order).filter(
+            (Order.id == order_id) | (Order.order_number == order_id)
+        ).first()
+        if order:
+            order.is_client_archived = is_archived
+            order.updated_at = datetime.utcnow()
+            db.commit()
+            db.refresh(order)
+            return {
+                "success": True,
+                "id": order.id,
+                "order_number": order.order_number,
+                "is_client_archived": order.is_client_archived,
+                "message": "Commande archivée avec succès." if is_archived else "Commande désarchivée avec succès."
+            }
+
+        from app.models.commerce import OrderIntent
+        intent = db.query(OrderIntent).filter(
+            (OrderIntent.id == order_id) | (OrderIntent.reference_code == order_id)
+        ).first()
+        if intent:
+            intent.is_client_archived = is_archived
+            intent.is_archived = is_archived
+            intent.updated_at = datetime.utcnow()
+            db.commit()
+            db.refresh(intent)
+            return {
+                "success": True,
+                "id": intent.id,
+                "order_number": intent.reference_code,
+                "is_client_archived": intent.is_client_archived,
+                "message": "Commande archivée avec succès." if is_archived else "Commande désarchivée avec succès."
+            }
+
+        raise ValueError(f"Commande {order_id} introuvable")
+
+    @staticmethod
+    def hide_order_client(db: Session, order_id: str) -> Dict[str, Any]:
+        """
+        Soft-delete for the user ("suppression définitive pour l'utilisateur sans rien effacer en base de donnée").
+        Hides the order permanently from the client's screen/history.
+        Preserves 100% of the row in the database for the merchant, financial reports, arbitration, and SuperAdmin.
+        """
+        order = db.query(Order).filter(
+            (Order.id == order_id) | (Order.order_number == order_id)
+        ).first()
+        if order:
+            order.is_client_hidden = True
+            order.updated_at = datetime.utcnow()
+            db.commit()
+            db.refresh(order)
+            return {
+                "success": True,
+                "id": order.id,
+                "order_number": order.order_number,
+                "is_client_hidden": True,
+                "message": "Commande retirée de votre historique avec succès."
+            }
+
+        from app.models.commerce import OrderIntent
+        intent = db.query(OrderIntent).filter(
+            (OrderIntent.id == order_id) | (OrderIntent.reference_code == order_id)
+        ).first()
+        if intent:
+            intent.is_client_hidden = True
+            intent.updated_at = datetime.utcnow()
+            db.commit()
+            db.refresh(intent)
+            return {
+                "success": True,
+                "id": intent.id,
+                "order_number": intent.reference_code,
+                "is_client_hidden": True,
+                "message": "Commande retirée de votre historique avec succès."
+            }
+
+        raise ValueError(f"Commande {order_id} introuvable")
+
+    @staticmethod
     def list_orders(
         db: Session,
         store_id: Optional[str] = None,
         customer_id: Optional[str] = None,
         customer_token: Optional[str] = None,
-        status: Optional[str] = None
+        status: Optional[str] = None,
+        include_hidden: bool = False
     ) -> List[Dict[str, Any]]:
         query = db.query(Order)
         if store_id:
             query = query.filter(Order.store_id == store_id)
         if customer_id:
             query = query.filter(Order.customer_id == customer_id)
+            if not include_hidden:
+                query = query.filter((Order.is_client_hidden.is_(False) | Order.is_client_hidden.is_(None)))
         elif customer_token:
             query = query.filter(
                 (Order.customer_token == customer_token) |
@@ -717,6 +842,8 @@ class OrderService:
                     db.query(Customer.id).filter(Customer.session_token == customer_token)
                 ))
             )
+            if not include_hidden:
+                query = query.filter((Order.is_client_hidden.is_(False) | Order.is_client_hidden.is_(None)))
         if status:
             query = query.filter(Order.status == status)
 
@@ -850,6 +977,8 @@ class OrderService:
             "currency": order.currency,
             "notes": order.notes,
             "rejection_reason": order.rejection_reason,
+            "is_client_archived": bool(getattr(order, "is_client_archived", False)),
+            "is_client_hidden": bool(getattr(order, "is_client_hidden", False)),
             "created_at": order.created_at.isoformat() if order.created_at else None,
             "updated_at": order.updated_at.isoformat() if order.updated_at else None,
             "conversation_id": conv_id,

@@ -38,6 +38,8 @@ class IntentResponse(BaseModel):
     coherence_status: Optional[str] = "HARMONIZED_PENDING"
     coherence_notes: Optional[str] = None
     is_archived: bool = False
+    is_client_archived: Optional[bool] = False
+    is_client_hidden: Optional[bool] = False
     redirect_url: str
     prefilled_message: str
     secure_token: Optional[str] = None
@@ -85,6 +87,8 @@ class IntentSummarySchema(BaseModel):
     coherence_notes: Optional[str] = None
     is_urgent_followup: bool
     is_archived: bool = False
+    is_client_archived: Optional[bool] = False
+    is_client_hidden: Optional[bool] = False
     time_elapsed_display: str
     created_at: datetime
 

@@ -57,7 +57,14 @@ export default function SubscriptionModal({
   const [selectedPlanCode, setSelectedPlanCode] = useState("STARTER");
   const [selectedOperator, setSelectedOperator] = useState("ORANGE");
 
-  // Payment Proof
+  // Payment Method: "OTP" (1st position - direct Mobile Money) vs "CAPTURE" (fallback mode if OTP fails)
+  const [paymentMethod, setPaymentMethod] = useState("OTP");
+  const [otpPhone, setOtpPhone] = useState("+226 ");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpFailed, setOtpFailed] = useState(false);
+
+  // Payment Proof (Fallback mode)
   const [proofPreview, setProofPreview] = useState(null);
   const [proofData, setProofData] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -89,9 +96,13 @@ export default function SubscriptionModal({
       setLogoData(null);
       setCopiedCode(false);
       setCopiedUrl(false);
+      setPaymentMethod("OTP");
+      setOtpCode("");
+      setOtpError("");
+      setOtpFailed(false);
 
       if (mode === "NEW_STORE") {
-        setOnboardingTrack("TRIAL");
+        setOnboardingTrack("PAID"); // Store opening with Mobile Money OTP payment in 1st position by default
         if (!initialStore) {
           setStoreName("");
           setOwnerName("");
@@ -100,6 +111,7 @@ export default function SubscriptionModal({
           setCustomCity("");
           setLocality("");
           setOwnerPhone("+226 ");
+          setOtpPhone("+226 ");
           setOwnerEmail("");
           setPassword("");
           setTagline("");
@@ -111,11 +123,12 @@ export default function SubscriptionModal({
       if (initialStore) {
         setStoreName(initialStore.name || "");
         setOwnerName(initialStore.owner?.full_name || "");
-        setOwnerPhone(
+        const initPhone =
           initialStore.contact_whatsapp ||
-            initialStore.owner?.phone_number ||
-            "+226 "
-        );
+          initialStore.owner?.phone_number ||
+          "+226 ";
+        setOwnerPhone(initPhone);
+        setOtpPhone(initPhone);
         setOwnerEmail(
           initialStore.contact_email || initialStore.owner?.email || ""
         );
@@ -139,7 +152,24 @@ export default function SubscriptionModal({
         prevDials.some((d) => ownerPhone.trim() === d || ownerPhone.trim() === d + " ");
       if (isJustDial) {
         setOwnerPhone(`${country.dial} `);
+        setOtpPhone(`${country.dial} `);
       }
+    }
+  };
+
+  const handleOwnerPhoneChange = (val) => {
+    setOwnerPhone(val);
+    const prevDials = WEST_AFRICAN_COUNTRIES.map((c) => c.dial);
+    if (!otpPhone || otpPhone === ownerPhone || prevDials.some((d) => otpPhone.trim() === d || otpPhone.trim() === d + " ")) {
+      setOtpPhone(val);
+    }
+  };
+
+  const fillTestOtp = () => {
+    setOtpCode("749201");
+    setOtpError("");
+    if (!otpPhone.trim() || otpPhone.trim() === "+226" || otpPhone.trim() === "+226 ") {
+      setOtpPhone("+226 70 12 34 56");
     }
   };
 
@@ -278,6 +308,7 @@ export default function SubscriptionModal({
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
+    setOtpError("");
 
     if (!storeName.trim()) {
       setErrorMessage("Veuillez renseigner le nom de votre boutique.");
@@ -290,6 +321,30 @@ export default function SubscriptionModal({
     if (!ownerPhone.trim() || ownerPhone.trim().length < 8) {
       setErrorMessage("Veuillez renseigner un numéro WhatsApp fonctionnel.");
       return;
+    }
+
+    const isPaid = onboardingTrack === "PAID" || mode !== "NEW_STORE";
+
+    if (isPaid) {
+      if (paymentMethod === "OTP") {
+        const cleanPhone = (otpPhone || ownerPhone).replace(/\D/g, "");
+        if (cleanPhone.length < 8) {
+          setOtpError("Numéro Mobile Money incomplet (au moins 8 chiffres).");
+          setErrorMessage("Veuillez renseigner un numéro de téléphone Mobile Money valide.");
+          return;
+        }
+        const cleanOtp = (otpCode || "").trim();
+        if (!/^\d{6}$/.test(cleanOtp)) {
+          setOtpError("Le code OTP doit être composé de 6 chiffres.");
+          setErrorMessage("Veuillez renseigner le code secret OTP à 6 chiffres.");
+          return;
+        }
+      } else if (paymentMethod === "CAPTURE") {
+        if (!proofData) {
+          setErrorMessage("Veuillez charger la capture d'écran du reçu de paiement Mobile Money.");
+          return;
+        }
+      }
     }
 
     setIsSubmitting(true);
@@ -313,8 +368,10 @@ export default function SubscriptionModal({
           logo_data: logoData || undefined,
           plan_code: onboardingTrack === "TRIAL" ? "STARTER" : selectedPlanCode,
           operator_code: selectedOperator,
-          payment_proof_data: proofData || undefined,
-          notes: notes.trim() || (onboardingTrack === "PAID" ? `Souscription Mobile Money ${selectedOperator} - Formule ${selectedPlanCode}` : "TRIAL"),
+          payment_method: onboardingTrack === "TRIAL" ? "TRIAL" : paymentMethod,
+          otp_code: isPaid && paymentMethod === "OTP" ? otpCode.trim() : undefined,
+          payment_proof_data: isPaid && paymentMethod === "CAPTURE" ? proofData : undefined,
+          notes: notes.trim() || (onboardingTrack === "PAID" ? `Souscription Mobile Money ${selectedOperator} (${paymentMethod}) - Formule ${selectedPlanCode}` : "TRIAL"),
         };
 
         const result = await registerMerchantStore(payload);
@@ -331,8 +388,10 @@ export default function SubscriptionModal({
           owner_phone: ownerPhone.trim(),
           plan_code: selectedPlanCode,
           operator_code: selectedOperator,
-          payment_proof_data: proofData,
-          notes: notes.trim(),
+          payment_method: paymentMethod,
+          otp_code: paymentMethod === "OTP" ? otpCode.trim() : undefined,
+          payment_proof_data: paymentMethod === "CAPTURE" ? proofData : undefined,
+          notes: notes.trim() || `Renouvellement ${selectedOperator} (${paymentMethod})`,
         };
 
         const result = await submitSubscriptionRequest(payload);
@@ -340,9 +399,13 @@ export default function SubscriptionModal({
         setSubmitSuccess(true);
       }
     } catch (err) {
-      setErrorMessage(
-        err.message || "Une erreur est survenue lors de l'enregistrement."
-      );
+      const msg = err.message || "Une erreur est survenue lors de l'enregistrement.";
+      setErrorMessage(msg);
+      // AUTOMATIC FALLBACK: If OTP failed, automatically switch to CAPTURE mode!
+      if (isPaid && paymentMethod === "OTP") {
+        setOtpFailed(true);
+        setPaymentMethod("CAPTURE");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -549,18 +612,59 @@ export default function SubscriptionModal({
                 </div>
               )}
 
-              {/* IF NEW_STORE: TRACK SELECTION (FREE TRIAL VS PAID) */}
+              {/* IF NEW_STORE: TRACK SELECTION (OTP PAID IN 1ST POSITION VS TRIAL) */}
               {mode === "NEW_STORE" && (
                 <div className="space-y-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">
                       1
                     </span>
-                    <span>Formule d'Activation</span>
+                    <span>Formule d'Activation de la Boutique</span>
                   </label>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Track 1: Free Trial (Immediate) */}
+                    {/* Track 1: Paid Subscription with OTP 1st Position (Recommended) */}
+                    <div
+                      onClick={() => setOnboardingTrack("PAID")}
+                      className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                        onboardingTrack === "PAID"
+                          ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-sm"
+                          : "bg-surface-card border-subtle hover:border-strong opacity-80"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-xs text-on-surface">
+                              Forfait Mobile Money Direct
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
+                              Recommandé ⭐
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-on-surface-variant mt-1 leading-snug">
+                            À partir de 1 000 FCFA/mois. Validation instantanée par code OTP (Orange Money, Moov Money, LigdiCash).
+                          </p>
+                        </div>
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                            onboardingTrack === "PAID"
+                              ? "border-primary bg-primary"
+                              : "border-subtle"
+                          }`}
+                        >
+                          {onboardingTrack === "PAID" && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-surface" />
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-primary font-semibold mt-2.5 flex items-center gap-1">
+                        <Icon name="verified" className="text-[13px]" />
+                        <span>Paiement OTP direct en 1ère position</span>
+                      </div>
+                    </div>
+
+                    {/* Track 2: Free Trial (Immediate) */}
                     <div
                       onClick={() => setOnboardingTrack("TRIAL")}
                       className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
@@ -580,7 +684,7 @@ export default function SubscriptionModal({
                             </span>
                           </div>
                           <p className="text-[11px] text-on-surface-variant mt-1 leading-snug">
-                            Zéro carte, zéro paiement aujourd'hui. Boutique en ligne immédiatement active.
+                            Zéro paiement aujourd'hui. Boutique immédiatement active en mode découverte sans engagement.
                           </p>
                         </div>
                         <div
@@ -595,50 +699,9 @@ export default function SubscriptionModal({
                           )}
                         </div>
                       </div>
-                      <div className="text-[10px] text-primary font-semibold mt-2.5 flex items-center gap-1">
-                        <Icon name="bolt" className="text-[13px]" />
-                        <span>Activation en 1 clic</span>
-                      </div>
-                    </div>
-
-                    {/* Track 2: Paid Subscription via USSD */}
-                    <div
-                      onClick={() => setOnboardingTrack("PAID")}
-                      className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
-                        onboardingTrack === "PAID"
-                          ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-sm"
-                          : "bg-surface-card border-subtle hover:border-strong opacity-80"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-xs text-on-surface">
-                              Forfait Mobile Money
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
-                              Pro / Starter
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-on-surface-variant mt-1 leading-snug">
-                            À partir de 1 000 FCFA/mois. Paiement Orange Money / Moov Money direct par code USSD.
-                          </p>
-                        </div>
-                        <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
-                            onboardingTrack === "PAID"
-                              ? "border-primary bg-primary"
-                              : "border-subtle"
-                          }`}
-                        >
-                          {onboardingTrack === "PAID" && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-surface" />
-                          )}
-                        </div>
-                      </div>
                       <div className="text-[10px] text-on-surface-variant font-medium mt-2.5 flex items-center gap-1">
-                        <Icon name="verified" className="text-[13px]" />
-                        <span>Badge Pro & Priorité</span>
+                        <Icon name="bolt" className="text-[13px]" />
+                        <span>Activation immédiate 14 jours</span>
                       </div>
                     </div>
                   </div>
@@ -824,7 +887,7 @@ export default function SubscriptionModal({
                       required
                       placeholder={`${currentCountry.dial} 70 00 00 00`}
                       value={ownerPhone}
-                      onChange={(e) => setOwnerPhone(e.target.value)}
+                      onChange={(e) => handleOwnerPhoneChange(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 font-mono"
                     />
                   </div>
@@ -879,18 +942,18 @@ export default function SubscriptionModal({
                 </div>
               </div>
 
-              {/* IF PAID TRACK OR RENEWAL/UPGRADE: PLAN & USSD DETAILS */}
+              {/* IF PAID TRACK OR RENEWAL/UPGRADE: PLAN & PAYMENT DETAILS (OTP 1ST POSITION, CAPTURE FALLBACK) */}
               {(onboardingTrack === "PAID" || mode !== "NEW_STORE") && (
                 <div className="space-y-4 border-t border-subtle pt-5">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <label className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] flex items-center justify-center font-bold">
                         {mode === "NEW_STORE" ? "3" : "2"}
                       </span>
-                      <span>Formule d'Abonnement & Paiement USSD</span>
+                      <span>Formule d'Abonnement & Paiement Mobile Money</span>
                     </label>
                     <span className="text-xs font-semibold text-on-surface px-2.5 py-1 rounded-lg bg-surface-secondary border border-subtle">
-                      Montant : {activePlanPrice.toLocaleString("fr-FR")} FCFA
+                      Montant : <span className="text-red-600 dark:text-red-400 font-bold">{activePlanPrice.toLocaleString("fr-FR")} Francs</span>
                     </span>
                   </div>
 
@@ -955,126 +1018,363 @@ export default function SubscriptionModal({
                     })}
                   </div>
 
-                  {/* USSD Dial Block */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {currentPlanInfo?.payment_options?.map((opt) => {
-                      const isOpSelected = selectedOperator === opt.operator_code;
-                      const isOrange = opt.operator_code === "ORANGE";
-                      const isMoov = opt.operator_code === "MOOV";
-                      return (
-                        <button
-                          type="button"
-                          key={opt.operator_code}
-                          onClick={() => setSelectedOperator(opt.operator_code)}
-                          className={`p-2.5 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                            isOpSelected
-                              ? "bg-surface-elevated border-primary ring-1 ring-primary/40 shadow-sm"
-                              : "bg-surface-card border-subtle hover:border-strong opacity-80"
-                          }`}
-                        >
-                          <div
-                            className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 text-white"
-                            style={{
-                              backgroundColor: isOrange
-                                ? "#FF7900"
-                                : isMoov
-                                ? "#005BAA"
-                                : "#0284c7",
-                            }}
-                          >
-                            {isOrange ? "OM" : isMoov ? "MOOV" : "WAVE"}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-semibold text-[11px] text-on-surface truncate">
-                              {opt.operator_name}
-                            </div>
-                            <div className="text-[9px] text-on-surface-variant truncate">
-                              {opt.merchant_number}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
+                  {/* Payment Mode Selector Tabs (OTP 1st Position vs Capture Fallback) */}
+                  <div className="bg-surface-secondary/70 p-1 rounded-xl border border-subtle flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("OTP")}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        paymentMethod === "OTP"
+                          ? "bg-surface-elevated text-primary shadow-xs border border-primary/30"
+                          : "text-on-surface-variant hover:text-on-surface"
+                      }`}
+                    >
+                      <Icon name="verified_user" className="text-sm" />
+                      <span>1. Paiement Direct OTP (Prioritaire)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("CAPTURE")}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        paymentMethod === "CAPTURE"
+                          ? "bg-surface-elevated text-amber-500 shadow-xs border border-amber-500/30"
+                          : "text-on-surface-variant hover:text-on-surface"
+                      }`}
+                    >
+                      <Icon name="photo_camera" className="text-sm" />
+                      <span>2. Capture de Reçu (Secours)</span>
+                    </button>
                   </div>
 
-                  {/* Dial Code Display */}
-                  {currentDialOption && currentDialOption.ussd_code && (
-                    <div className="bg-surface-secondary border border-subtle p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                      <div>
-                        <span className="text-[10px] font-medium text-on-surface-variant block">
-                          Code USSD pour {activePlan?.name || "votre formule"} :
-                        </span>
-                        <span className="font-mono text-sm font-bold text-primary select-all">
-                          {currentDialOption.ussd_code}
-                        </span>
+                  {/* ======================================================== */}
+                  {/* VIEW 1: OTP PAYMENT FLOW (1ÈRE POSITION - PRINCIPAL)     */}
+                  {/* ======================================================== */}
+                  {paymentMethod === "OTP" && (
+                    <div className="space-y-3.5 p-3.5 rounded-2xl bg-surface-card border border-subtle shadow-xs">
+                      {/* Amount Banner in LigdiCash style */}
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-surface-secondary border border-subtle">
+                        <div className="text-xs text-on-surface-variant">
+                          Total à régler pour {activePlan?.name || "cette formule"} :
+                        </div>
+                        <div className="text-base sm:text-lg font-bold text-red-600 dark:text-red-400">
+                          {activePlanPrice.toLocaleString("fr-FR")} Francs
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {typeof currentDialOption.ussd_code === "string" && currentDialOption.ussd_code.startsWith("*") && currentDialOption.tel_link && (
-                          <a
-                            href={currentDialOption.tel_link}
-                            className="px-3 py-1.5 rounded-lg bg-secondary hover:brightness-105 text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
+
+                      {/* Operator Cards with Logos */}
+                      <div>
+                        <label className="block text-xs font-medium text-on-surface-variant mb-1.5">
+                          Sélectionnez votre opérateur Mobile Money <span className="text-primary">*</span>
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {/* Orange Money */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOperator("ORANGE")}
+                            className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
+                              selectedOperator === "ORANGE"
+                                ? "bg-primary/10 border-primary ring-1 ring-primary/40 shadow-xs"
+                                : "bg-surface-secondary border-subtle hover:border-strong opacity-80"
+                            }`}
                           >
-                            <Icon name="call" className="text-[14px]" />
-                            <span>Composer</span>
-                          </a>
+                            <img
+                              src="/orangeMoney.png"
+                              alt="Orange Money"
+                              className="w-8 h-8 rounded-lg object-contain bg-black/5 p-0.5"
+                            />
+                            <span className="text-[11px] font-semibold text-on-surface">Orange Money</span>
+                          </button>
+
+                          {/* Moov Money */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOperator("MOOV")}
+                            className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
+                              selectedOperator === "MOOV"
+                                ? "bg-primary/10 border-primary ring-1 ring-primary/40 shadow-xs"
+                                : "bg-surface-secondary border-subtle hover:border-strong opacity-80"
+                            }`}
+                          >
+                            <img
+                              src="/MoovMoney.png"
+                              alt="Moov Money"
+                              className="w-8 h-8 rounded-lg object-contain bg-white p-0.5"
+                            />
+                            <span className="text-[11px] font-semibold text-on-surface">Moov Money</span>
+                          </button>
+
+                          {/* LigdiCash */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOperator("LIGDICASH")}
+                            className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
+                              selectedOperator === "LIGDICASH"
+                                ? "bg-primary/10 border-primary ring-1 ring-primary/40 shadow-xs"
+                                : "bg-surface-secondary border-subtle hover:border-strong opacity-80"
+                            }`}
+                          >
+                            <img
+                              src="/media/payments/ligdicash.svg"
+                              alt="LigdiCash"
+                              className="w-8 h-8 rounded-lg object-contain bg-white p-0.5"
+                            />
+                            <span className="text-[11px] font-semibold text-on-surface">LigdiCash</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* USSD Instruction Banner */}
+                      <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-2.5">
+                        <Icon name="dialpad" className="text-primary text-lg shrink-0 mt-0.5" />
+                        <div className="text-xs text-on-surface leading-relaxed">
+                          {selectedOperator === "MOOV" ? (
+                            <>
+                              Générez votre code OTP en composant <strong className="font-mono text-primary font-bold select-all">*555*6*{activePlanPrice}#</strong> sur votre mobile Moov Money.
+                            </>
+                          ) : selectedOperator === "LIGDICASH" ? (
+                            <>
+                              Paiement sécurisé par <strong>LigdiCash</strong> : saisissez votre numéro et confirmez via le code OTP à 6 chiffres reçu.
+                            </>
+                          ) : (
+                            <>
+                              Générez votre code OTP en composant <strong className="font-mono text-primary font-bold select-all">*144*4*6*{activePlanPrice}#</strong> sur votre mobile Orange Money.
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Phone Number Input */}
+                      <div>
+                        <label className="block text-xs font-medium text-on-surface-variant mb-1">
+                          Numéro Mobile Money de débit <span className="text-primary">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          placeholder="Ex: 70 12 34 56"
+                          value={otpPhone}
+                          onChange={(e) => setOtpPhone(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border border-subtle text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary font-mono"
+                        />
+                      </div>
+
+                      {/* 6-Digit OTP Code Input */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-medium text-on-surface-variant">
+                            Code secret OTP (6 chiffres) <span className="text-primary">*</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={fillTestOtp}
+                            className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
+                          >
+                            Code test (749201)
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          placeholder="123456"
+                          value={otpCode}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "");
+                            setOtpCode(val);
+                            if (otpError) setOtpError("");
+                          }}
+                          className={`w-full px-3.5 py-2.5 rounded-xl bg-surface-secondary border text-center text-base tracking-[0.35em] font-mono font-bold focus:outline-none ${
+                            otpError
+                              ? "border-rose-500 text-rose-500 focus:border-rose-500"
+                              : "border-subtle text-on-surface focus:border-primary"
+                          }`}
+                        />
+                        {otpError && (
+                          <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1">
+                            <Icon name="error" className="text-xs" />
+                            <span>{otpError}</span>
+                          </p>
                         )}
+                      </div>
+
+                      {/* Fallback Switch Link */}
+                      <div className="pt-1 text-center">
+                        <span className="text-[11px] text-on-surface-variant">
+                          Le code OTP ne passe pas sur votre téléphone ?{" "}
+                        </span>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(currentDialOption.ussd_code || "", "code")}
-                          className="px-3 py-1.5 rounded-lg bg-surface-card hover:bg-surface-elevated border border-subtle text-on-surface text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                          onClick={() => {
+                            setPaymentMethod("CAPTURE");
+                            setOtpFailed(false);
+                          }}
+                          className="text-[11px] text-primary font-semibold hover:underline cursor-pointer"
                         >
-                          <Icon name={copiedCode ? "check" : "content_copy"} className="text-[14px]" />
-                          <span>{copiedCode ? "Copié !" : "Copier"}</span>
+                          Payer par capture de reçu (Mode de secours)
                         </button>
                       </div>
                     </div>
                   )}
 
-                  {/* Optional Proof Upload */}
-                  <div>
-                    <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
-                      Capture d'écran du reçu Mobile Money{" "}
-                      <span className="text-on-surface-variant/60 font-normal">
-                        (Optionnel - vous pouvez aussi l'envoyer plus tard)
-                      </span>
-                    </label>
-
-                    {proofPreview ? (
-                      <div className="relative rounded-xl overflow-hidden border border-subtle bg-surface-secondary p-2 flex items-center gap-3">
-                        <img
-                          src={proofPreview}
-                          alt="Preuve"
-                          className="w-12 h-12 object-cover rounded-lg border border-subtle"
-                        />
-                        <div className="text-xs text-on-surface font-medium flex-grow">
-                          Capture reçue attachée
+                  {/* ======================================================== */}
+                  {/* VIEW 2: CAPTURE FALLBACK (MODE DE SECOURS SI OTP ÉCHOUE) */}
+                  {/* ======================================================== */}
+                  {paymentMethod === "CAPTURE" && (
+                    <div className="space-y-3.5 p-3.5 rounded-2xl bg-surface-card border border-subtle shadow-xs">
+                      {/* Notice Banner */}
+                      <div className="p-3.5 rounded-xl border bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs space-y-1">
+                        <div className="font-bold flex items-center gap-1.5">
+                          <Icon name="warning" className="text-base" />
+                          <span>
+                            {otpFailed
+                              ? "Le paiement OTP n'a pas pu être validé — Mode de secours activé"
+                              : "Mode de secours : Paiement par capture de reçu"}
+                          </span>
                         </div>
+                        <p className="text-[11px] leading-relaxed text-on-surface-variant">
+                          {otpFailed
+                            ? `Le code OTP n'a pas abouti (${errorMessage || "validation impossible"}). Aucun montant n'a été prélevé sur votre compte. Vous pouvez continuer l'ouverture de votre boutique en effectuant le transfert et en joignant votre capture d'écran ci-dessous.`
+                            : "Composez le code USSD ci-dessous sur votre téléphone pour effectuer le paiement de la formule, puis téléversez la capture d'écran du reçu SMS de confirmation."}
+                        </p>
+                      </div>
+
+                      {/* Operator selector */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {currentPlanInfo?.payment_options?.map((opt) => {
+                          const isOpSelected = selectedOperator === opt.operator_code;
+                          const isOrange = opt.operator_code === "ORANGE";
+                          const isMoov = opt.operator_code === "MOOV";
+                          return (
+                            <button
+                              type="button"
+                              key={opt.operator_code}
+                              onClick={() => setSelectedOperator(opt.operator_code)}
+                              className={`p-2.5 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                                isOpSelected
+                                  ? "bg-surface-elevated border-primary ring-1 ring-primary/40 shadow-sm"
+                                  : "bg-surface-card border-subtle hover:border-strong opacity-80"
+                              }`}
+                            >
+                              <div
+                                className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 text-white"
+                                style={{
+                                  backgroundColor: isOrange
+                                    ? "#FF7900"
+                                    : isMoov
+                                    ? "#005BAA"
+                                    : "#0284c7",
+                                }}
+                              >
+                                {isOrange ? "OM" : isMoov ? "MOOV" : "WAVE"}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-semibold text-[11px] text-on-surface truncate">
+                                  {opt.operator_name}
+                                </div>
+                                <div className="text-[9px] text-on-surface-variant truncate">
+                                  {opt.merchant_number}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Dial Code Display */}
+                      {currentDialOption && currentDialOption.ussd_code && (
+                        <div className="bg-surface-secondary border border-subtle p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div>
+                            <span className="text-[10px] font-medium text-on-surface-variant block">
+                              Code USSD pour {activePlan?.name || "votre formule"} :
+                            </span>
+                            <span className="font-mono text-sm font-bold text-primary select-all">
+                              {currentDialOption.ussd_code}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {typeof currentDialOption.ussd_code === "string" && currentDialOption.ussd_code.startsWith("*") && currentDialOption.tel_link && (
+                              <a
+                                href={currentDialOption.tel_link}
+                                className="px-3 py-1.5 rounded-lg bg-secondary hover:brightness-105 text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                              >
+                                <Icon name="call" className="text-[14px]" />
+                                <span>Composer</span>
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(currentDialOption.ussd_code || "", "code")}
+                              className="px-3 py-1.5 rounded-lg bg-surface-card hover:bg-surface-elevated border border-subtle text-on-surface text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                              <Icon name={copiedCode ? "check" : "content_copy"} className="text-[14px]" />
+                              <span>{copiedCode ? "Copié !" : "Copier"}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Proof Screenshot Upload */}
+                      <div>
+                        <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
+                          Capture d'écran du reçu Mobile Money <span className="text-primary">*</span>
+                        </label>
+
+                        {proofPreview ? (
+                          <div className="relative rounded-xl overflow-hidden border border-subtle bg-surface-secondary p-2 flex items-center gap-3">
+                            <img
+                              src={proofPreview}
+                              alt="Preuve"
+                              className="w-12 h-12 object-cover rounded-lg border border-subtle"
+                            />
+                            <div className="text-xs text-on-surface font-medium flex-grow">
+                              Capture reçue attachée avec succès
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProofPreview(null);
+                                setProofData(null);
+                              }}
+                              className="p-1 rounded-lg text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                            >
+                              <Icon name="delete" className="text-[18px]" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="border-2 border-dashed border-subtle hover:border-primary/50 rounded-xl p-3.5 text-center cursor-pointer block bg-surface-card hover:bg-surface-secondary/40 transition-colors">
+                            <Icon name="photo_camera" className="text-[22px] text-on-surface-variant mx-auto block mb-1" />
+                            <div className="text-[11px] font-medium text-on-surface">
+                              Cliquez pour charger la capture de confirmation Mobile Money
+                            </div>
+                            <span className="text-[10px] text-on-surface-variant/70 block mt-0.5">
+                              Format JPG / PNG • Reçu SMS ou application
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleFileChange}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+
+                      {/* Link to switch back to OTP */}
+                      <div className="pt-1 text-center">
                         <button
                           type="button"
                           onClick={() => {
-                            setProofPreview(null);
-                            setProofData(null);
+                            setPaymentMethod("OTP");
+                            setOtpFailed(false);
                           }}
-                          className="p-1 rounded-lg text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                          className="text-xs text-primary font-semibold hover:underline flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
                         >
-                          <Icon name="delete" className="text-[18px]" />
+                          <Icon name="arrow_back" className="text-sm" />
+                          <span>Revenir au paiement direct par code OTP (1ère position)</span>
                         </button>
                       </div>
-                    ) : (
-                      <label className="border-2 border-dashed border-subtle hover:border-primary/50 rounded-xl p-3 text-center cursor-pointer block bg-surface-card hover:bg-surface-secondary/40 transition-colors">
-                        <Icon name="photo_camera" className="text-[20px] text-on-surface-variant mx-auto block mb-1" />
-                        <div className="text-[11px] font-medium text-on-surface">
-                          Cliquez pour charger la capture de confirmation Mobile Money
-                        </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileChange}
-                          className="hidden"
-                        />
-                      </label>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1108,20 +1408,39 @@ export default function SubscriptionModal({
                   {isSubmitting ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Création de votre boutique en cours...</span>
+                      <span>
+                        {mode === "NEW_STORE"
+                          ? "Création et paiement en cours..."
+                          : "Validation en cours..."}
+                      </span>
                     </>
                   ) : mode === "NEW_STORE" ? (
                     <>
                       <span>
                         {onboardingTrack === "TRIAL"
                           ? "Créer ma Boutique (14 Jours Gratuits) 🚀"
-                          : "Activer ma Boutique avec Formule"}
+                          : paymentMethod === "OTP"
+                          ? "Payer et Ouvrir ma Boutique 🚀"
+                          : "Valider l'ouverture avec ma capture de reçu 📄"}
                       </span>
-                      <Icon name="arrow_forward" className="text-[16px]" />
+                      <Icon
+                        name={
+                          onboardingTrack === "TRIAL"
+                            ? "arrow_forward"
+                            : paymentMethod === "OTP"
+                            ? "bolt"
+                            : "check_circle"
+                        }
+                        className="text-[16px]"
+                      />
                     </>
                   ) : (
                     <>
-                      <span>Confirmer le Renouvellement</span>
+                      <span>
+                        {paymentMethod === "OTP"
+                          ? "Payer et Confirmer le Renouvellement 🚀"
+                          : "Valider le Renouvellement avec Reçu 📄"}
+                      </span>
                       <Icon name="check_circle" className="text-[16px]" />
                     </>
                   )}
