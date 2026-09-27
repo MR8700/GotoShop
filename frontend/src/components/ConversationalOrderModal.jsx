@@ -1,6 +1,6 @@
 import Icon from "./Icon";
 import React, { useState } from "react";
-import { createConversationalOrder, getActiveStoreSlug, setCustomerToken } from "../api/client";
+import { createConversationalOrder, getActiveStoreSlug, setCustomerToken, getCustomerToken } from "../api/client";
 import { getBusinessContext } from "../utils/businessContext";
 import {
   getProductSalesConfig,
@@ -165,13 +165,12 @@ export default function ConversationalOrderModal({
 
       const resolvedStoreId = store?.id || store?.slug || getActiveStoreSlug() || "default-store";
 
-      let guestToken = customer?.session_token || localStorage.getItem("conversastore_guest_token");
-      if (!guestToken) {
-        guestToken = "guest_" + Math.random().toString(36).substring(2, 10);
-        try {
-          localStorage.setItem("conversastore_guest_token", guestToken);
-        } catch (e) {}
-      }
+      const effectiveToken = getCustomerToken() || customer?.session_token || localStorage.getItem("conversastore_guest_token") || ("guest_" + Math.random().toString(36).substring(2, 10));
+      try {
+        if (!getCustomerToken() && !customer?.session_token) {
+          localStorage.setItem("conversastore_guest_token", effectiveToken);
+        }
+      } catch (e) {}
 
       const orderPayload = {
         store_id: resolvedStoreId,
@@ -200,10 +199,10 @@ export default function ConversationalOrderModal({
           location_accuracy: locationAccuracy,
           delivery_notes: deliveryNotes,
         },
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        customer_id: customer?.id || null,
-        customer_token: guestToken,
+        customer_name: customerName?.trim() || customer?.name || "Client GotoShop",
+        customer_phone: customerPhone?.trim() || customer?.phone || null,
+        customer_id: customer?.id && !customer.id.startsWith("cust-local-") ? customer.id : null,
+        customer_token: effectiveToken,
         delivery_fee: deliveryFee,
         notes: isCustomizable ? customizationText : null,
         register_account: registerAccount,

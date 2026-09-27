@@ -72,31 +72,35 @@ class OrderService:
             # Validate or auto-create customer for seamless checkout onboarding
             actual_customer_id = None
             cust = None
-            if customer_id:
-                cust = db.query(Customer).filter(Customer.id == customer_id).first()
+            if customer_id and not str(customer_id).startswith("cust-local-"):
+                cust = db.query(Customer).filter(Customer.id == str(customer_id)).first()
             if not cust and customer_phone:
-                cust = db.query(Customer).filter(Customer.phone == customer_phone).first()
+                clean_phone = customer_phone.replace(" ", "").replace("-", "")
+                cust = db.query(Customer).filter(
+                    (Customer.phone == customer_phone) |
+                    (Customer.phone == clean_phone)
+                ).first()
 
             if cust:
                 actual_customer_id = cust.id
-                if customer_token:
+                if customer_token and not str(customer_token).startswith("guest_") and not str(customer_token).startswith("token_local_"):
                     cust.session_token = customer_token
                 elif not cust.session_token:
                     cust.session_token = secrets.token_hex(24)
                 customer_token = cust.session_token
-                if country:
+                if country and not cust.country:
                     cust.country = country
-                if city:
+                if city and not cust.city:
                     cust.city = city
-                if delivery_neighborhood:
+                if delivery_neighborhood and not cust.delivery_neighborhood:
                     cust.delivery_neighborhood = delivery_neighborhood
-            elif (register_account or customer_phone) and safe_customer_name:
-                new_session_token = customer_token or secrets.token_hex(24)
+            elif customer_phone and (register_account or safe_customer_name):
+                new_session_token = customer_token if (customer_token and not str(customer_token).startswith("guest_") and not str(customer_token).startswith("token_local_")) else secrets.token_hex(24)
                 cust = Customer(
                     id=str(uuid.uuid4()),
                     store_id=actual_store_id,
                     name=safe_customer_name,
-                    phone=customer_phone or "00000000",
+                    phone=customer_phone,
                     email=customer_email,
                     country=country or "Burkina Faso",
                     city=city or "Ouagadougou",
@@ -108,6 +112,10 @@ class OrderService:
                 db.flush()
                 actual_customer_id = cust.id
                 customer_token = new_session_token
+            else:
+                # Unauthenticated guest without phone: generate a guest token if none provided
+                if not customer_token:
+                    customer_token = "guest_" + secrets.token_hex(12)
 
             order_number = OrderService.generate_order_number(db, store.slug)
             order_id = str(uuid.uuid4())
@@ -144,15 +152,10 @@ class OrderService:
                     min_q = getattr(product, "min_quantity", 0.01) or 0.01
                     max_q = getattr(product, "max_quantity", 9999.0) or 9999.0
                     step_q = getattr(product, "quantity_step", 1.0) or 1.0
-                    if qty < min_q:
-                        raise ValueError(f"La quantité minimale pour {product.name} est de {min_q} {unit_label}.")
-                    if qty > max_q:
-                        raise ValueError(f"La quantité maximale pour {product.name} est de {max_q} {unit_label}.")
-                    # Tolerant step validation
-                    if step_q > 0:
-                        quotient = qty / step_q
-                        if abs(quotient - round(quotient)) > 1e-2:
-                            raise ValueError(f"La quantité ({qty}) doit être un multiple de {step_q} {unit_label} pour {product.name}.")
+                    if min_q and qty < min_q:
+                        qty = float(min_q)
+                    if max_q and qty > max_q:
+                        qty = float(max_q)
 
                 product_name = it.get("product_name") or (product.name if product else "Produit")
                 raw_price = it.get("unit_price") if it.get("unit_price") is not None else it.get("price")
@@ -695,6 +698,15 @@ class OrderService:
                 metadata={"order_id": order.id, "status": "CANCELLED", "reason": order.rejection_reason}
             )
 
+        # Also sync linked OrderIntent if any
+        from app.models.commerce import OrderIntent
+        linked_intent = db.query(OrderIntent).filter(OrderIntent.reference_code == order.order_number).first()
+        if linked_intent:
+            linked_intent.status = "CANCELLED"
+            linked_intent.client_status = "CANCELLED"
+            linked_intent.client_feedback = order.rejection_reason
+            linked_intent.client_action_at = datetime.utcnow()
+
         # Audit log
         audit = AuditLog(
             id=str(uuid.uuid4()),
@@ -747,6 +759,12 @@ class OrderService:
         if order:
             order.is_client_archived = is_archived
             order.updated_at = datetime.utcnow()
+            from app.models.commerce import OrderIntent
+            linked_intent = db.query(OrderIntent).filter(OrderIntent.reference_code == order.order_number).first()
+            if linked_intent:
+                linked_intent.is_client_archived = is_archived
+                linked_intent.is_archived = is_archived
+                linked_intent.updated_at = datetime.utcnow()
             db.commit()
             db.refresh(order)
             return {
@@ -790,6 +808,11 @@ class OrderService:
         if order:
             order.is_client_hidden = True
             order.updated_at = datetime.utcnow()
+            from app.models.commerce import OrderIntent
+            linked_intent = db.query(OrderIntent).filter(OrderIntent.reference_code == order.order_number).first()
+            if linked_intent:
+                linked_intent.is_client_hidden = True
+                linked_intent.updated_at = datetime.utcnow()
             db.commit()
             db.refresh(order)
             return {

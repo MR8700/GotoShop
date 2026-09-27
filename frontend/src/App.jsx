@@ -1099,6 +1099,7 @@ export default function App() {
             onOpenChat={handleOpenChat}
             onOpenQrModal={() => setIsStoreQrModalOpen(true)}
             channels={channels}
+            onOpenSuperAdmin={() => setIsSuperAdminOpen(true)}
           />
         )}
 

@@ -5,7 +5,9 @@ import {
   createConversationalOrder,
   cancelConversationalOrder,
   saveLocalGuestOrder,
+  getCustomerToken,
 } from "../api/client";
+import safeStorage from "../utils/safeStorage";
 import { sendNativeNotification, requestNotificationPermission } from "../utils/nativeNotifications";
 
 export default function TunnelHandoffModal({
@@ -228,6 +230,13 @@ export default function TunnelHandoffModal({
 
     try {
       const resolvedStoreId = store?.id || store?.slug || "faso-danfani";
+      const effectiveToken = getCustomerToken() || customer?.session_token || safeStorage.getItem("conversastore_guest_token") || ("guest_" + Math.random().toString(36).substring(2, 10));
+      try {
+        if (!getCustomerToken() && !customer?.session_token) {
+          safeStorage.setItem("conversastore_guest_token", effectiveToken);
+        }
+      } catch (e) {}
+
       const payload = {
         store_id: resolvedStoreId,
         items: items.map((it) => ({
@@ -241,18 +250,18 @@ export default function TunnelHandoffModal({
           customization_text: it.customization_text || null,
         })),
         delivery: {
-          delivery_mode: wantSendGps ? "GPS_AND_DESCRIPTION" : "ADDRESS_DESCRIPTION",
+          delivery_mode: wantSendGps && latitude && longitude ? "GPS_AND_DESCRIPTION" : "ADDRESS_DESCRIPTION",
           delivery_city: selectedCity,
           delivery_address: customLocality || selectedCity,
-          latitude: wantSendGps ? latitude : null,
-          longitude: wantSendGps ? longitude : null,
+          latitude: wantSendGps && latitude ? latitude : null,
+          longitude: wantSendGps && longitude ? longitude : null,
           location_accuracy: wantSendGps ? locationAccuracy : null,
           delivery_notes: deliveryNotes || null,
         },
         customer_name: customer?.name || customerName.trim() || "Client GotoShop",
         customer_phone: customer?.phone || customerPhone.trim() || null,
-        customer_id: customer?.id || null,
-        customer_token: customer?.session_token || null,
+        customer_id: customer?.id && !customer.id.startsWith("cust-local-") ? customer.id : null,
+        customer_token: effectiveToken,
         delivery_fee: deliveryFee,
         notes: deliveryNotes || null,
         city: selectedCity,

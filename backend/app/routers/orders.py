@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.database import get_db
 from app.services.order_service import OrderService
@@ -24,6 +24,23 @@ class OrderItemSchema(BaseModel):
     customization_text: Optional[str] = None
     customization_options: Optional[Any] = None
 
+    @field_validator("product_id", "variant_id", mode="before")
+    @classmethod
+    def clean_ids(cls, v):
+        if v is None or not str(v).strip() or str(v).strip().lower() in ["none", "null", "undefined"]:
+            return None
+        return str(v).strip()
+
+    @field_validator("unit_price", "quantity", mode="before")
+    @classmethod
+    def parse_numeric(cls, v):
+        if v is None or v == "" or str(v).strip().lower() in ["none", "null", "nan"]:
+            return 1.0
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return 1.0
+
 class OrderDeliverySchema(BaseModel):
     delivery_mode: str = "GPS_AND_DESCRIPTION" # EXACT_GPS, ADDRESS_DESCRIPTION, GPS_AND_DESCRIPTION
     delivery_city: str = "Kossodo (Ouagadougou)"
@@ -32,6 +49,16 @@ class OrderDeliverySchema(BaseModel):
     longitude: Optional[float] = None
     location_accuracy: Optional[float] = None
     delivery_notes: Optional[str] = None
+
+    @field_validator("latitude", "longitude", "location_accuracy", mode="before")
+    @classmethod
+    def parse_coords(cls, v):
+        if v is None or v == "" or str(v).strip().lower() in ["none", "null", "nan"]:
+            return None
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None
 
 class CreateOrderRequest(BaseModel):
     store_id: str
@@ -48,6 +75,23 @@ class CreateOrderRequest(BaseModel):
     country: Optional[str] = "Burkina Faso"
     city: Optional[str] = "Ouagadougou"
     delivery_neighborhood: Optional[str] = None
+
+    @field_validator("customer_id", "customer_token", "customer_phone", "customer_email", mode="before")
+    @classmethod
+    def clean_strings(cls, v):
+        if v is None or not str(v).strip() or str(v).strip().lower() in ["none", "null", "undefined"]:
+            return None
+        return str(v).strip()
+
+    @field_validator("delivery_fee", mode="before")
+    @classmethod
+    def parse_fee(cls, v):
+        if v is None or v == "" or str(v).strip().lower() in ["none", "null"]:
+            return 500
+        try:
+            return int(float(v))
+        except (ValueError, TypeError):
+            return 500
 
 class AcceptOrderRequest(BaseModel):
     seller_name: Optional[str] = "Commerçant"

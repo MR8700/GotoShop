@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function Footer({ storeName }) {
+export default function Footer({ storeName, onOpenSuperAdmin }) {
   return (
     <footer className="w-full py-8 mt-10 border-t-2 border-slate-200 dark:border-slate-800 bg-surface-container text-center flex flex-col items-center justify-center gap-3 px-4 select-none">
       {/* Brand & Partner Badge */}
@@ -41,6 +41,21 @@ export default function Footer({ storeName }) {
           ⚡ GPS &amp; Envoi Direct
         </span>
       </div>
+
+      {/* Discreet SuperAdmin Access */}
+      {onOpenSuperAdmin && (
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={onOpenSuperAdmin}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium text-on-surface-variant/70 hover:text-amber-500 hover:bg-surface-secondary border border-slate-200 dark:border-slate-800 hover:border-amber-500/40 transition-all cursor-pointer"
+            title="Console d'Administration GOT"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+            <span>Console Super-Admin</span>
+          </button>
+        </div>
+      )}
     </footer>
   );
 }

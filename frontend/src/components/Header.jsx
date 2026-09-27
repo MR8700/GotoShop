@@ -459,17 +459,6 @@ export default function Header({
                         <span>Espace Commerçant</span>
                       </button>
                     )}
-
-                    <button
-                      onClick={() => {
-                        setShowToolsMenu(false);
-                        onOpenSuperAdmin();
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface transition-colors"
-                    >
-                      <Icon name="hub" className="text-[16px] text-amber-500" />
-                      <span>Console Super-Admin</span>
-                    </button>
                   </div>
                 </div>
               )}

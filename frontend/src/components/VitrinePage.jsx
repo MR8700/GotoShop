@@ -28,6 +28,7 @@ export default function VitrinePage({
   onOpenChat,
   onOpenQrModal,
   channels = [],
+  onOpenSuperAdmin,
 }) {
   const ctx = getBusinessContext(store);
   const [selectedHeroColor, setSelectedHeroColor] = useState("Bleu Nuit");
@@ -790,7 +791,7 @@ export default function VitrinePage({
       </section>
 
       {/* Footer Go Technologie (GOT) Branding */}
-      <Footer storeName={store?.name} />
+      <Footer storeName={store?.name} onOpenSuperAdmin={onOpenSuperAdmin} />
 
       {/* Floating Cart Drawer when items present */}
       {cartCount > 0 && (

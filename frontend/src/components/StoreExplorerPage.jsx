@@ -393,20 +393,6 @@ export default function StoreExplorerPage({
                         <Icon name="add_business" className="text-[18px] text-amber-500" />
                         <span>Créer une nouvelle boutique</span>
                       </button>
-
-                      {onOpenSuperAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsProfileMenuOpen(false);
-                            onOpenSuperAdmin();
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
-                        >
-                          <Icon name="shield_person" className="text-[18px]" />
-                          <span>Console SuperAdmin</span>
-                        </button>
-                      )}
                     </div>
 
                     {/* Logout actions */}
@@ -848,7 +834,7 @@ export default function StoreExplorerPage({
         </aside>
       )}
 
-      <Footer />
+      <Footer onOpenSuperAdmin={onOpenSuperAdmin} />
     </div>
   );
 }
