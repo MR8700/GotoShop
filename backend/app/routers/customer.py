@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, Query
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
 from app.database import get_db
 from app.services.customer_service import CustomerService
 from app.services.store_service import StoreService
+from app.routers.auth import require_store_admin
+from app.models.customer import Customer
 from app.schemas.customer import (
     CustomerQuickRegisterRequest,
     CustomerQuickLoginRequest,
@@ -89,12 +91,80 @@ def get_my_orders(
 ):
     return CustomerService.get_customer_orders(db, customer)
 
+@router.get("/loyalty-card", summary="Ma carte de fidélité (données d'impression)")
+def get_my_loyalty_card(
+    request: Request,
+    customer = Depends(get_current_customer),
+    db: Session = Depends(get_db)
+):
+    from app.models.store import Store
+    from app.services import card_service
+    store = db.query(Store).filter(Store.id == customer.store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Boutique introuvable")
+    stats = CustomerService.get_customer_stats(db, customer)
+    return card_service.build_card_payload(db, customer, store, stats, card_service.public_origin(request))
+
+
+@router.get("/merchant/clients/{customer_id}/loyalty-card", summary="Carte de fidélité d'un client (commerçant)")
+def get_merchant_client_card(
+    customer_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    from app.models.store import Store
+    from app.services import card_service
+    target = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Client introuvable")
+    require_store_admin(target.store_id, authorization, db)
+    store = db.query(Store).filter(Store.id == target.store_id).first()
+    stats = CustomerService.get_customer_stats(db, target)
+    return card_service.build_card_payload(db, target, store, stats, card_service.public_origin(request))
+
+
 @router.get("/stats", response_model=CustomerStatsResponse)
 def get_my_stats(
     customer = Depends(get_current_customer),
     db: Session = Depends(get_db)
 ):
     return CustomerService.get_customer_stats(db, customer)
+
+
+@router.get("/loyalty/history", summary="Historique des points de fidélité")
+def get_my_loyalty_history(
+    limit: int = 50,
+    customer = Depends(get_current_customer),
+    db: Session = Depends(get_db)
+):
+    from app.services.loyalty_service import LoyaltyService
+    return LoyaltyService.get_ledger_history(db, customer.id, customer.store_id, limit=limit)
+
+
+@router.get("/loyalty/coupons", summary="Coupons et récompenses actifs du client")
+def get_my_loyalty_coupons(
+    customer = Depends(get_current_customer),
+    db: Session = Depends(get_db)
+):
+    from app.services.loyalty_service import LoyaltyService
+    return LoyaltyService.get_active_coupons(db, customer.id, customer.store_id)
+
+
+class ValidateCouponRequest(BaseModel):
+    code: str
+    order_amount: int = 0
+
+
+@router.post("/loyalty/validate-coupon", summary="Valider un code coupon")
+def validate_customer_coupon(
+    req: ValidateCouponRequest,
+    customer = Depends(get_current_customer),
+    db: Session = Depends(get_db)
+):
+    from app.services.loyalty_service import LoyaltyService
+    return LoyaltyService.validate_coupon(db, customer.store_id, req.code, req.order_amount)
+
 
 class LinkOrdersRequest(BaseModel):
     order_ids: List[str]
@@ -115,12 +185,14 @@ def list_merchant_clients(
     search: Optional[str] = None,
     store_slug: Optional[str] = Query(None, alias="store"),
     x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     slug = x_store_slug or store_slug
     store = StoreService.resolve_store(db, slug=slug) if slug else StoreService.get_default_store(db)
     if not store:
         return []
+    require_store_admin(store.id, authorization, db)  # customer PII: owner only
     return CustomerService.get_merchant_clients(db, store.id, search=search)
 
 @router.get("/merchant/clients/{customer_id}", response_model=MerchantClientDetail)
@@ -128,12 +200,14 @@ def get_merchant_client_detail(
     customer_id: str,
     store_slug: Optional[str] = Query(None, alias="store"),
     x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     slug = x_store_slug or store_slug
     store = StoreService.resolve_store(db, slug=slug) if slug else StoreService.get_default_store(db)
     if not store:
         raise HTTPException(status_code=404, detail="Boutique introuvable")
+    require_store_admin(store.id, authorization, db)
     client = CustomerService.get_merchant_client_detail(db, store.id, customer_id)
     if not client:
         raise HTTPException(status_code=404, detail="Client introuvable")
@@ -143,9 +217,15 @@ def get_merchant_client_detail(
 def moderate_client(
     customer_id: str,
     req: ModerateClientRequest,
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
-    store = StoreService.get_default_store(db)
+    # The store is the customer's own store (was: always the default store).
+    target = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Client introuvable")
+    require_store_admin(target.store_id, authorization, db)
+    store = StoreService.resolve_store(db, slug=target.store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Boutique introuvable")
     updated = CustomerService.moderate_client(
@@ -164,9 +244,14 @@ def moderate_client(
 def grant_client_perk(
     customer_id: str,
     req: GrantClientPerkRequest,
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
-    store = StoreService.get_default_store(db)
+    target = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Client introuvable")
+    require_store_admin(target.store_id, authorization, db)
+    store = StoreService.resolve_store(db, slug=target.store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Boutique introuvable")
     updated = CustomerService.grant_client_perk(

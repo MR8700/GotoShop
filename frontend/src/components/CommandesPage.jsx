@@ -257,6 +257,14 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
 
   useEffect(() => {
     loadData();
+    // BUGFIX: this used to only run once on mount. The backend already
+    // broadcasts an "order.created" WebSocket event, but nothing in this
+    // page listened for it, so a merchant sitting on the "commandes" tab
+    // never saw new orders come in without a manual refresh — which read
+    // exactly like "orders aren't registering". A lightweight poll keeps
+    // the list current without requiring a full WebSocket wiring here.
+    const interval = setInterval(() => loadData(false), 20000);
+    return () => clearInterval(interval);
   }, []);
 
   const urgentItem = pendingList[0] || null;

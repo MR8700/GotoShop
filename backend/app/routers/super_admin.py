@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.super_admin_service import SuperAdminService
@@ -130,3 +130,140 @@ def delete_store(
         return {"success": True, "message": "Boutique supprimée avec succès"}
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
+
+
+# --- Platform Wallet & Withdrawals ---
+
+@router.get("/withdrawals", summary="Lister les demandes de retrait de toutes les boutiques")
+def list_withdrawals(
+    status: Optional[str] = None,
+    admin = Depends(get_current_super_admin),
+    db: Session = Depends(get_db)
+):
+    from app.models.wallet import WalletTransaction
+    q = db.query(WalletTransaction).filter(WalletTransaction.transaction_type == "WITHDRAWAL_REQUEST")
+    if status:
+        q = q.filter(WalletTransaction.status == status)
+    txs = q.order_by(WalletTransaction.created_at.desc()).limit(100).all()
+    return [
+        {
+            "id": t.id,
+            "store_id": t.store_id,
+            "store_name": t.store.name if t.store else "Boutique",
+            "amount": t.amount,
+            "status": t.status,
+            "reference": t.reference,
+            "note": t.note,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        }
+        for t in txs
+    ]
+
+
+@router.post("/withdrawals/{tx_id}/approve", summary="Approuver un retrait commerçant")
+def approve_withdrawal(
+    tx_id: str,
+    admin = Depends(get_current_super_admin),
+    db: Session = Depends(get_db)
+):
+    from app.models.wallet import WalletTransaction
+    tx = db.query(WalletTransaction).filter(WalletTransaction.id == tx_id).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Demande introuvable")
+    tx.status = "COMPLETED"
+    db.commit()
+    return {"success": True, "message": "Retrait validé", "status": "COMPLETED"}
+
+
+@router.post("/withdrawals/{tx_id}/reject", summary="Rejeter un retrait commerçant et restituer les fonds")
+def reject_withdrawal(
+    tx_id: str,
+    reason: Optional[str] = Query(None),
+    admin = Depends(get_current_super_admin),
+    db: Session = Depends(get_db)
+):
+    from app.models.wallet import WalletTransaction, MerchantWallet
+    tx = db.query(WalletTransaction).filter(WalletTransaction.id == tx_id).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Demande introuvable")
+    if tx.status != "COMPLETED":
+        wallet = db.query(MerchantWallet).filter(MerchantWallet.id == tx.wallet_id).first()
+        if wallet:
+            wallet.available_balance += tx.amount
+            wallet.total_withdrawn = max(0, wallet.total_withdrawn - tx.amount)
+        tx.status = "REJECTED"
+        tx.note = (tx.note or "") + (f" [Rejeté: {reason}]" if reason else "")
+        db.commit()
+    return {"success": True, "message": "Retrait rejeté et fonds restitués", "status": "REJECTED"}
+
+
+# --- Multi-store Client Management ---
+
+@router.get("/clients", summary="Rechercher des clients sur toute la plateforme")
+def list_all_clients(
+    search: Optional[str] = None,
+    store_id: Optional[str] = None,
+    admin = Depends(get_current_super_admin),
+    db: Session = Depends(get_db)
+):
+    from app.models.customer import Customer
+    q = db.query(Customer)
+    if store_id:
+        q = q.filter(Customer.store_id == store_id)
+    if search:
+        s = f"%{search}%"
+        q = q.filter((Customer.name.ilike(s)) | (Customer.phone.ilike(s)) | (Customer.loyalty_card_no.ilike(s)))
+    clients = q.order_by(Customer.created_at.desc()).limit(100).all()
+    return [
+        {
+            "id": c.id,
+            "store_id": c.store_id,
+            "store_name": c.store.name if c.store else None,
+            "name": c.name,
+            "phone": c.phone,
+            "loyalty_card_no": c.loyalty_card_no,
+            "bonus_points": c.bonus_points or 0,
+            "is_blocked": bool(c.is_blocked),
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+        for c in clients
+    ]
+
+
+@router.post("/clients/{customer_id}/toggle-block", summary="Bloquer/Débloquer un client")
+def toggle_block_client(
+    customer_id: str,
+    admin = Depends(get_current_super_admin),
+    db: Session = Depends(get_db)
+):
+    from app.models.customer import Customer
+    cust = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not cust:
+        raise HTTPException(status_code=404, detail="Client introuvable")
+    cust.is_blocked = not bool(cust.is_blocked)
+    db.commit()
+    return {"success": True, "is_blocked": cust.is_blocked}
+
+
+# --- Audit & Security Log ---
+
+@router.get("/audit-logs", summary="Journal des actions et de sécurité")
+def get_platform_audit_logs(
+    limit: int = 50,
+    admin = Depends(get_current_super_admin),
+    db: Session = Depends(get_db)
+):
+    from app.models.audit import AuditLog
+    logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit).all()
+    return [
+        {
+            "id": l.id,
+            "event_name": l.event_name,
+            "actor_type": l.actor_type,
+            "actor_name": l.actor_name,
+            "resource_type": l.resource_type,
+            "resource_id": l.resource_id,
+            "created_at": l.created_at.isoformat() if l.created_at else None,
+        }
+        for l in logs
+    ]

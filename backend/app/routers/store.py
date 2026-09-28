@@ -1,8 +1,11 @@
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.store_service import StoreService
+from app.models.store import Store
+from app.schemas.store import is_recently_seen
 from app.schemas.store import (
     StoreDetailSchema,
     StoreUpdateSchema,
@@ -43,6 +46,53 @@ def get_current_store(
 @router.get("/list/public")
 def list_public_stores(db: Session = Depends(get_db)):
     return StoreService.get_public_stores(db)
+
+def _strict_owner(store_id: str, authorization: Optional[str], db: Session):
+    """Presence/opening can only be changed by a real, authenticated owner (no dev fallback)."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authentification requise")
+    require_store_admin(store_id, authorization, db)
+
+
+def _presence_payload(store):
+    return {
+        "is_open": store.is_open is not False,
+        "is_owner_online": is_recently_seen(store.owner_last_seen_at),
+        "owner_last_seen_at": store.owner_last_seen_at,
+    }
+
+
+@router.get("/{store_id}/status", summary="Statut public: boutique ouverte / vendeur en ligne")
+def get_store_status(store_id: str, db: Session = Depends(get_db)):
+    store = StoreService.resolve_store(db, slug=store_id) or db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Boutique introuvable")
+    return _presence_payload(store)
+
+
+@router.post("/{store_id}/presence", summary="Heartbeat du propriétaire connecté")
+def owner_heartbeat(store_id: str, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
+    _strict_owner(store_id, authorization, db)
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Boutique introuvable")
+    store.owner_last_seen_at = datetime.utcnow()
+    db.commit()
+    return _presence_payload(store)
+
+
+@router.put("/{store_id}/open", summary="Ouvrir ou fermer la boutique")
+def set_store_open(store_id: str, payload: dict, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
+    _strict_owner(store_id, authorization, db)
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Boutique introuvable")
+    store.is_open = bool(payload.get("is_open", True))
+    if store.is_open:
+        store.owner_last_seen_at = datetime.utcnow()
+    db.commit()
+    return _presence_payload(store)
+
 
 @router.get("/{store_id}/reviews")
 def get_store_reviews(store_id: str, db: Session = Depends(get_db)):

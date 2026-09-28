@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import engine, Base, get_db, ACTIVE_DATABASE_URL
 from fastapi import Depends
-from app.routers import store, catalog, channels, commerce, analytics, auth, customer, notifications, super_admin, subscription, orders, chat, calls, media, store_subscriptions, store_qr
+from app.routers import store, catalog, channels, commerce, analytics, auth, customer, notifications, super_admin, subscription, orders, chat, calls, media, store_subscriptions, store_qr, loyalty, wallet
 import app.models  # Ensures all models (Order, Chat, Payment, Media, Call, etc.) are registered
 from app.seed.seeder import seed_database
 import os
@@ -99,6 +99,8 @@ all_routers = [
     media.router,
     store_subscriptions.router,
     store_qr.router,
+    loyalty.router,
+    wallet.router,
 ]
 for r in all_routers:
     app.include_router(r, prefix=settings.API_V1_STR)

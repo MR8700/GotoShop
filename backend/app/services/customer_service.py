@@ -285,7 +285,8 @@ class CustomerService:
         store = db.query(Store).filter(Store.id == customer.store_id).first()
         is_loyalty_active = store.is_loyalty_active if (store and store.is_loyalty_active is not None) else True
         spend_per_point = store.loyalty_spend_per_point if (store and store.loyalty_spend_per_point and store.loyalty_spend_per_point > 0) else 1000
-        loyalty_points = (total_spent // spend_per_point) if is_loyalty_active else 0
+        calculated_points = (total_spent // spend_per_point) if is_loyalty_active else 0
+        loyalty_points = max(customer.bonus_points or 0, calculated_points) if is_loyalty_active else 0
 
         tiers = db.query(LoyaltyTier).filter(
             LoyaltyTier.store_id == customer.store_id,

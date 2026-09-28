@@ -18,6 +18,12 @@ import {
   updateSuperAdminPlan,
   fetchSuperAdminUssdConfigs,
   updateSuperAdminUssdConfig,
+  fetchSuperAdminWithdrawals,
+  approveSuperAdminWithdrawal,
+  rejectSuperAdminWithdrawal,
+  fetchSuperAdminClients,
+  toggleSuperAdminClientBlock,
+  fetchSuperAdminAuditLogs,
   getMediaUrl,
   dataCache,
 } from "../api/client";
@@ -43,6 +49,21 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
   const [subFilter, setSubFilter] = useState("PENDING");
   const [adminPlans, setAdminPlans] = useState([]);
   const [adminUssdConfigs, setAdminUssdConfigs] = useState([]);
+
+  // Withdrawals state
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
+  const [withdrawalActionId, setWithdrawalActionId] = useState(null);
+
+  // Multi-store clients state
+  const [platformClients, setPlatformClients] = useState([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const [clientSearchTerm, setClientSearchTerm] = useState("");
+  const [togglingClientId, setTogglingClientId] = useState(null);
+
+  // Audit logs state
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   // Modals & Handover
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -108,24 +129,111 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
   const loadDashboardData = async () => {
     try {
       if (!stores.length) setLoading(true);
-      const [ov, stList, reqs, pls, ussds] = await Promise.all([
+      const [ov, stList, reqs, pls, ussds, wList] = await Promise.all([
         fetchSuperAdminOverview(),
         fetchSuperAdminStores(),
         fetchSuperAdminSubRequests("ALL").catch(() => []),
         fetchSuperAdminPlans().catch(() => []),
         fetchSuperAdminUssdConfigs().catch(() => []),
+        fetchSuperAdminWithdrawals().catch(() => []),
       ]);
       setOverview(ov);
       setStores(stList);
       setSubRequests(reqs || []);
       setAdminPlans(pls || []);
       setAdminUssdConfigs(ussds || []);
+      setWithdrawals(wList || []);
     } catch (e) {
       showToast("Erreur de chargement des données: " + e.message);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadWithdrawals = async () => {
+    try {
+      setWithdrawalsLoading(true);
+      const data = await fetchSuperAdminWithdrawals();
+      setWithdrawals(data || []);
+    } catch (e) {
+      showToast(e.message || "Erreur chargement des retraits");
+    } finally {
+      setWithdrawalsLoading(false);
+    }
+  };
+
+  const handleApproveWithdrawal = async (txId) => {
+    try {
+      setWithdrawalActionId(txId);
+      await approveSuperAdminWithdrawal(txId);
+      showToast("Demande de retrait approuvée avec succès !");
+      await loadWithdrawals();
+    } catch (e) {
+      showToast(e.message || "Erreur d'approbation");
+    } finally {
+      setWithdrawalActionId(null);
+    }
+  };
+
+  const handleRejectWithdrawal = async (txId) => {
+    const reason = window.prompt("Motif du rejet (les fonds seront restitués au commerçant) :", "Coordonnées de compte incorrectes");
+    if (reason === null) return;
+    try {
+      setWithdrawalActionId(txId);
+      await rejectSuperAdminWithdrawal(txId, reason);
+      showToast("Demande rejetée et fonds recrédités au commerçant.");
+      await loadWithdrawals();
+    } catch (e) {
+      showToast(e.message || "Erreur de rejet");
+    } finally {
+      setWithdrawalActionId(null);
+    }
+  };
+
+  const loadClients = async (search = "") => {
+    try {
+      setClientsLoading(true);
+      const data = await fetchSuperAdminClients(search || null);
+      setPlatformClients(data || []);
+    } catch (e) {
+      showToast(e.message || "Erreur chargement des clients");
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
+  const handleToggleBlockClient = async (customerId) => {
+    try {
+      setTogglingClientId(customerId);
+      const res = await toggleSuperAdminClientBlock(customerId);
+      showToast(res.is_blocked ? "Client bloqué sur toute la plateforme" : "Client débloqué avec succès");
+      await loadClients(clientSearchTerm);
+    } catch (e) {
+      showToast(e.message || "Erreur lors de l'opération");
+    } finally {
+      setTogglingClientId(null);
+    }
+  };
+
+  const loadAuditLogs = async () => {
+    try {
+      setAuditLoading(true);
+      const data = await fetchSuperAdminAuditLogs(100);
+      setAuditLogs(data || []);
+    } catch (e) {
+      showToast(e.message || "Erreur chargement des logs d'audit");
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (auth.is_authenticated) {
+      if (superTab === "withdrawals") loadWithdrawals();
+      else if (superTab === "clients") loadClients(clientSearchTerm);
+      else if (superTab === "audit") loadAuditLogs();
+    }
+  }, [superTab, auth.is_authenticated]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -348,6 +456,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
 
   const pendingRequestsCount = subRequests.filter((r) => r.status === "PENDING").length;
   const pendingStoresCount = stores.filter((s) => !s.is_verified).length;
+  const pendingWithdrawalsCount = withdrawals.filter((w) => w.status === "PENDING").length;
 
   const filteredRequests = subRequests.filter((r) => {
     if (subFilter !== "ALL" && r.status !== subFilter) return false;
@@ -545,46 +654,87 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
         )}
 
         {/* Super-Admin Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-2 overflow-x-auto">
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-2 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setSuperTab("stores")}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3.5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               superTab === "stores"
                 ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
                 : "bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800"
             }`}
           >
             <Icon name="storefront" className="text-base" />
-            <span>Boutiques & Réseau ({stores.length})</span>
+            <span>Boutiques ({stores.length})</span>
+          </button>
+
+          <button
+            onClick={() => setSuperTab("withdrawals")}
+            className={`px-3.5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 whitespace-nowrap relative cursor-pointer ${
+              superTab === "withdrawals"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : "bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800"
+            }`}
+          >
+            <Icon name="account_balance_wallet" className="text-base" />
+            <span>Retraits Caisse</span>
+            {pendingWithdrawalsCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
+                {pendingWithdrawalsCount}
+              </span>
+            )}
           </button>
 
           <button
             onClick={() => setSuperTab("requests")}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 whitespace-nowrap relative ${
+            className={`px-3.5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 whitespace-nowrap relative cursor-pointer ${
               superTab === "requests"
                 ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
                 : "bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800"
             }`}
           >
             <Icon name="receipt_long" className="text-base" />
-            <span>Demandes d'Abonnement & Reçus</span>
+            <span>Abonnements</span>
             {pendingRequestsCount > 0 && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
-                {pendingRequestsCount} en attente
+                {pendingRequestsCount}
               </span>
             )}
           </button>
 
           <button
+            onClick={() => setSuperTab("clients")}
+            className={`px-3.5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+              superTab === "clients"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : "bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800"
+            }`}
+          >
+            <Icon name="groups" className="text-base" />
+            <span>Clients &amp; Fidélité</span>
+          </button>
+
+          <button
             onClick={() => setSuperTab("configs")}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3.5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               superTab === "configs"
                 ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
                 : "bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800"
             }`}
           >
             <Icon name="tune" className="text-base" />
-            <span>Configuration USSD & Forfaits</span>
+            <span>Tarifs &amp; USSD</span>
+          </button>
+
+          <button
+            onClick={() => setSuperTab("audit")}
+            className={`px-3.5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+              superTab === "audit"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : "bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800"
+            }`}
+          >
+            <Icon name="security" className="text-base" />
+            <span>Journal de Sécurité</span>
           </button>
         </div>
 
@@ -1211,6 +1361,280 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
         </div>
       </div>
     )}
+
+        {/* TAB 4: RETRAITS CAISSE COMMERÇANTS */}
+        {superTab === "withdrawals" && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+              <div>
+                <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+                  <span>Demandes de Retrait &amp; Caisse Marchande</span>
+                  {pendingWithdrawalsCount > 0 && (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-500 text-white animate-pulse">
+                      {pendingWithdrawalsCount} en attente
+                    </span>
+                  )}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Validation des virements Mobile Money et déblocage des soldes disponibles
+                </p>
+              </div>
+              <button
+                onClick={loadWithdrawals}
+                disabled={withdrawalsLoading}
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Icon name="refresh" className={`text-sm ${withdrawalsLoading ? "animate-spin" : ""}`} />
+                <span>Actualiser</span>
+              </button>
+            </div>
+
+            {withdrawalsLoading ? (
+              <div className="py-16 text-center text-slate-400 space-y-2">
+                <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs">Chargement des demandes de retrait...</p>
+              </div>
+            ) : withdrawals.length === 0 ? (
+              <div className="py-16 text-center text-slate-500 bg-slate-900/60 rounded-2xl border border-dashed border-slate-800 space-y-2">
+                <Icon name="account_balance_wallet" className="text-4xl text-slate-600 mx-auto" />
+                <p className="text-sm font-semibold">Aucune demande de retrait enregistrée.</p>
+                <p className="text-xs text-slate-500">Les demandes de retraits des commerçants apparaîtront ici.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {withdrawals.map((tx) => {
+                  const isPending = tx.status === "PENDING";
+                  const isCompleted = tx.status === "COMPLETED";
+                  return (
+                    <div
+                      key={tx.id}
+                      className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-slate-700 transition"
+                    >
+                      <div className="flex items-start gap-3.5">
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                          isPending
+                            ? "bg-amber-500/15 text-amber-400"
+                            : isCompleted
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-rose-500/15 text-rose-400"
+                        }`}>
+                          <Icon name="account_balance_wallet" className="text-xl" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-extrabold text-white text-sm">{tx.store_name}</span>
+                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                              isPending
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                : isCompleted
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                            }`}>
+                              {isPending ? "En Attente" : isCompleted ? "Validé" : "Rejeté"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-300 mt-1">{tx.note || "Retrait de fonds"}</p>
+                          <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                            Réf: {tx.reference} • {tx.created_at ? new Date(tx.created_at).toLocaleString("fr-FR") : "--"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between md:justify-end gap-4 pt-3 md:pt-0 border-t md:border-t-0 border-slate-800">
+                        <div className="text-right">
+                          <p className="text-lg font-black text-emerald-400 font-mono">
+                            {tx.amount?.toLocaleString()} <span className="text-xs text-emerald-300">FCFA</span>
+                          </p>
+                        </div>
+
+                        {isPending && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleApproveWithdrawal(tx.id)}
+                              disabled={withdrawalActionId === tx.id}
+                              className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm disabled:opacity-50"
+                            >
+                              <Icon name="check" className="text-sm" />
+                              <span>Approuver</span>
+                            </button>
+                            <button
+                              onClick={() => handleRejectWithdrawal(tx.id)}
+                              disabled={withdrawalActionId === tx.id}
+                              className="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                            >
+                              <Icon name="close" className="text-sm" />
+                              <span>Rejeter</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 5: CLIENTS MULTI-BOUTIQUES & FIDÉLITÉ */}
+        {superTab === "clients" && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+              <div>
+                <h3 className="font-extrabold text-white text-base">Annuaire Clients &amp; Cartes de Fidélité</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Supervision multi-boutiques, suivi des points et modération des comptes
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Recherche nom, tél ou n° carte..."
+                  value={clientSearchTerm}
+                  onChange={(e) => setClientSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") loadClients(clientSearchTerm);
+                  }}
+                  className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 w-full sm:w-64"
+                />
+                <button
+                  onClick={() => loadClients(clientSearchTerm)}
+                  disabled={clientsLoading}
+                  className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                >
+                  <Icon name="search" className={`text-sm ${clientsLoading ? "animate-spin" : ""}`} />
+                  <span>Filtrer</span>
+                </button>
+              </div>
+            </div>
+
+            {clientsLoading ? (
+              <div className="py-16 text-center text-slate-400 space-y-2">
+                <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs">Chargement de la base clients...</p>
+              </div>
+            ) : platformClients.length === 0 ? (
+              <div className="py-16 text-center text-slate-500 bg-slate-900/60 rounded-2xl border border-dashed border-slate-800 space-y-2">
+                <Icon name="groups" className="text-4xl text-slate-600 mx-auto" />
+                <p className="text-sm font-semibold">Aucun client trouvé.</p>
+                <p className="text-xs text-slate-500">Essayez un autre mot-clé ou réinitialisez la recherche.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {platformClients.map((c) => (
+                  <div
+                    key={c.id}
+                    className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-3 hover:border-slate-700 transition"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-extrabold text-white text-sm">{c.name || "Client Anonyme"}</h4>
+                          {c.is_blocked ? (
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                              Bloqué
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              Actif
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 font-mono mt-0.5">{c.phone || "Téléphone non renseigné"}</p>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Boutique : <strong className="text-slate-300">{c.store_name || "GotoShop"}</strong>
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block">Points</span>
+                        <span className="text-sm font-black text-amber-400 font-mono">{c.bonus_points} pts</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-500 block">N° Carte Luhn</span>
+                        <span className="text-xs font-mono font-bold text-slate-300">
+                          {c.loyalty_card_no ? c.loyalty_card_no.replace(/(\d{4})/g, "$1 ").trim() : "Non attribuée"}
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={() => handleToggleBlockClient(c.id)}
+                        disabled={togglingClientId === c.id}
+                        className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 transition cursor-pointer ${
+                          c.is_blocked
+                            ? "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30"
+                            : "bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30"
+                        }`}
+                      >
+                        <Icon name={c.is_blocked ? "lock_open" : "block"} className="text-sm" />
+                        <span>{c.is_blocked ? "Débloquer" : "Bloquer"}</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 6: JOURNAL DE SÉCURITÉ & AUDIT */}
+        {superTab === "audit" && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+              <div>
+                <h3 className="font-extrabold text-white text-base">Journal d'Audit &amp; Événements de Sécurité</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Traçabilité immuable des actions sensibles (connexions, modifications d'identifiants, retraits)
+                </p>
+              </div>
+              <button
+                onClick={loadAuditLogs}
+                disabled={auditLoading}
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Icon name="refresh" className={`text-sm ${auditLoading ? "animate-spin" : ""}`} />
+                <span>Actualiser</span>
+              </button>
+            </div>
+
+            {auditLoading ? (
+              <div className="py-16 text-center text-slate-400 space-y-2">
+                <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs">Chargement du journal d'audit...</p>
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <div className="py-16 text-center text-slate-500 bg-slate-900/60 rounded-2xl border border-dashed border-slate-800 space-y-2">
+                <Icon name="security" className="text-4xl text-slate-600 mx-auto" />
+                <p className="text-sm font-semibold">Aucun événement d'audit récent.</p>
+              </div>
+            ) : (
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-800 text-xs">
+                {auditLogs.map((log) => (
+                  <div key={log.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-800/40 transition">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
+                        <Icon name="history" className="text-base" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-white font-mono">{log.event_name}</p>
+                        <p className="text-[11px] text-slate-400">
+                          Acteur : <span className="text-slate-200">{log.actor_name || "Système"}</span> ({log.actor_type})
+                          {log.resource_type ? ` • Ressource : ${log.resource_type} (${log.resource_id || ""})` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-500 whitespace-nowrap self-end sm:self-center">
+                      {log.created_at ? new Date(log.created_at).toLocaleString("fr-FR") : "--"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* Modal Inscription / Création de Boutique */}

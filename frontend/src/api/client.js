@@ -591,6 +591,15 @@ export async function fetchAnalytics(period = "today", storeSlug = null) {
 }
 
 // Authentication & Security APIs
+// Headers for merchant-only actions: JSON + the owner's session token.
+function ownerJsonHeaders() {
+  const token = getAuthToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 export function getAuthToken() {
   return safeStorage.getItem("conversastore_auth_token");
 }
@@ -994,6 +1003,92 @@ export async function fetchCustomerStats() {
   return res.json();
 }
 
+export async function fetchCustomerLoyaltyCard() {
+  const token = getCustomerToken();
+  if (!token) return null;
+  const res = await fetch(`${API_BASE}/customer/loyalty-card`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Impossible de charger la carte de fidélité");
+  }
+  return res.json();
+}
+
+export async function fetchMerchantClientLoyaltyCard(customerId) {
+  const token = getAuthToken();
+  if (!token) throw new Error("Connexion commerçant requise");
+  const res = await fetch(`${API_BASE}/customer/merchant/clients/${customerId}/loyalty-card`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Impossible de charger la carte du client");
+  }
+  return res.json();
+}
+
+export async function fetchLoyaltyVerification(cardNo, code) {
+  const res = await fetch(`${API_BASE}/loyalty/verify/${encodeURIComponent(cardNo)}/${encodeURIComponent(code)}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Échec de vérification");
+  }
+  return res.json();
+}
+
+export async function fetchCustomerLoyaltyHistory(limit = 50) {
+  const token = getCustomerToken();
+  if (!token) return [];
+  const res = await fetch(`${API_BASE}/customer/loyalty/history?limit=${limit}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function fetchCustomerLoyaltyCoupons() {
+  const token = getCustomerToken();
+  if (!token) return [];
+  const res = await fetch(`${API_BASE}/customer/loyalty/coupons`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function validateCustomerCoupon(code, orderAmount = 0) {
+  const token = getCustomerToken();
+  if (!token) throw new Error("Connexion client requise");
+  const res = await fetch(`${API_BASE}/customer/loyalty/validate-coupon`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ code, order_amount: orderAmount }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur de validation du coupon");
+  }
+  return res.json();
+}
+
+export async function checkOrderCoupon(storeId, code, orderAmount = 0) {
+  const res = await fetch(`${API_BASE}/orders/check-coupon`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ store_id: storeId, code, order_amount: orderAmount }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur de validation du coupon");
+  }
+  return res.json();
+}
+
 // ----------------------------------------------------------------------------
 // Merchant Loyalty Program Management API
 // ----------------------------------------------------------------------------
@@ -1006,7 +1101,7 @@ export async function fetchLoyaltyTiers(storeId) {
 export async function createLoyaltyTier(storeId, payload) {
   const res = await fetch(`${API_BASE}/store/${storeId}/loyalty-tiers`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -1019,7 +1114,7 @@ export async function createLoyaltyTier(storeId, payload) {
 export async function updateLoyaltyTier(storeId, tierId, payload) {
   const res = await fetch(`${API_BASE}/store/${storeId}/loyalty-tiers/${tierId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -1032,6 +1127,7 @@ export async function updateLoyaltyTier(storeId, tierId, payload) {
 export async function deleteLoyaltyTier(storeId, tierId) {
   const res = await fetch(`${API_BASE}/store/${storeId}/loyalty-tiers/${tierId}`, {
     method: "DELETE",
+    headers: ownerJsonHeaders(),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -1232,7 +1328,7 @@ export async function fetchMerchantClientDetail(customerId, storeSlug = null) {
 export async function moderateMerchantClient(customerId, data) {
   const res = await fetch(`${API_BASE}/customer/merchant/clients/${customerId}/moderate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Erreur lors de la modération du client");
@@ -1243,7 +1339,7 @@ export async function moderateMerchantClient(customerId, data) {
 export async function grantMerchantClientPerk(customerId, data) {
   const res = await fetch(`${API_BASE}/customer/merchant/clients/${customerId}/grant-perk`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Erreur lors de l'attribution de l'avantage");
@@ -1611,6 +1707,78 @@ export async function updateSuperAdminUssdConfig(configId, payload) {
   return res.json();
 }
 
+export async function fetchSuperAdminWithdrawals(status = null) {
+  const token = getSuperAdminToken();
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const res = await fetch(`${API_BASE}/super-admin/withdrawals${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function approveSuperAdminWithdrawal(txId) {
+  const token = getSuperAdminToken();
+  const res = await fetch(`${API_BASE}/super-admin/withdrawals/${txId}/approve`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur d'approbation");
+  }
+  return res.json();
+}
+
+export async function rejectSuperAdminWithdrawal(txId, reason = null) {
+  const token = getSuperAdminToken();
+  const query = reason ? `?reason=${encodeURIComponent(reason)}` : "";
+  const res = await fetch(`${API_BASE}/super-admin/withdrawals/${txId}/reject${query}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur de rejet");
+  }
+  return res.json();
+}
+
+export async function fetchSuperAdminClients(search = null, storeId = null) {
+  const token = getSuperAdminToken();
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+  if (storeId) params.set("store_id", storeId);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  const res = await fetch(`${API_BASE}/super-admin/clients${q}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function toggleSuperAdminClientBlock(customerId) {
+  const token = getSuperAdminToken();
+  const res = await fetch(`${API_BASE}/super-admin/clients/${customerId}/toggle-block`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors du blocage/déblocage");
+  }
+  return res.json();
+}
+
+export async function fetchSuperAdminAuditLogs(limit = 50) {
+  const token = getSuperAdminToken();
+  const res = await fetch(`${API_BASE}/super-admin/audit-logs?limit=${limit}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
 // ============================================================================
 // CONVERSATIONAL COMMERCE & REAL-TIME CHAT API
 // ============================================================================
@@ -1745,7 +1913,7 @@ export async function fetchOrderDetail(orderId) {
 export async function acceptOrder(orderId, sellerName = "Commerçant") {
   const res = await fetch(`${API_BASE}/orders/${orderId}/accept`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify({ seller_name: sellerName }),
   });
   if (!res.ok) {
@@ -1761,7 +1929,7 @@ export async function acceptOrder(orderId, sellerName = "Commerçant") {
 export async function rejectOrder(orderId, reason = "Indisponible", sellerName = "Commerçant") {
   const res = await fetch(`${API_BASE}/orders/${orderId}/reject`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify({ reason, seller_name: sellerName }),
   });
   if (!res.ok) {
@@ -1866,7 +2034,7 @@ export async function uploadPaymentProof(orderId, formData) {
 export async function confirmOrderPayment(orderId, verifiedBy = "Commerçant", verificationNote = null) {
   const res = await fetch(`${API_BASE}/orders/${orderId}/confirm-payment`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify({ verified_by: verifiedBy, verification_note: verificationNote }),
   });
   if (!res.ok) {
@@ -1876,6 +2044,56 @@ export async function confirmOrderPayment(orderId, verifiedBy = "Commerçant", v
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
   dataCache.invalidate("notifications:");
+  return res.json();
+}
+
+export async function requestOrderPaymentOtp(orderId, { phoneNumber, operator = "ORANGE" }) {
+  const res = await fetch(`${API_BASE}/orders/${orderId}/request-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone_number: phoneNumber, operator }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur de demande de code OTP");
+  }
+  return res.json();
+}
+
+export async function fetchMerchantWallet(storeSlug = null) {
+  const activeSlug = storeSlug || getActiveStoreSlug();
+  const query = activeSlug ? `?store=${encodeURIComponent(activeSlug)}` : "";
+  const token = getAuthToken();
+  const res = await fetch(`${API_BASE}/merchant/wallet${query}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(activeSlug ? { "X-Store-Slug": activeSlug } : {}),
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur de chargement du portefeuille");
+  }
+  return res.json();
+}
+
+export async function requestWalletWithdrawal({ amount, payoutPhone, payoutOperator = "ORANGE", note = null, storeSlug = null }) {
+  const activeSlug = storeSlug || getActiveStoreSlug();
+  const query = activeSlug ? `?store=${encodeURIComponent(activeSlug)}` : "";
+  const res = await fetch(`${API_BASE}/merchant/wallet/withdraw${query}`, {
+    method: "POST",
+    headers: ownerJsonHeaders(),
+    body: JSON.stringify({
+      amount: parseInt(amount, 10),
+      payout_phone: payoutPhone,
+      payout_operator: payoutOperator,
+      note,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Erreur lors de la demande de retrait");
+  }
   return res.json();
 }
 
@@ -1904,7 +2122,7 @@ export async function payMobileMoneyOrder(orderId, { operator, phoneNumber, otpC
 export async function rejectOrderPayment(orderId, reason = "Montant incorrect", verifiedBy = "Commerçant") {
   const res = await fetch(`${API_BASE}/orders/${orderId}/reject-payment`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify({ reason, verified_by: verifiedBy }),
   });
   if (!res.ok) {
@@ -1920,7 +2138,7 @@ export async function rejectOrderPayment(orderId, reason = "Montant incorrect", 
 export async function updateOrderStatus(orderId, status, notes = null, actorName = "Commerçant") {
   const res = await fetch(`${API_BASE}/orders/${orderId}/status`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify({ status, notes, actor_name: actorName }),
   });
   if (!res.ok) {
@@ -2148,7 +2366,7 @@ export async function fetchMyStores(customerId = null, guestToken = null) {
 export async function createStoreAnnouncement(storeId, { title, content, announcement_type = "NEWS" }) {
   const res = await fetch(`${API_BASE}/stores/${storeId}/announcements`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify({ title, content, announcement_type }),
   });
   if (!res.ok) {
@@ -2193,8 +2411,38 @@ export async function trackQrScan(storeId, customerId = null, guestToken = null)
   }
 }
 
+// ============================================================================
+// Store presence (boutique ouverte / vendeur en ligne)
+// ============================================================================
 
+export async function fetchStoreStatus(storeId) {
+  const res = await fetch(`${API_BASE}/store/${storeId}/status`);
+  if (!res.ok) throw new Error("Statut boutique indisponible");
+  return await res.json();
+}
 
+export async function sendOwnerHeartbeat(storeId) {
+  const token = getAuthToken();
+  if (!token) return null;
+  const res = await fetch(`${API_BASE}/store/${storeId}/presence`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Heartbeat refusé");
+  return await res.json();
+}
 
-
-
+export async function setStoreOpen(storeId, isOpen) {
+  const token = getAuthToken();
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/store/${storeId}/open`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ is_open: isOpen }),
+  });
+  const data = await safeParseJson(res);
+  if (!res.ok) throw new Error(formatErrorMessage(data, "Impossible de changer l'état de la boutique"));
+  dataCache.invalidate("store:");
+  return data;
+}

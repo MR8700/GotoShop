@@ -22,6 +22,7 @@ class Customer(Base):
     preferred_channel = Column(String(50), default="WHATSAPP")
     notes = Column(Text, nullable=True)
     session_token = Column(String(128), nullable=True, index=True)
+    loyalty_card_no = Column(String(32), unique=True, index=True, nullable=True)
     notification_preferences = Column(Text, nullable=True) # JSON toggles for notification categories
     
     # Moderation & Merchant Perks

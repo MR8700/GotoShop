@@ -66,6 +66,10 @@ class Settings:
     DB_PATH: Path = DB_PATH
     BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    CARD_SIGNING_KEY: str = os.getenv("CARD_SIGNING_KEY", "")
+    OTP_SECRET: str = os.getenv("OTP_SECRET", "gotoshop-otp-secret-key-salt")
+    PAYMENT_SIMULATOR: bool = os.getenv("PAYMENT_SIMULATOR", "true").lower() in ("true", "1", "yes")
+    WALLET_COMMISSION_RATE: float = float(os.getenv("WALLET_COMMISSION_RATE", "0.0"))
     
     # Supabase Integration (PostgreSQL + Cloud Storage for Vercel Serverless)
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Icon from "./Icon";
-import { fetchStoreQr, getMediaUrl } from "../api/client";
-import { generateStoreQrSvg } from "../utils/qrGenerator";
+import { getMediaUrl } from "../api/client";
+import { generateStoreQrSvg, buildStoreUrl } from "../utils/qrGenerator";
 
 export default function StoreQrModal({
   isOpen,
@@ -19,35 +19,24 @@ export default function StoreQrModal({
     }
   }, [isOpen, store?.slug, store?.id]);
 
-  const loadQr = async () => {
+  const loadQr = () => {
     const slug = store?.slug || store?.id || "maboutique";
     const origin = typeof window !== "undefined" ? window.location.origin : "https://gotoshop.com";
-    const directUrl = `${origin}/?store=${slug}`;
+    const directUrl = buildStoreUrl(slug, origin);
 
-    // 1. Immediately render crisp vector SVG (instantaneous with zero delay)
-    const clientSvg = generateStoreQrSvg(slug, origin);
+    // Real, scannable QR Code generated locally (instant, works offline). The URL
+    // always uses the domain the app is actually served from.
     setQrData({
-      qr_svg: clientSvg,
+      qr_svg: generateStoreQrSvg(slug, origin, { title: store?.name || "Boutique GotoShop" }),
       full_web_url: directUrl,
       store_slug: slug,
       store_name: store?.name || "Boutique GotoShop",
     });
     setLoading(false);
-
-    // 2. Fetch server-enhanced QR data if backend is reachable
-    try {
-      const data = await fetchStoreQr(slug);
-      if (data?.qr_svg) {
-        setQrData(data);
-      }
-    } catch (e) {
-      // Graceful fallback already in place and active
-      console.warn("Notice: QR Code displayed using instant vector rendering engine:", e.message);
-    }
   };
 
   const handleCopyUrl = () => {
-    const url = qrData?.full_web_url || `${window.location.origin}/store/${store?.slug}`;
+    const url = qrData?.full_web_url || buildStoreUrl(store?.slug || "", window.location.origin);
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url);
       if (showToast) showToast("Lien de la boutique copié !");
@@ -198,7 +187,7 @@ export default function StoreQrModal({
                   <span>Scannez avec votre téléphone</span>
                 </div>
                 <p className="text-[11px] text-slate-500 font-mono tracking-wider pt-1">
-                  gotoshop.com/store/{store?.slug}
+                  {(qrData?.full_web_url || "").replace(/^https?:\/\//, "")}
                 </p>
               </div>
             </div>

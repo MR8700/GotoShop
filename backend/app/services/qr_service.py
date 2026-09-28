@@ -1,82 +1,29 @@
 """
-Pure-Python QR Code and Print Layout Generator for GotoShop Stores.
-Zero external library dependencies. Generates crisp, high-contrast SVGs.
+QR Code + print layout generator for GotoShop stores.
+
+Uses the real QR encoder (app.services.qr_encoder): the codes are genuine,
+scannable ISO 18004 QR Codes (the former implementation only drew a
+placeholder pattern that no phone could read).
 """
-from typing import Dict, Any, List
-import urllib.parse
+from typing import Dict, Any
+import html
 
-def _generate_qr_svg(url: str, title: str = "GotoShop Store", primary_color: str = "#0f172a") -> str:
-    """
-    Generates a high-contrast standard vector SVG QR matrix using encoded path data.
-    The resulting SVG scales infinitely without pixelation, ready for printing.
-    """
-    # Deterministic grid hash generator for preview and fallback scan
-    # In production, uses standard vector blocks
-    size = 25
-    matrix = [[0] * size for _ in range(size)]
+from app.config import settings
+from app.services.qr_encoder import encode_text, to_svg, ECC_M
 
-    # Draw Position Detection Patterns (Finder Patterns)
-    def draw_finder(r_start, c_start):
-        for r in range(7):
-            for c in range(7):
-                if r in (0, 6) or c in (0, 6) or (2 <= r <= 4 and 2 <= c <= 4):
-                    matrix[r_start + r][c_start + c] = 1
 
-    # 3 Finders: Top-Left, Top-Right, Bottom-Left
-    draw_finder(0, 0)
-    draw_finder(0, size - 7)
-    draw_finder(size - 7, 0)
+def store_public_url(slug: str, origin: str = "") -> str:
+    """Canonical public URL of a store (the SPA resolves /store/<slug>)."""
+    base = (origin or settings.FRONTEND_URL or "").rstrip("/")
+    return f"{base}/store/{slug}"
 
-    # Timing patterns
-    for i in range(8, size - 8):
-        matrix[6][i] = 1 if i % 2 == 0 else 0
-        matrix[i][6] = 1 if i % 2 == 0 else 0
 
-    # Alignment pattern at (size-9, size-9)
-    align_r, align_c = size - 9, size - 9
-    for r in range(5):
-        for c in range(5):
-            if r in (0, 4) or c in (0, 4) or (r == 2 and c == 2):
-                matrix[align_r + r][align_c + c] = 1
+def _generate_qr_svg(url: str, title: str = "GotoShop Store", primary_color: str = "#0f172a",
+                     border: int = 4) -> str:
+    """Genuine scannable QR Code as a compact vector SVG (scales without loss)."""
+    qr = encode_text(url, ECC_M, boost_ecl=True)
+    return to_svg(qr, border=border, dark=primary_color, light="#ffffff", title=title)
 
-    # Data encoding simulation based on URL hash
-    url_bytes = url.encode("utf-8")
-    byte_idx = 0
-    for c in range(size - 1, 0, -2):
-        if c <= 6:
-            c -= 1  # Skip timing column
-        for r in range(size):
-            actual_r = size - 1 - r if (c // 2) % 2 == 1 else r
-            for col_offset in range(2):
-                col = c - col_offset
-                if col < 0 or col >= size:
-                    continue
-                # Skip finders & timing
-                in_tl = actual_r < 9 and col < 9
-                in_tr = actual_r < 9 and col >= size - 8
-                in_bl = actual_r >= size - 8 and col < 9
-                in_timing = actual_r == 6 or col == 6
-                if in_tl or in_tr or in_bl or in_timing:
-                    continue
-                b = url_bytes[byte_idx % len(url_bytes)]
-                bit = (b >> ((actual_r + col) % 8)) & 1
-                matrix[actual_r][col] = bit
-                byte_idx += 1
-
-    # Render clean SVG path
-    rects = []
-    for r in range(size):
-        for c in range(size):
-            if matrix[r][c] == 1:
-                rects.append(f'<rect x="{c * 10}" y="{r * 10}" width="10" height="10" fill="{primary_color}" />')
-
-    total_dim = size * 10
-    svg_body = "".join(rects)
-    
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {total_dim} {total_dim}" width="100%" height="100%" shape-rendering="crispEdges">
-  <rect width="{total_dim}" height="{total_dim}" fill="#ffffff" rx="8" />
-  {svg_body}
-</svg>"""
 
 class QRService:
     PRINT_FORMATS = [
@@ -113,13 +60,15 @@ class QRService:
     @staticmethod
     def get_store_qr(store, base_url: str = "") -> Dict[str, Any]:
         slug = store.slug
+        # Encode the origin the API is actually reached through (correct in prod behind
+        # the Vercel rewrite); fall back to settings.FRONTEND_URL when unknown.
+        full_web_url = store_public_url(slug, base_url)
         public_url = f"{base_url}/store/{slug}" if base_url else f"/store/{slug}"
-        full_web_url = f"https://gotoshop.com/store/{slug}"
 
         svg_content = _generate_qr_svg(
             url=full_web_url,
             title=store.name,
-            primary_color="#0f172a"
+            primary_color="#0f172a",
         )
 
         return {
@@ -137,21 +86,20 @@ class QRService:
 
     @staticmethod
     def generate_store_qr_svg(slug: str, store_name: str = "GotoShop Store", format_preset: str = "square") -> str:
-        url = f"https://gotoshop.com/store/{slug}"
+        url = store_public_url(slug)
         svg_raw = _generate_qr_svg(url=url, title=store_name)
-        if format_preset == "poster_a4":
-            return f"""<!-- Affiche Vitrine A4 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1131" width="100%" height="100%">
+        if format_preset != "poster_a4":
+            return svg_raw
+        # Nested <svg> with explicit box so the QR keeps its aspect ratio on the poster.
+        qr_inner = svg_raw.replace("<svg ", '<svg x="150" y="250" width="500" height="500" ', 1)
+        name = html.escape(store_name)
+        shown = html.escape(url.replace("https://", "").replace("http://", ""))
+        return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1131" width="100%" height="100%">
   <rect width="800" height="1131" fill="#f8fafc" />
   <rect x="40" y="40" width="720" height="1051" rx="24" fill="#ffffff" stroke="#e2e8f0" stroke-width="3" />
-  <text x="400" y="140" text-anchor="middle" font-family="system-ui, sans-serif" font-size="36" font-weight="900" fill="#0f172a">{store_name}</text>
+  <text x="400" y="140" text-anchor="middle" font-family="system-ui, sans-serif" font-size="36" font-weight="900" fill="#0f172a">{name}</text>
   <text x="400" y="185" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" fill="#64748b">Scannez pour commander en direct</text>
-  <g transform="translate(175, 250) scale(1.8)">
-    {svg_raw}
-  </g>
-  <text x="400" y="780" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="#3b82f6">gotoshop.com/store/{slug}</text>
-  <text x="400" y="820" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" fill="#94a3b8">Commerce conversationnel intégré • Paiement Mobile Money & Suivi direct</text>
+  {qr_inner}
+  <text x="400" y="800" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="#3b82f6">{shown}</text>
+  <text x="400" y="840" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" fill="#94a3b8">Commerce conversationnel intégré • Paiement Mobile Money &amp; Suivi direct</text>
 </svg>"""
-        return svg_raw
-
-QrService = QRService

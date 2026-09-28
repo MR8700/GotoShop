@@ -182,8 +182,11 @@ def require_store_admin(
     """
     token = extract_token(authorization)
     if not token:
-        # Check local dev fallback if no token
-        return None
+        # SECURITY: no more "dev fallback". A missing token is always rejected.
+        raise HTTPException(
+            status_code=401,
+            detail="Authentification requise : connectez-vous en tant que commerçant."
+        )
 
     # 1. SuperAdmin bypass
     from app.models.super_admin import SuperAdmin
@@ -205,7 +208,10 @@ def require_store_admin(
         or_(Store.id == store_id, Store.slug == store_id)
     ).first()
 
-    if target_store and target_store.owner_id != owner.id:
+    if not target_store:
+        raise HTTPException(status_code=404, detail="Boutique introuvable")
+
+    if target_store.owner_id != owner.id:
         raise HTTPException(
             status_code=403,
             detail="Accès interdit : vous n'avez pas l'autorisation d'administrer la boutique d'un autre commerçant."
@@ -226,7 +232,16 @@ def logout(
     return {"success": True, "message": "Déconnexion réussie."}
 
 @router.post("/reset-credentials")
-def reset_credentials(db: Session = Depends(get_db)):
+def reset_credentials(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    # SECURITY: this used to be public, letting anyone reset the first owner's
+    # password to the well-known default. Only a SuperAdmin session may do it.
+    from app.models.super_admin import SuperAdmin
+    token = extract_token(authorization)
+    if not token or not db.query(SuperAdmin).filter(SuperAdmin.session_token == token).first():
+        raise HTTPException(status_code=403, detail="Réservé au super-administrateur.")
     from app.models.store import Owner
     owner = db.query(Owner).first()
     if not owner:

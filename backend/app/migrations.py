@@ -46,6 +46,8 @@ def run_migrations(engine):
                     ("communication_profile", "TEXT"),
                     ("qr_code_svg", "TEXT"),
                     ("followers_count", "INTEGER DEFAULT 0"),
+                    ("is_open", "BOOLEAN DEFAULT TRUE"),
+                    ("owner_last_seen_at", "TIMESTAMP"),
                 ]
                 for col_name, col_type in cols_to_add:
                     if col_name not in store_cols:
@@ -58,6 +60,7 @@ def run_migrations(engine):
                     ("country", "VARCHAR(100) DEFAULT 'Burkina Faso'"),
                     ("delivery_neighborhood", "VARCHAR(255)"),
                     ("notification_preferences", "TEXT"),
+                    ("loyalty_card_no", "VARCHAR(32)"),
                 ]
                 for col_name, col_type in cust_cols_to_add:
                     if col_name not in cust_cols:

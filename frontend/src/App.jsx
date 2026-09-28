@@ -46,6 +46,8 @@ import NotificationDrawer from "./components/NotificationDrawer";
 import StoreQrModal from "./components/StoreQrModal";
 import MyStoresPage from "./components/MyStoresPage";
 import DecisionSupportWidget from "./components/DecisionSupportWidget";
+import WalletPage from "./components/WalletPage";
+import VerifyCardModal from "./components/VerifyCardModal";
 import { getActiveStoreSlug, setActiveStoreSlug, trackQrScan, dataCache } from "./api/client";
 
 export default function App() {
@@ -90,6 +92,15 @@ export default function App() {
     return false;
   });
   const [isStoreSwitcherOpen, setIsStoreSwitcherOpen] = useState(false);
+  const [verifyCardTarget, setVerifyCardTarget] = useState(() => {
+    if (typeof window !== "undefined") {
+      const match = window.location.pathname.match(/^\/verify\/([^/]+)\/([^/]+)/);
+      if (match) {
+        return { cardNo: match[1], code: match[2] };
+      }
+    }
+    return null;
+  });
 
   // Store Explorer / Discovery view mode: "explorer" | "store"
   const [viewMode, setViewMode] = useState(() => {
@@ -452,7 +463,7 @@ export default function App() {
   useEffect(() => {
     if (!isCurrentStoreOwner && appMode === "owner") {
       setAppMode("client");
-      if (activeTab === "commandes" || activeTab === "stats" || activeTab === "reglages") {
+      if (activeTab === "commandes" || activeTab === "stats" || activeTab === "reglages" || activeTab === "portefeuille") {
         setActiveTab("boutique");
       }
     }
@@ -460,7 +471,7 @@ export default function App() {
 
   const handleSelectTab = (tab) => {
     // When in owner mode, protect admin screens
-    if (effectiveAppMode === "owner" && (tab === "commandes" || tab === "stats" || tab === "reglages")) {
+    if (effectiveAppMode === "owner" && (tab === "commandes" || tab === "stats" || tab === "reglages" || tab === "portefeuille")) {
       if (!authStatus.is_authenticated) {
         setPendingAdminTab(tab);
         setIsLoginOpen(true);
@@ -1052,7 +1063,7 @@ export default function App() {
       <main className={`flex flex-col relative w-full pt-16 bg-surface flex-grow ${
         activeTab === "chat"
           ? "max-w-4xl px-2 sm:px-4"
-          : activeTab === "commandes" || activeTab === "stats" || activeTab === "reglages"
+          : activeTab === "commandes" || activeTab === "stats" || activeTab === "reglages" || activeTab === "portefeuille"
           ? "max-w-3xl px-3 sm:px-6"
           : "max-w-2xl px-3 sm:px-5"
       } mx-auto`}>
@@ -1141,7 +1152,7 @@ export default function App() {
             <ClientCommandesPage
               customer={customer}
               onOpenAuth={() => setIsCustomerAuthOpen(true)}
-              onNavigateToShop={() => setActiveTab("boutique")}
+              onNavigateToShop={() => handleSelectTab("boutique")}
               showToast={showToast}
               onOpenChat={handleOpenChat}
             />
@@ -1155,10 +1166,10 @@ export default function App() {
             customer={customer}
             initialConversationId={activeConversationId}
             appMode={effectiveAppMode}
-            onClose={() => setActiveTab("boutique")}
+            onClose={() => handleSelectTab("boutique")}
             showToast={showToast}
             onNavigateToOrder={() => {
-              setActiveTab("commandes");
+              handleSelectTab("commandes");
             }}
           />
         )}
@@ -1169,7 +1180,7 @@ export default function App() {
             <StatsPage
               store={store}
               showToast={showToast}
-              onNavigateToCatalog={() => setActiveTab("boutique")}
+              onNavigateToCatalog={() => handleSelectTab("boutique")}
               onProductUpdated={() => loadAllData()}
               onProductDeleted={() => loadAllData()}
             />
@@ -1177,9 +1188,20 @@ export default function App() {
             <ClientStatsPage
               customer={customer}
               onOpenAuth={() => setIsCustomerAuthOpen(true)}
-              onNavigateToShop={() => setActiveTab("boutique")}
+              onNavigateToShop={() => handleSelectTab("boutique")}
               showToast={showToast}
             />
+          )
+        )}
+
+        {/* Tab: Portefeuille / Caisse (Commerçant) */}
+        {activeTab === "portefeuille" && (
+          effectiveAppMode === "owner" && isCurrentStoreOwner ? (
+            <WalletPage store={store} showToast={showToast} />
+          ) : (
+            <div className="p-8 text-center text-on-surface-variant text-sm">
+              Cet espace est réservé au propriétaire de la boutique.
+            </div>
           )
         )}
 
@@ -1198,6 +1220,7 @@ export default function App() {
           ) : (
             <ClientProfilePage
               customer={customer}
+              store={store}
               onUpdateCustomer={(c) => {
                 setCustomer(c);
                 showToast("Profil client mis à jour");
@@ -1210,6 +1233,7 @@ export default function App() {
               }}
               onOpenAuth={() => setIsCustomerAuthOpen(true)}
               onOpenOwnerLogin={() => setIsLoginOpen(true)}
+              onOpenVerify={(cardNo, code) => setVerifyCardTarget({ cardNo, code })}
               showToast={showToast}
             />
           )
@@ -1218,7 +1242,7 @@ export default function App() {
         {activeTab === "confirm" && (
           <ConfirmTokenPage
             token={confirmToken || "demo_token"}
-            onBackToStore={() => setActiveTab("boutique")}
+            onBackToStore={() => handleSelectTab("boutique")}
             showToast={showToast}
           />
         )}
@@ -1339,6 +1363,24 @@ export default function App() {
         store={store}
         showToast={showToast}
       />
+
+      {/* Loyalty Card Verification Modal */}
+      {verifyCardTarget && (
+        <VerifyCardModal
+          cardNo={verifyCardTarget.cardNo}
+          code={verifyCardTarget.code}
+          onClose={() => {
+            setVerifyCardTarget(null);
+            if (typeof window !== "undefined" && window.location.pathname.startsWith("/verify/")) {
+              window.history.pushState({}, "", "/");
+            }
+          }}
+          onNavigateToStore={(slug) => {
+            setVerifyCardTarget(null);
+            handleSelectStoreFromExplorer(slug);
+          }}
+        />
+      )}
     </div>
   );
 }

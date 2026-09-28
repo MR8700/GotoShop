@@ -1,6 +1,6 @@
 import Icon from "./Icon";
 import React, { useState } from "react";
-import { createConversationalOrder, getActiveStoreSlug, setCustomerToken, getCustomerToken } from "../api/client";
+import { createConversationalOrder, getActiveStoreSlug, setCustomerToken, getCustomerToken, checkOrderCoupon } from "../api/client";
 import { getBusinessContext } from "../utils/businessContext";
 import {
   getProductSalesConfig,
@@ -73,10 +73,37 @@ export default function ConversationalOrderModal({
   const [errorMessage, setErrorMessage] = useState("");
   const [createdOrder, setCreatedOrder] = useState(null);
 
+  // Coupon & Discount state
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+
   const deliveryFee = 500;
   const unitPrice = selectedVariant?.price_override || product?.price || 0;
   const subtotal = Math.round(unitPrice * quantity);
-  const totalAmount = subtotal + deliveryFee;
+  const discountAmount = appliedCoupon?.discount_amount || 0;
+  const totalAmount = Math.max(0, subtotal - discountAmount) + deliveryFee;
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    try {
+      setValidatingCoupon(true);
+      setCouponError("");
+      const resolvedStoreId = store?.id || store?.slug || getActiveStoreSlug() || "default";
+      const res = await checkOrderCoupon(resolvedStoreId, couponCode.trim(), subtotal);
+      if (res.valid) {
+        setAppliedCoupon(res);
+        showToast?.(`Coupon appliqué : -${res.discount_amount} FCFA`);
+      } else {
+        setCouponError(res.message || "Code promo invalide");
+      }
+    } catch (e) {
+      setCouponError(e.message || "Erreur de validation");
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
 
   const handleStepQuantity = (delta) => {
     setQuantity((prev) => {
@@ -209,6 +236,7 @@ export default function ConversationalOrderModal({
         country: customerCountry,
         city: customerCity,
         delivery_neighborhood: deliveryNeighborhood || deliveryAddress,
+        coupon_code: appliedCoupon ? appliedCoupon.code : null,
       };
 
       const result = await createConversationalOrder(orderPayload);
@@ -219,11 +247,17 @@ export default function ConversationalOrderModal({
       if (result?.customer && onCustomerAuthenticated) {
         onCustomerAuthenticated(result.customer);
       }
-      showToast?.(`Commande #${result?.order_number || ""} transmise avec succès ! Redirection vers vos commandes...`);
+      showToast?.(`Commande #${result?.order_number || ""} transmise avec succès !`);
+      // BUGFIX: the modal used to call onClose() immediately here, which skipped
+      // straight past the fully-built "SUCCESS" confirmation screen below
+      // (order recap + "Ouvrir le chat" button) — that screen was dead code the
+      // user could never actually see. We still notify the parent right away so
+      // the "commandes" tab / counters refresh in the background, but we now
+      // show the confirmation step and let the user close it themselves.
       if (onOrderCreated) {
         onOrderCreated(result);
       }
-      onClose();
+      setStep("SUCCESS");
     } catch (err) {
       console.error("Order submit failed:", err);
       const msg = err.message || "Erreur lors de la transmission de la commande. Veuillez réessayer.";
@@ -732,6 +766,69 @@ export default function ConversationalOrderModal({
                 )}
               </div>
 
+              {/* Promo Code / Coupon Section */}
+              <div className="p-3 bg-surface-elevated/50 rounded-xl border border-border space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Icon name="local_offer" className="text-[15px] text-primary" />
+                    <span>Code Promo / Réduction</span>
+                  </span>
+                  {appliedCoupon && (
+                    <span className="text-[11px] text-emerald-400 font-bold">
+                      ✓ -{appliedCoupon.discount_amount} FCFA
+                    </span>
+                  )}
+                </div>
+
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Icon name="confirmation_number" className="text-[16px] text-emerald-400" />
+                      <div>
+                        <p className="font-bold text-emerald-400">{appliedCoupon.code}</p>
+                        <p className="text-[10px] text-foreground-muted">{appliedCoupon.title}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppliedCoupon(null);
+                        setCouponCode("");
+                      }}
+                      className="text-[11px] text-foreground-muted hover:text-rose-400 underline cursor-pointer"
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Ex: BIENVENUE10, OR5"
+                      value={couponCode}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value.toUpperCase());
+                        setCouponError("");
+                      }}
+                      className="flex-1 h-9 px-3 rounded-lg bg-surface border border-border text-xs uppercase font-mono tracking-wider focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={!couponCode.trim() || validatingCoupon}
+                      className="px-3 h-9 rounded-lg bg-primary text-white font-bold text-xs flex items-center gap-1 disabled:opacity-50 cursor-pointer transition-all"
+                    >
+                      {validatingCoupon ? (
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <span>Appliquer</span>
+                      )}
+                    </button>
+                  </div>
+                )}
+                {couponError && <p className="text-[11px] text-rose-400">{couponError}</p>}
+              </div>
+
               {/* Order Breakdown / Totals */}
               <div className="p-3.5 bg-surface-elevated/70 rounded-xl border border-border space-y-1.5 text-xs">
                 <div className="flex justify-between text-foreground-muted">
@@ -740,6 +837,12 @@ export default function ConversationalOrderModal({
                   </span>
                   <span className="font-semibold text-foreground whitespace-nowrap">{subtotal.toLocaleString()} {store?.currency || "FCFA"}</span>
                 </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-400 font-semibold">
+                    <span>Remise ({appliedCoupon?.code || "Fidélité"})</span>
+                    <span>-{discountAmount.toLocaleString()} {store?.currency || "FCFA"}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-foreground-muted">
                   <span>Frais de livraison ({deliveryCity})</span>
                   <span className="font-semibold text-foreground">{deliveryFee.toLocaleString()} {store?.currency || "FCFA"}</span>

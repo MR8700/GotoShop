@@ -76,6 +76,10 @@ class Store(Base):
     qr_code_svg = Column(Text, nullable=True)           # Cached QR Code SVG
     followers_count = Column(Integer, default=0)
 
+    # Live presence: shop opened by its owner + heartbeat of the owner's session
+    is_open = Column(Boolean, default=True)
+    owner_last_seen_at = Column(DateTime, nullable=True)
+
     # Multi-Tenant & SaaS Subscription Settings
     subscription_status = Column(String(30), default="ACTIVE")  # ACTIVE, TRIAL, SUSPENDED, EXPIRED
     subscription_plan = Column(String(30), default="PRO")       # STARTER, PRO, VIP

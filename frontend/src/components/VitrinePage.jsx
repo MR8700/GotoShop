@@ -4,6 +4,7 @@ import { getMediaUrl, fetchStoreReviews, subscribeToStore, unsubscribeFromStore,
 import ProductManageModal from "./ProductManageModal";
 import NewProductModal from "./NewProductModal";
 import Footer from "./Footer";
+import StoreHeader from "./StoreHeader";
 import { getBusinessContext } from "../utils/businessContext";
 import { formatSalesUnitPrice } from "../utils/salesEngine";
 
@@ -206,183 +207,21 @@ export default function VitrinePage({
         </div>
       )}
 
-      {/* Store Identity Card - High Contrast & Dual-Tone Layered Elevation */}
-      <section className="rounded-2xl bg-surface-container p-5 sm:p-6 border-2 border-slate-300 dark:border-slate-700/80 shadow-card space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            {/* Store Logo with Isolated Verified Badge */}
-            <div className="relative shrink-0">
-              <img
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border-2 border-slate-200 dark:border-slate-700 bg-surface shadow-xs"
-                src={getMediaUrl(store?.logo_url) || "/media/store/logo.jpg"}
-                alt=""
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "/media/store/logo.jpg";
-                }}
-              />
-              {store?.is_verified && (
-                <span
-                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-secondary text-white flex items-center justify-center shadow ring-2 ring-surface select-none"
-                  title="Commerçant certifié GotoShop"
-                >
-                  <Icon name="check" className="text-[12px]" aria-hidden="true" />
-                </span>
-              )}
-            </div>
-
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-bold text-on-surface tracking-tight truncate">
-                {store?.name}
-              </h1>
-              <p className="text-xs text-on-surface-variant mt-0.5 line-clamp-1">
-                {store?.tagline || store?.description}
-              </p>
-
-              {/* Dynamic Customer Rating & Sales Count with Merchant Visibility Controls */}
-              {(store?.show_ratings_publicly !== false || store?.show_sales_count_publicly !== false) && (
-                <div className="flex items-center gap-2 text-xs mt-1.5 flex-wrap">
-                  {store?.show_ratings_publicly !== false && (
-                    <span className="flex items-center gap-1 text-amber-500 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/25">
-                      <Icon name="star" className="text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }} aria-hidden="true" />
-                      <span>{store?.rating || 4.9}</span>
-                    </span>
-                  )}
-                  {store?.show_ratings_publicly !== false && store?.show_sales_count_publicly !== false && (
-                    <span className="text-on-surface-variant/40">•</span>
-                  )}
-                  {store?.show_sales_count_publicly !== false && (
-                    <span className="text-on-surface-variant font-medium">
-                      {store?.sales_count || 340} ventes conclues
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Action cluster: Subscribe, QR Code, Direct Chat */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            {mode === "client" && (
-              <button
-                onClick={handleToggleSubscribe}
-                className={`h-9 px-2.5 sm:px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                  isSubscribed
-                    ? "bg-secondary/15 text-secondary border-secondary/30"
-                    : "bg-surface-secondary hover:bg-surface-elevated text-on-surface border-subtle"
-                }`}
-                title={isSubscribed ? "Vous suivez cette boutique" : "S'abonner aux nouveautés"}
-              >
-                <Icon name={isSubscribed ? "notifications_active" : "notifications_none"} className="text-[16px]" />
-                <span className="hidden xs:inline">{isSubscribed ? "Suivi" : "Suivre"}</span>
-                {followersCount > 0 && <span className="opacity-70 text-[10px]">({followersCount})</span>}
-              </button>
-            )}
-
-            {onOpenQrModal && (
-              <button
-                onClick={onOpenQrModal}
-                className="w-9 h-9 rounded-xl bg-surface-secondary hover:bg-surface-elevated text-on-surface-variant hover:text-on-surface border border-subtle flex items-center justify-center transition-all cursor-pointer"
-                title="Afficher le QR code et imprimer les supports"
-                aria-label="QR Code"
-              >
-                <Icon name="qr_code_2" className="text-[18px]" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Owner Note / Bio (Dual-Tone Superimposed Layer) */}
-        {store?.owner_bio && (
-          <div className="p-3.5 rounded-xl bg-surface-secondary border-l-4 border-l-primary border border-slate-300 dark:border-slate-700/80 text-xs text-on-surface leading-relaxed shadow-xs flex items-start gap-2.5">
-            <Icon name="format_quote" className="text-primary text-[18px] shrink-0 mt-0.5" aria-hidden="true" />
-            <span className="italic">{store.owner_bio}</span>
-          </div>
-        )}
-
-        {/* Conversational Channels & Direct Inquiry */}
-        <div className="pt-2.5 border-t-2 border-slate-200 dark:border-slate-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-on-surface flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Canaux de discussion en direct</span>
-            </span>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-              Vendeur en ligne
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-            {/* WhatsApp Direct */}
-            <a
-              href={`https://wa.me/${(store?.contact_whatsapp || "22670123456").replace(/\D/g, "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-xs font-semibold text-[#128C7E] dark:text-[#25D366] transition-all shrink-0 cursor-pointer shadow-2xs"
-              title="Discuter sur WhatsApp"
-            >
-              <Icon name="chat" className="text-[18px] text-[#25D366]" />
-              <span>WhatsApp Direct</span>
-            </a>
-
-            {/* Other active channels */}
-            {Array.isArray(channels) &&
-              channels
-                .filter((c) => c.is_active !== false && c.channel_type !== "WHATSAPP")
-                .map((chan, idx) => {
-                  const isMessenger = chan.channel_type === "MESSENGER";
-                  const isTiktok = chan.channel_type === "TIKTOK";
-                  const href = isMessenger
-                    ? `https://m.me/${chan.account_handle}`
-                    : isTiktok
-                    ? `https://www.tiktok.com/@${chan.account_handle?.replace("@", "")}`
-                    : `tel:${chan.account_handle}`;
-                  return (
-                    <a
-                      key={idx}
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-secondary hover:bg-surface-container-highest border border-slate-300 dark:border-slate-700 text-xs font-semibold text-on-surface transition-all shrink-0 cursor-pointer shadow-2xs"
-                      title={chan.subtitle || chan.display_title}
-                    >
-                      <Icon
-                        name={chan.icon_name || (isMessenger ? "forum" : isTiktok ? "smart_display" : "call")}
-                        className="text-[18px]"
-                        style={{ color: chan.theme_color || "var(--color-primary)" }}
-                      />
-                      <span>{chan.display_title || chan.channel_type}</span>
-                    </a>
-                  );
-                })}
-
-            {/* Direct Inquiry button for GotoShop Internal Chat */}
-            {onOpenChat && (
-              <button
-                type="button"
-                onClick={() => onOpenChat(null)}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary hover:brightness-105 text-white text-xs font-bold shadow-xs transition-all shrink-0 cursor-pointer active:scale-98"
-                title="Poser une question directement au commerçant"
-              >
-                <Icon name="forum" className="text-[18px]" />
-                <span>Poser une question</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Trust Badges - Superimposed distinct cards */}
-        <div className="grid grid-cols-3 gap-2 pt-2 border-t-2 border-slate-200 dark:border-slate-800">
-          {store?.trust_badges?.map((badge, idx) => (
-            <div key={idx} className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-surface-secondary text-center border border-slate-300 dark:border-slate-700 shadow-xs">
-              <Icon name={badge.icon_name} className="text-[18px] text-primary" aria-hidden="true" />
-              <span className="text-[11px] font-semibold text-on-surface mt-1 line-clamp-1">
-                {badge.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Store header: cover (logo), round profile photo, live open/online status */}
+      <StoreHeader
+        store={store}
+        mode={mode}
+        isCurrentStoreOwner={isCurrentStoreOwner}
+        customer={customer}
+        channels={channels}
+        onOpenQrModal={onOpenQrModal}
+        onOpenChat={onOpenChat}
+        onOpenCustomerAuth={onOpenCustomerAuth}
+        showToast={showToast}
+        isSubscribed={isSubscribed}
+        followersCount={followersCount}
+        onToggleSubscribe={handleToggleSubscribe}
+      />
 
       {/* Horizontal Category Navigation */}
       <nav className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">

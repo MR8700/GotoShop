@@ -88,8 +88,9 @@ def create_product(
     db: Session = Depends(get_db)
 ):
     target_store_ref = req.store_id or x_store_slug or store_slug
-    if target_store_ref:
-        require_store_admin(target_store_ref, authorization, db)
+    if not target_store_ref:
+        raise HTTPException(status_code=400, detail="Boutique cible manquante")
+    require_store_admin(target_store_ref, authorization, db)
     try:
         product = CatalogService.create_product(db, req)
         return product

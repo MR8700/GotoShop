@@ -11,6 +11,7 @@ from app.models.store import Store, StoreSubscription, StoreAccessHistory, Store
 from app.models.customer import Customer
 from app.services.store_service import StoreService
 from app.services.notification_engine import NotificationEngine
+from app.routers.auth import require_store_admin
 
 router = APIRouter(tags=["Store Subscriptions & Mes Boutiques"])
 
@@ -271,11 +272,13 @@ def get_my_stores(
 def create_announcement(
     store_id: str,
     req: CreateAnnouncementRequest,
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     store = StoreService.resolve_store(db, slug=store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Boutique introuvable")
+    require_store_admin(store.id, authorization, db)
 
     ann = StoreAnnouncement(
         id=str(uuid.uuid4()),

@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 
 from app.models.order import Order, OrderItem, OrderDelivery
 from app.models.payment import Payment, PaymentProof
@@ -54,6 +54,8 @@ class OrderService:
         country: Optional[str] = "Burkina Faso",
         city: Optional[str] = "Ouagadougou",
         delivery_neighborhood: Optional[str] = None,
+        coupon_code: Optional[str] = None,
+        use_tier_discount: bool = True,
     ) -> Dict[str, Any]:
         try:
             store = StoreService.resolve_store(db, slug=store_id)
@@ -231,7 +233,34 @@ class OrderService:
                 )
                 order_items.append(item)
 
-            total_amount = subtotal + delivery_fee
+            # Calculate discount from coupon or loyalty tier
+            discount_amount = 0
+            applied_coupon_id = None
+            if coupon_code:
+                from app.services.loyalty_service import LoyaltyService
+                coupon_res = LoyaltyService.validate_coupon(db, actual_store_id, coupon_code, subtotal)
+                if coupon_res.get("valid"):
+                    discount_amount = coupon_res.get("discount_amount", 0)
+                    applied_coupon_id = coupon_res.get("coupon_id")
+            elif use_tier_discount and actual_customer_id:
+                from app.services.customer_service import CustomerService
+                from app.services.loyalty_service import LoyaltyService
+                cust_obj = db.query(Customer).filter(Customer.id == actual_customer_id).first()
+                if cust_obj:
+                    stats = CustomerService.get_customer_stats(db, cust_obj)
+                    tier_info = LoyaltyService.get_tier_info(stats.loyalty_points)
+                    disc_pct = tier_info.get("discount_percent", 0)
+                    if disc_pct > 0:
+                        discount_amount = int((subtotal * disc_pct) / 100)
+
+            total_amount = max(0, subtotal - discount_amount) + delivery_fee
+
+            if applied_coupon_id:
+                from app.models.loyalty import LoyaltyRewardCoupon
+                c_row = db.query(LoyaltyRewardCoupon).filter(LoyaltyRewardCoupon.id == applied_coupon_id).first()
+                if c_row:
+                    c_row.is_used = True
+                    c_row.used_at = datetime.utcnow()
 
             order = Order(
                 id=order_id,
@@ -246,7 +275,7 @@ class OrderService:
                 payment_status="PAYMENT_PENDING",
                 subtotal_amount=subtotal,
                 delivery_fee=delivery_fee,
-                discount_amount=0,
+                discount_amount=discount_amount,
                 total_amount=total_amount,
                 currency=store.currency or "FCFA",
                 notes=notes,
@@ -616,6 +645,37 @@ class OrderService:
             metadata_json=json.dumps({"notes": notes})
         )
         db.add(audit)
+
+        # 1. Release escrow and credit customer loyalty points upon delivery
+        if new_status in ("DELIVERED", "COMPLETED", "LIVREE"):
+            try:
+                from app.services.wallet_service import WalletService
+                WalletService.release_escrow(db, order.store_id, order.id)
+            except Exception as e_w:
+                print("Notice: wallet release_escrow skipped:", e_w)
+
+            try:
+                if order.customer_id:
+                    from app.services.loyalty_service import LoyaltyService
+                    points = max(1, int(order.total_amount / 1000))
+                    LoyaltyService.credit_points(
+                        db=db,
+                        store_id=order.store_id,
+                        customer_id=order.customer_id,
+                        points=points,
+                        entry_type="EARNED_ORDER",
+                        description=f"Points fidélité commande #{order.order_number}",
+                        order_id=order.id
+                    )
+            except Exception as e_lp:
+                print("Notice: loyalty credit_points skipped:", e_lp)
+        elif new_status in ("CANCELLED", "ANNULEE", "REJECTED"):
+            try:
+                from app.services.wallet_service import WalletService
+                WalletService.refund_escrow(db, order.store_id, order.id, reason=notes or "Commande annulée/refusée")
+            except Exception as e_rf:
+                print("Notice: wallet refund_escrow skipped:", e_rf)
+
         db.commit()
         db.refresh(order)
 
@@ -854,17 +914,23 @@ class OrderService:
         query = db.query(Order)
         if store_id:
             query = query.filter(Order.store_id == store_id)
-        if customer_id:
-            query = query.filter(Order.customer_id == customer_id)
-            if not include_hidden:
-                query = query.filter((Order.is_client_hidden.is_(False) | Order.is_client_hidden.is_(None)))
-        elif customer_token:
-            query = query.filter(
-                (Order.customer_token == customer_token) |
-                (Order.customer_id.in_(
+        if customer_id or customer_token:
+            # BUGFIX: customer_id and customer_token used to be checked with if/elif,
+            # so as soon as a customer was logged in (customer_id present) any order
+            # placed earlier as a guest (customer_id NULL, only customer_token set)
+            # was silently excluded from the results ("orders that don't register").
+            # Combine both with OR, like OrderService.list_orders' sibling
+            # CustomerService.get_customer_orders already does, so every order tied
+            # to this person - as a guest or once authenticated - is returned.
+            conditions = []
+            if customer_id:
+                conditions.append(Order.customer_id == customer_id)
+            if customer_token:
+                conditions.append(Order.customer_token == customer_token)
+                conditions.append(Order.customer_id.in_(
                     db.query(Customer.id).filter(Customer.session_token == customer_token)
                 ))
-            )
+            query = query.filter(or_(*conditions))
             if not include_hidden:
                 query = query.filter((Order.is_client_hidden.is_(False) | Order.is_client_hidden.is_(None)))
         if status:

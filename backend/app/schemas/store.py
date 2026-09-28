@@ -1,6 +1,15 @@
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
-from datetime import datetime
+from pydantic import BaseModel, computed_field
+from datetime import datetime, timedelta
+
+# The owner counts as "online" if his session pinged the server within this window.
+OWNER_ONLINE_WINDOW_SECONDS = 90
+
+
+def is_recently_seen(last_seen: Optional[datetime]) -> bool:
+    if not last_seen:
+        return False
+    return datetime.utcnow() - last_seen <= timedelta(seconds=OWNER_ONLINE_WINDOW_SECONDS)
 
 class TrustBadgeSchema(BaseModel):
     id: str
@@ -115,7 +124,16 @@ class StoreDetailSchema(BaseModel):
     trust_badges: List[TrustBadgeSchema] = []
     delivery_cities: List[DeliveryCitySchema] = []
     loyalty_tiers: List[LoyaltyTierSchema] = []
+    city: Optional[str] = None
+    country: Optional[str] = None
+    is_open: Optional[bool] = True
+    owner_last_seen_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
+
+    @computed_field
+    @property
+    def is_owner_online(self) -> bool:
+        return is_recently_seen(self.owner_last_seen_at)
 
     class Config:
         from_attributes = True

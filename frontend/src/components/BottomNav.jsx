@@ -14,10 +14,11 @@ export default function BottomNav({ activeTab, onSelectTab, pendingCount = 0, mo
       ]
     : [
         { id: "boutique", label: "Vitrine", icon: "storefront" },
-        { id: "commandes", label: "Arbitrage", icon: "receipt_long", badge: pendingCount },
+        { id: "commandes", label: "Commandes", icon: "receipt_long", badge: pendingCount },
+        { id: "portefeuille", label: "Caisse", icon: "account_balance_wallet" },
         { id: "chat", label: "Messages", icon: "forum", badge: unreadChatCount },
         { id: "stats", label: "Stats", icon: "monitoring" },
-        { id: "reglages", label: "Paramètres", icon: "tune" },
+        { id: "reglages", label: "Réglages", icon: "tune" },
       ];
 
   return (

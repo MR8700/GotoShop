@@ -51,7 +51,9 @@ export default function Header({
     } else {
       switch (activeTab) {
         case "commandes":
-          return "Arbitrage";
+          return "Commandes";
+        case "portefeuille":
+          return "Caisse & Retraits";
         case "chat":
           return "Messagerie Client";
         case "stats":
@@ -254,6 +256,19 @@ export default function Header({
                           <span>Accéder à ma boutique</span>
                         </button>
                       ) : null}
+
+                      {isCurrentStoreOwner && (
+                        <button
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            onNavigate("portefeuille");
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2 text-on-surface cursor-pointer"
+                        >
+                          <Icon name="account_balance_wallet" className="text-[16px] text-emerald-500" />
+                          <span>Caisse &amp; Portefeuille</span>
+                        </button>
+                      )}
 
                       {isCurrentStoreOwner && onOpenQrModal && (
                         <button

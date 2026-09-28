@@ -13,6 +13,8 @@ from app.models.media import Media
 from app.models.chat import Conversation, ConversationParticipant, ChatMessage, MessageAttachment
 from app.models.call import CallSession
 from app.models.audit import AuditLog
+from app.models.loyalty import LoyaltyLedgerEntry, LoyaltyRewardCoupon
+from app.models.wallet import MerchantWallet, WalletTransaction
 
 __all__ = [
     "Owner",
@@ -48,5 +50,9 @@ __all__ = [
     "MessageAttachment",
     "CallSession",
     "AuditLog",
+    "LoyaltyLedgerEntry",
+    "LoyaltyRewardCoupon",
+    "MerchantWallet",
+    "WalletTransaction",
 ]
 
