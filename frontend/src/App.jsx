@@ -48,6 +48,7 @@ import MyStoresPage from "./components/MyStoresPage";
 import DecisionSupportWidget from "./components/DecisionSupportWidget";
 import WalletPage from "./components/WalletPage";
 import VerifyCardModal from "./components/VerifyCardModal";
+import PwaInstallPrompt from "./components/PwaInstallPrompt";
 import { getActiveStoreSlug, setActiveStoreSlug, trackQrScan, dataCache } from "./api/client";
 
 export default function App() {
@@ -1018,6 +1019,9 @@ export default function App() {
           <Icon name="check_circle" className="text-[18px] text-secondary" />
           <span>{toastMessage}</span>
         </div>
+
+        {/* PWA Direct Installation Banner */}
+        <PwaInstallPrompt showToast={showToast} />
       </div>
     );
   }
@@ -1132,6 +1136,7 @@ export default function App() {
               loadUnreadChatCount();
             }}
             onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
+            onCustomerAuthenticated={(newCust) => handleCustomerAuthSuccess(newCust)}
             onNavigateToOrders={() => handleSelectTab("commandes")}
             onOpenChat={handleOpenChat}
           />
@@ -1381,6 +1386,9 @@ export default function App() {
           }}
         />
       )}
+
+      {/* PWA Direct Installation Banner */}
+      <PwaInstallPrompt showToast={showToast} />
     </div>
   );
 }

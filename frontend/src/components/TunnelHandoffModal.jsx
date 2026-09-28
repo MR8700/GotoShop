@@ -6,9 +6,12 @@ import {
   cancelConversationalOrder,
   saveLocalGuestOrder,
   getCustomerToken,
+  setCustomerToken,
+  customerQuickRegister,
 } from "../api/client";
 import safeStorage from "../utils/safeStorage";
 import { sendNativeNotification, requestNotificationPermission } from "../utils/nativeNotifications";
+import CustomerAuthModal from "./CustomerAuthModal";
 
 export default function TunnelHandoffModal({
   store,
@@ -23,6 +26,7 @@ export default function TunnelHandoffModal({
   showToast,
   onOrderCreated,
   onOpenCustomerAuth,
+  onCustomerAuthenticated,
   onNavigateToOrders,
   onOpenChat,
 }) {
@@ -98,6 +102,10 @@ export default function TunnelHandoffModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCancellingOrder, setIsCancellingOrder] = useState(false);
   const [createdOrder, setCreatedOrder] = useState(null);
+
+  // Compulsory customer authentication state before ordering
+  const [accountPromptOpen, setAccountPromptOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Synchronize internal items with cart when cart prop changes externally
   useEffect(() => {
@@ -214,28 +222,15 @@ export default function TunnelHandoffModal({
   const totalAmount = subtotal + deliveryFee;
   const currency = store?.currency || "FCFA";
 
-  // Handle direct order creation on GotoShop (100% on platform, no social media)
-  const handleConfirmOrder = async () => {
-    if (items.length === 0) {
-      showToast?.("Votre panier est vide");
-      return;
-    }
-    if (!customer && !customerName.trim()) {
-      showToast?.("Veuillez renseigner votre nom pour la livraison");
-      return;
-    }
-
+  // Execute order submission with authenticated customer
+  const executeOrderSubmission = async (activeCustomer = null, activeToken = null) => {
     setIsSubmitting(true);
     showToast?.("Validation de votre commande sur GotoShop...");
 
     try {
       const resolvedStoreId = store?.id || store?.slug || "faso-danfani";
-      const effectiveToken = getCustomerToken() || customer?.session_token || safeStorage.getItem("conversastore_guest_token") || ("guest_" + Math.random().toString(36).substring(2, 10));
-      try {
-        if (!getCustomerToken() && !customer?.session_token) {
-          safeStorage.setItem("conversastore_guest_token", effectiveToken);
-        }
-      } catch (e) {}
+      const targetCustomer = activeCustomer || customer;
+      const targetToken = activeToken || (targetCustomer && targetCustomer.session_token) || getCustomerToken();
 
       const payload = {
         store_id: resolvedStoreId,
@@ -258,18 +253,25 @@ export default function TunnelHandoffModal({
           location_accuracy: wantSendGps ? locationAccuracy : null,
           delivery_notes: deliveryNotes || null,
         },
-        customer_name: customer?.name || customerName.trim() || "Client GotoShop",
-        customer_phone: customer?.phone || customerPhone.trim() || null,
-        customer_id: customer?.id && !customer.id.startsWith("cust-local-") ? customer.id : null,
-        customer_token: effectiveToken,
+        customer_name: targetCustomer?.name || customerName.trim() || "Client GotoShop",
+        customer_phone: targetCustomer?.phone || customerPhone.trim() || null,
+        customer_id: targetCustomer?.id && !targetCustomer.id.startsWith("cust-local-") ? targetCustomer.id : null,
+        customer_token: targetToken,
         delivery_fee: deliveryFee,
         notes: deliveryNotes || null,
         city: selectedCity,
         delivery_neighborhood: customLocality || null,
-        register_account: !customer && Boolean(customerPhone.trim()),
+        register_account: true,
       };
 
       const orderResult = await createConversationalOrder(payload);
+
+      if (orderResult.customer_token) {
+        setCustomerToken(orderResult.customer_token);
+      }
+      if (orderResult.customer && onCustomerAuthenticated) {
+        onCustomerAuthenticated(orderResult.customer);
+      }
 
       // Persist in local guest orders for offline tracking
       saveLocalGuestOrder({
@@ -307,6 +309,68 @@ export default function TunnelHandoffModal({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Handle direct order creation on GotoShop (100% on platform, with mandatory account validation)
+  const handleConfirmOrder = async () => {
+    if (items.length === 0) {
+      showToast?.("Votre panier est vide");
+      return;
+    }
+
+    // MANDATORY ACCOUNT CHECK:
+    // If not authenticated, we MUST authenticate/register to place and track order
+    if (!customer) {
+      const trimmedName = customerName.trim();
+      const trimmedPhone = customerPhone.trim();
+
+      if (!trimmedName || !trimmedPhone) {
+        showToast?.("Compte obligatoire : veuillez renseigner votre nom et votre numéro de téléphone pour valider.");
+        setAuthModalOpen(true);
+        return;
+      }
+
+      // If user provided name and phone in delivery form, suggest activating account directly with these details!
+      setAccountPromptOpen(true);
+      return;
+    }
+
+    // Already authenticated: proceed directly
+    await executeOrderSubmission(customer);
+  };
+
+  const handleAcceptDirectAccount = async () => {
+    setAccountPromptOpen(false);
+    setIsSubmitting(true);
+    try {
+      showToast?.("Activation de votre compte client...");
+      const fullCity = customLocality?.trim() ? `${selectedCity} (${customLocality.trim()})` : selectedCity;
+      const res = await customerQuickRegister({
+        name: customerName.trim(),
+        phone: customerPhone.trim(),
+        city: fullCity,
+        country: store?.country || "Burkina Faso",
+        locality: customLocality?.trim() || "",
+      });
+      showToast?.(`Compte activé pour ${res.customer.name} !`);
+      const token = res.access_token || res.token;
+      if (token) {
+        setCustomerToken(token);
+      }
+      if (onCustomerAuthenticated) {
+        onCustomerAuthenticated(res.customer);
+      }
+      await executeOrderSubmission(res.customer, token);
+    } catch (err) {
+      showToast?.(err.message || "Erreur lors de l'activation du compte. Vérifiez vos informations.");
+      setAuthModalOpen(true);
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRejectDirectAccount = () => {
+    setAccountPromptOpen(false);
+    setAuthModalOpen(true);
   };
 
   // Handle direct pending order cancellation
@@ -619,39 +683,70 @@ export default function TunnelHandoffModal({
       {items.length > 0 && (
         <>
           {/* Customer Identification */}
-          <div className="bg-surface-card rounded-2xl p-4 border border-subtle shadow-card space-y-3">
-            <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
-              <Icon name="person" className="text-primary text-[17px]" />
-              <span>Vos coordonnées de livraison</span>
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div>
-                <label className="text-[11px] font-semibold text-on-surface-variant block mb-1">
-                  Votre Nom complet *
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Awa Traoré"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface text-xs focus:outline-none focus:border-strong"
-                />
+          {customer ? (
+            <div className="bg-surface-card rounded-2xl p-4 border border-subtle shadow-card space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+                  <Icon name="verified_user" className="text-secondary text-[17px]" />
+                  <span>Compte Client Connecté</span>
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  Connecté 🟢
+                </span>
               </div>
-              <div>
-                <label className="text-[11px] font-semibold text-on-surface-variant block mb-1">
-                  Numéro de Téléphone *
-                </label>
-                <input
-                  type="tel"
-                  placeholder="Ex: 70 12 34 56"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface text-xs focus:outline-none focus:border-strong"
-                />
+              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-secondary/70 border border-subtle text-xs">
+                <div className="w-8 h-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                  {customer.name ? customer.name.charAt(0).toUpperCase() : "C"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-on-surface truncate">{customer.name}</p>
+                  <p className="text-[11px] text-on-surface-variant truncate">{customer.phone}</p>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-surface-card rounded-2xl p-4 border border-primary/20 shadow-card space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+                  <Icon name="person" className="text-primary text-[17px]" />
+                  <span>Vos coordonnées de livraison</span>
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                  Compte requis pour commander
+                </span>
+              </div>
+              <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                Renseignez votre nom et numéro WhatsApp. Votre compte sera activé automatiquement pour vous permettre de suivre votre commande.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-[11px] font-semibold text-on-surface-variant block mb-1">
+                    Votre Nom complet *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Awa Traoré"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full h-9 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface text-xs focus:outline-none focus:border-strong"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-on-surface-variant block mb-1">
+                    Numéro WhatsApp / Téléphone *
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="Ex: 70 12 34 56"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="w-full h-9 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface text-xs focus:outline-none focus:border-strong"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Delivery & GPS Section */}
           <div className="bg-surface-card rounded-2xl p-4 border border-subtle shadow-card space-y-3.5">
@@ -795,6 +890,92 @@ export default function TunnelHandoffModal({
           </div>
         </>
       )}
+
+      {/* Mandatory Account Confirmation Modal for Visitors */}
+      {accountPromptOpen && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setAccountPromptOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+        >
+          <div className="relative w-full max-w-md rounded-3xl bg-surface border-2 border-primary/30 p-6 shadow-2xl space-y-4 text-on-surface">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-1">
+                <Icon name="verified_user" className="text-[28px]" />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-on-surface">
+                Activation de votre compte client
+              </h3>
+              <p className="text-xs text-on-surface-variant max-w-xs mx-auto">
+                Pour valider votre commande et suivre sa livraison en temps réel, un compte GotoShop est obligatoire.
+              </p>
+            </div>
+
+            <div className="bg-surface-secondary/80 rounded-2xl p-4 border border-subtle space-y-2 text-xs">
+              <p className="text-[11px] font-semibold text-primary uppercase tracking-wider">
+                Vos coordonnées renseignées :
+              </p>
+              <div className="space-y-1.5 text-on-surface">
+                <div className="flex items-center gap-2">
+                  <Icon name="person" className="text-[16px] text-on-surface-variant" />
+                  <span className="font-semibold">{customerName}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Icon name="phone" className="text-[16px] text-on-surface-variant" />
+                  <span className="font-mono">{customerPhone}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Icon name="location_on" className="text-[16px] text-on-surface-variant" />
+                  <span>{selectedCity} {customLocality ? `(${customLocality})` : ""}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={handleAcceptDirectAccount}
+                disabled={isSubmitting}
+                className="w-full py-3 rounded-xl bg-primary hover:brightness-105 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <Icon name="check_circle" className="text-[18px]" />
+                <span>Oui, ce sont mes coordonnées — Activer &amp; Commander</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRejectDirectAccount}
+                disabled={isSubmitting}
+                className="w-full py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface font-semibold text-xs border border-subtle transition-all cursor-pointer"
+              >
+                Non, utiliser d'autres coordonnées
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Auth Modal (Prefilled with input fields when requested) */}
+      <CustomerAuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialData={{
+          name: customerName,
+          phone: customerPhone,
+          city: selectedCity,
+          locality: customLocality,
+        }}
+        onSuccess={async (newCust) => {
+          setAuthModalOpen(false);
+          if (onCustomerAuthenticated) {
+            onCustomerAuthenticated(newCust);
+          }
+          showToast?.(`Compte activé : ${newCust.name}`);
+          await executeOrderSubmission(newCust, newCust.session_token);
+        }}
+        showToast={showToast}
+      />
     </div>
   );
 }

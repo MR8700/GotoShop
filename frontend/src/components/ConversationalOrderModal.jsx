@@ -1,6 +1,7 @@
 import Icon from "./Icon";
 import React, { useState } from "react";
-import { createConversationalOrder, getActiveStoreSlug, setCustomerToken, getCustomerToken, checkOrderCoupon } from "../api/client";
+import { createConversationalOrder, getActiveStoreSlug, setCustomerToken, getCustomerToken, checkOrderCoupon, customerQuickRegister } from "../api/client";
+import CustomerAuthModal from "./CustomerAuthModal";
 import { getBusinessContext } from "../utils/businessContext";
 import {
   getProductSalesConfig,
@@ -79,6 +80,10 @@ export default function ConversationalOrderModal({
   const [couponError, setCouponError] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
+  // Mandatory account confirmation state for visitors
+  const [accountPromptOpen, setAccountPromptOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
   const deliveryFee = 500;
   const unitPrice = selectedVariant?.price_override || product?.price || 0;
   const subtotal = Math.round(unitPrice * quantity);
@@ -142,30 +147,7 @@ export default function ConversationalOrderModal({
     );
   };
 
-  const handleSubmitOrder = async () => {
-    setErrorMessage("");
-
-    // Validate polymorphic sales quantity against rules
-    const valResult = validateSalesQuantity(quantity, salesConfig);
-    if (!valResult.valid) {
-      setErrorMessage(valResult.message);
-      showToast?.(valResult.message);
-      return;
-    }
-
-    if (!customerName.trim()) {
-      const msg = "Veuillez renseigner votre nom";
-      setErrorMessage(msg);
-      showToast?.(msg);
-      return;
-    }
-    if (deliveryMode !== "EXACT_GPS" && !deliveryAddress.trim() && !deliveryNeighborhood.trim()) {
-      const msg = "Veuillez préciser votre adresse ou repère de livraison";
-      setErrorMessage(msg);
-      showToast?.(msg);
-      return;
-    }
-
+  const executeOrderSubmission = async (activeCustomer = null, activeToken = null) => {
     setIsSubmitting(true);
     try {
       let customizationOptions = null;
@@ -191,13 +173,8 @@ export default function ConversationalOrderModal({
       } : null;
 
       const resolvedStoreId = store?.id || store?.slug || getActiveStoreSlug() || "default-store";
-
-      const effectiveToken = getCustomerToken() || customer?.session_token || localStorage.getItem("conversastore_guest_token") || ("guest_" + Math.random().toString(36).substring(2, 10));
-      try {
-        if (!getCustomerToken() && !customer?.session_token) {
-          localStorage.setItem("conversastore_guest_token", effectiveToken);
-        }
-      } catch (e) {}
+      const targetCustomer = activeCustomer || customer;
+      const targetToken = activeToken || (targetCustomer && targetCustomer.session_token) || getCustomerToken();
 
       const orderPayload = {
         store_id: resolvedStoreId,
@@ -226,13 +203,13 @@ export default function ConversationalOrderModal({
           location_accuracy: locationAccuracy,
           delivery_notes: deliveryNotes,
         },
-        customer_name: customerName?.trim() || customer?.name || "Client GotoShop",
-        customer_phone: customerPhone?.trim() || customer?.phone || null,
-        customer_id: customer?.id && !customer.id.startsWith("cust-local-") ? customer.id : null,
-        customer_token: effectiveToken,
+        customer_name: targetCustomer?.name || customerName?.trim() || "Client GotoShop",
+        customer_phone: targetCustomer?.phone || customerPhone?.trim() || null,
+        customer_id: targetCustomer?.id && !targetCustomer.id.startsWith("cust-local-") ? targetCustomer.id : null,
+        customer_token: targetToken,
         delivery_fee: deliveryFee,
         notes: isCustomizable ? customizationText : null,
-        register_account: registerAccount,
+        register_account: true,
         country: customerCountry,
         city: customerCity,
         delivery_neighborhood: deliveryNeighborhood || deliveryAddress,
@@ -248,12 +225,6 @@ export default function ConversationalOrderModal({
         onCustomerAuthenticated(result.customer);
       }
       showToast?.(`Commande #${result?.order_number || ""} transmise avec succès !`);
-      // BUGFIX: the modal used to call onClose() immediately here, which skipped
-      // straight past the fully-built "SUCCESS" confirmation screen below
-      // (order recap + "Ouvrir le chat" button) — that screen was dead code the
-      // user could never actually see. We still notify the parent right away so
-      // the "commandes" tab / counters refresh in the background, but we now
-      // show the confirmation step and let the user close it themselves.
       if (onOrderCreated) {
         onOrderCreated(result);
       }
@@ -266,6 +237,80 @@ export default function ConversationalOrderModal({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmitOrder = async () => {
+    setErrorMessage("");
+
+    // Validate polymorphic sales quantity against rules
+    const valResult = validateSalesQuantity(quantity, salesConfig);
+    if (!valResult.valid) {
+      setErrorMessage(valResult.message);
+      showToast?.(valResult.message);
+      return;
+    }
+
+    if (!customerName.trim()) {
+      const msg = "Veuillez renseigner votre nom";
+      setErrorMessage(msg);
+      showToast?.(msg);
+      return;
+    }
+    if (deliveryMode !== "EXACT_GPS" && !deliveryAddress.trim() && !deliveryNeighborhood.trim()) {
+      const msg = "Veuillez préciser votre adresse ou repère de livraison";
+      setErrorMessage(msg);
+      showToast?.(msg);
+      return;
+    }
+
+    // MANDATORY ACCOUNT CHECK
+    if (!customer) {
+      if (!customerName.trim() || !customerPhone.trim()) {
+        const msg = "Compte obligatoire pour commander : veuillez renseigner votre nom et votre numéro de téléphone.";
+        setErrorMessage(msg);
+        showToast?.(msg);
+        setAuthModalOpen(true);
+        return;
+      }
+      setAccountPromptOpen(true);
+      return;
+    }
+
+    await executeOrderSubmission(customer);
+  };
+
+  const handleAcceptDirectAccount = async () => {
+    setAccountPromptOpen(false);
+    setIsSubmitting(true);
+    try {
+      showToast?.("Création et activation de votre compte client...");
+      const fullCity = deliveryAddress?.trim() ? `${deliveryCity} (${deliveryAddress.trim()})` : deliveryCity;
+      const res = await customerQuickRegister({
+        name: customerName.trim(),
+        phone: customerPhone.trim(),
+        city: fullCity,
+        country: customerCountry || store?.country || "Burkina Faso",
+        locality: deliveryAddress?.trim() || "",
+      });
+      showToast?.(`Compte activé pour ${res.customer.name} !`);
+      const token = res.access_token || res.token;
+      if (token) {
+        setCustomerToken(token);
+      }
+      if (onCustomerAuthenticated) {
+        onCustomerAuthenticated(res.customer);
+      }
+      await executeOrderSubmission(res.customer, token);
+    } catch (err) {
+      showToast?.(err.message || "Erreur lors de l'activation du compte. Vérifiez vos informations.");
+      setAuthModalOpen(true);
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRejectDirectAccount = () => {
+    setAccountPromptOpen(false);
+    setAuthModalOpen(true);
   };
 
   return (
@@ -946,6 +991,92 @@ export default function ConversationalOrderModal({
         </div>
 
       </div>
+
+      {/* Mandatory Account Confirmation Modal for Visitors */}
+      {accountPromptOpen && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setAccountPromptOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+        >
+          <div className="relative w-full max-w-md rounded-3xl bg-surface border-2 border-primary/30 p-6 shadow-2xl space-y-4 text-on-surface">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-1">
+                <Icon name="verified_user" className="text-[28px]" />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-on-surface">
+                Activation de votre compte client
+              </h3>
+              <p className="text-xs text-on-surface-variant max-w-xs mx-auto">
+                Pour valider votre commande et suivre sa livraison en temps réel, un compte GotoShop est obligatoire.
+              </p>
+            </div>
+
+            <div className="bg-surface-secondary/80 rounded-2xl p-4 border border-subtle space-y-2 text-xs">
+              <p className="text-[11px] font-semibold text-primary uppercase tracking-wider">
+                Vos coordonnées renseignées :
+              </p>
+              <div className="space-y-1.5 text-on-surface">
+                <div className="flex items-center gap-2">
+                  <Icon name="person" className="text-[16px] text-on-surface-variant" />
+                  <span className="font-semibold">{customerName}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Icon name="phone" className="text-[16px] text-on-surface-variant" />
+                  <span className="font-mono">{customerPhone}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Icon name="location_on" className="text-[16px] text-on-surface-variant" />
+                  <span>{deliveryCity} {deliveryAddress ? `(${deliveryAddress})` : ""}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={handleAcceptDirectAccount}
+                disabled={isSubmitting}
+                className="w-full py-3 rounded-xl bg-primary hover:brightness-105 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <Icon name="check_circle" className="text-[18px]" />
+                <span>Oui, ce sont mes coordonnées — Activer &amp; Commander</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRejectDirectAccount}
+                disabled={isSubmitting}
+                className="w-full py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface font-semibold text-xs border border-subtle transition-all cursor-pointer"
+              >
+                Non, utiliser d'autres coordonnées
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Auth Modal (Prefilled with input fields when requested) */}
+      <CustomerAuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialData={{
+          name: customerName,
+          phone: customerPhone,
+          city: deliveryCity,
+          locality: deliveryAddress || deliveryNeighborhood,
+        }}
+        onSuccess={async (newCust) => {
+          setAuthModalOpen(false);
+          if (onCustomerAuthenticated) {
+            onCustomerAuthenticated(newCust);
+          }
+          showToast?.(`Compte activé : ${newCust.name}`);
+          await executeOrderSubmission(newCust, newCust.session_token);
+        }}
+        showToast={showToast}
+      />
     </div>
   );
 }

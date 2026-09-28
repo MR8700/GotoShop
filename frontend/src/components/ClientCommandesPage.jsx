@@ -61,6 +61,20 @@ export default function ClientCommandesPage({
 
   useEffect(() => {
     loadOrders();
+
+    const handleOrdersChange = () => {
+      loadOrders();
+    };
+
+    window.addEventListener("gotoshop:order_created", handleOrdersChange);
+    window.addEventListener("gotoshop:order_updated", handleOrdersChange);
+    window.addEventListener("gotoshop:customer_updated", handleOrdersChange);
+
+    return () => {
+      window.removeEventListener("gotoshop:order_created", handleOrdersChange);
+      window.removeEventListener("gotoshop:order_updated", handleOrdersChange);
+      window.removeEventListener("gotoshop:customer_updated", handleOrdersChange);
+    };
   }, [customer]);
 
   const loadOrders = async () => {
@@ -71,28 +85,30 @@ export default function ClientCommandesPage({
       const token = customer?.session_token || getCustomerToken();
       let combined = [];
 
-      // 1. Fetch conversational orders from backend
-      try {
-        const convOrders = await fetchConversationalOrders({
-          customer_id: customer?.id,
-          customer_token: token,
-        });
-        if (Array.isArray(convOrders) && convOrders.length > 0) {
-          combined = convOrders.map((o) => ({
-            ...o,
-            reference_code: o.order_number || o.reference_code,
-            product_name: o.items?.length
-              ? o.items.map((it) => `${it.product_name} (${it.quantity})`).join(", ")
-              : (o.product_name || "Commande"),
-            product_image_url: o.items?.[0]?.primary_image_url || o.product_image_url,
-          }));
+      // 1. Fetch conversational orders from backend only if credentials exist
+      if (customer?.id || token) {
+        try {
+          const convOrders = await fetchConversationalOrders({
+            customer_id: customer?.id,
+            customer_token: token,
+          });
+          if (Array.isArray(convOrders) && convOrders.length > 0) {
+            combined = convOrders.map((o) => ({
+              ...o,
+              reference_code: o.order_number || o.reference_code,
+              product_name: o.items?.length
+                ? o.items.map((it) => `${it.product_name} (${it.quantity})`).join(", ")
+                : (o.product_name || "Commande"),
+              product_image_url: o.items?.[0]?.primary_image_url || o.product_image_url,
+            }));
+          }
+        } catch (e) {
+          console.warn("fetchConversationalOrders warning:", e);
         }
-      } catch (e) {
-        console.warn("fetchConversationalOrders warning:", e);
       }
 
       // 2. Fetch authenticated customer legacy intents
-      if (customer) {
+      if (customer && token) {
         try {
           const custOrders = await fetchCustomerOrders();
           if (Array.isArray(custOrders)) {

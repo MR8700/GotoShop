@@ -7,6 +7,9 @@ export default {
   darkMode: "class",
   theme: {
     extend: {
+      screens: {
+        xs: "375px",
+      },
       colors: {
         // Dynamic 2-tier surfaces (Light & Dark)
         "surface": "var(--color-surface, #ffffff)",

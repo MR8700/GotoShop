@@ -3,16 +3,25 @@ import React, { useState } from "react";
 import { customerQuickRegister, customerQuickLogin } from "../api/client";
 import { WEST_AFRICAN_COUNTRIES } from "../utils/locations";
 
-export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToast }) {
+export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToast, initialData = null }) {
   const [mode, setMode] = useState("register"); // "register" | "login"
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialData?.name || "");
   const [selectedCountryCode, setSelectedCountryCode] = useState("BF");
-  const [phone, setPhone] = useState("");
-  const [city, setCity] = useState("Ouagadougou");
+  const [phone, setPhone] = useState(initialData?.phone || "");
+  const [city, setCity] = useState(initialData?.city || "Ouagadougou");
   const [customCity, setCustomCity] = useState("");
-  const [locality, setLocality] = useState("");
+  const [locality, setLocality] = useState(initialData?.locality || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  React.useEffect(() => {
+    if (isOpen && initialData) {
+      if (initialData.name) setName(initialData.name);
+      if (initialData.phone) setPhone(initialData.phone);
+      if (initialData.city) setCity(initialData.city);
+      if (initialData.locality) setLocality(initialData.locality);
+    }
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 

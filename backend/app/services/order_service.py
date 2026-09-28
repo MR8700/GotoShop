@@ -85,6 +85,8 @@ class OrderService:
 
             if cust:
                 actual_customer_id = cust.id
+                if safe_customer_name and safe_customer_name != "Client GotoShop":
+                    cust.name = safe_customer_name
                 if customer_token and not str(customer_token).startswith("guest_") and not str(customer_token).startswith("token_local_"):
                     cust.session_token = customer_token
                 elif not cust.session_token:
@@ -915,24 +917,30 @@ class OrderService:
         if store_id:
             query = query.filter(Order.store_id == store_id)
         if customer_id or customer_token:
-            # BUGFIX: customer_id and customer_token used to be checked with if/elif,
-            # so as soon as a customer was logged in (customer_id present) any order
-            # placed earlier as a guest (customer_id NULL, only customer_token set)
-            # was silently excluded from the results ("orders that don't register").
-            # Combine both with OR, like OrderService.list_orders' sibling
-            # CustomerService.get_customer_orders already does, so every order tied
-            # to this person - as a guest or once authenticated - is returned.
+            # Combine customer_id, customer_token, and matching customer phone
             conditions = []
+            cust_phones = []
             if customer_id:
                 conditions.append(Order.customer_id == customer_id)
+                cust_by_id = db.query(Customer).filter(Customer.id == customer_id).first()
+                if cust_by_id and cust_by_id.phone:
+                    cust_phones.append(cust_by_id.phone)
             if customer_token:
                 conditions.append(Order.customer_token == customer_token)
-                conditions.append(Order.customer_id.in_(
-                    db.query(Customer.id).filter(Customer.session_token == customer_token)
-                ))
+                cust_by_token = db.query(Customer).filter(Customer.session_token == customer_token).first()
+                if cust_by_token:
+                    conditions.append(Order.customer_id == cust_by_token.id)
+                    if cust_by_token.phone:
+                        cust_phones.append(cust_by_token.phone)
+            for p in set(cust_phones):
+                if p:
+                    conditions.append(Order.customer_phone == p)
             query = query.filter(or_(*conditions))
             if not include_hidden:
                 query = query.filter((Order.is_client_hidden.is_(False) | Order.is_client_hidden.is_(None)))
+        elif not store_id:
+            # No credentials or store filter provided: do not expose system orders
+            return []
         if status:
             query = query.filter(Order.status == status)
 
@@ -1006,7 +1014,8 @@ class OrderService:
                 "sales_config_snapshot": snapshot,
                 "is_customized": it.is_customized,
                 "customization_text": it.customization_text,
-                "customization_options": opts
+                "customization_options": opts,
+                "primary_image_url": getattr(it.product, "primary_image_url", None) if getattr(it, "product", None) else None,
             })
 
         latest_payment = order.payments[-1] if order.payments else None

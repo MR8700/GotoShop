@@ -1,30 +1,61 @@
 import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
-import { fetchCustomerStats } from "../api/client";
+import { fetchCustomerStats, dataCache, getCustomerToken } from "../api/client";
 
 export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop, showToast }) {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(() => {
+    const token = customer?.session_token || getCustomerToken();
+    return token ? dataCache.get(`customer:stats:${token}`) || null : null;
+  });
+  const [loading, setLoading] = useState(() => {
+    const token = customer?.session_token || getCustomerToken();
+    const cached = token ? dataCache.get(`customer:stats:${token}`) : null;
+    return !cached && !!customer;
+  });
 
-  useEffect(() => {
-    if (customer) {
-      loadStats();
-    } else {
-      setLoading(false);
+  const loadStats = async (force = false) => {
+    if (!stats) {
+      setLoading(true);
     }
-  }, [customer]);
-
-  const loadStats = async () => {
-    setLoading(true);
     try {
-      const data = await fetchCustomerStats();
-      setStats(data);
+      const data = await fetchCustomerStats({ force });
+      if (data) {
+        setStats(data);
+      }
     } catch {
-      showToast("Erreur de chargement de vos avantages");
+      if (!stats) {
+        showToast("Erreur de chargement de vos avantages");
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (customer) {
+      loadStats(false);
+    } else {
+      setLoading(false);
+    }
+
+    const handleStatsChange = () => {
+      if (customer) {
+        loadStats(true);
+      }
+    };
+
+    window.addEventListener("gotoshop:stats_updated", handleStatsChange);
+    window.addEventListener("gotoshop:order_created", handleStatsChange);
+    window.addEventListener("gotoshop:order_updated", handleStatsChange);
+    window.addEventListener("gotoshop:customer_updated", handleStatsChange);
+
+    return () => {
+      window.removeEventListener("gotoshop:stats_updated", handleStatsChange);
+      window.removeEventListener("gotoshop:order_created", handleStatsChange);
+      window.removeEventListener("gotoshop:order_updated", handleStatsChange);
+      window.removeEventListener("gotoshop:customer_updated", handleStatsChange);
+    };
+  }, [customer]);
 
   if (!customer) {
     return (

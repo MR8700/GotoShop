@@ -435,6 +435,17 @@ export default function Header({
                       <Icon name="storefront" className="text-[16px] text-secondary" />
                       <span>Changer de boutique</span>
                     </button>
+
+                    <button
+                      onClick={() => {
+                        setShowToolsMenu(false);
+                        window.openGotoShopInstall?.();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface transition-colors cursor-pointer"
+                    >
+                      <Icon name="download" className="text-[16px] text-primary" />
+                      <span>Installer l'application</span>
+                    </button>
                   </div>
 
                   <div className="pt-1 space-y-0.5">

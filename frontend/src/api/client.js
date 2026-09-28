@@ -10,6 +10,16 @@ import {
 
 export { FALLBACK_PUBLIC_STORES, FALLBACK_SUBSCRIPTION_PUBLIC_INFO, dataCache };
 
+export function dispatchStateEvent(name, detail = null) {
+  try {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(name, { detail }));
+    }
+  } catch (e) {
+    console.warn("Event dispatch notice:", e);
+  }
+}
+
 const getApiBase = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof window !== "undefined" && window.location) {
@@ -851,13 +861,18 @@ export async function customerQuickRegister(payload) {
     if (!res.ok) {
       throw new Error(data.detail || `Erreur d'inscription client (${res.status})`);
     }
-    if (data.access_token) {
-      setCustomerToken(data.access_token);
+    const token = data.access_token || data.token;
+    if (token) {
+      setCustomerToken(token);
     }
     if (data.customer) {
       safeStorage.setItem("gatoshop_local_customer", JSON.stringify(data.customer));
     }
-    return data;
+    dataCache.invalidate("customer:stats:");
+    dataCache.invalidate("customer:orders:");
+    dispatchStateEvent("gotoshop:customer_updated", data.customer);
+    dispatchStateEvent("gotoshop:stats_updated", data.customer);
+    return { ...data, access_token: token, token };
   } catch (err) {
     // If backend is offline or 404 on Vercel, activate seamless local guest customer mode
     console.warn("API unavailable or failed, fallback to local registration:", err.message);
@@ -873,9 +888,14 @@ export async function customerQuickRegister(payload) {
     const localToken = localCust.session_token;
     setCustomerToken(localToken);
     safeStorage.setItem("gatoshop_local_customer", JSON.stringify(localCust));
+    dataCache.invalidate("customer:stats:");
+    dataCache.invalidate("customer:orders:");
+    dispatchStateEvent("gotoshop:customer_updated", localCust);
+    dispatchStateEvent("gotoshop:stats_updated", localCust);
     return {
       success: true,
       access_token: localToken,
+      token: localToken,
       customer: localCust,
       is_local: true,
     };
@@ -893,13 +913,18 @@ export async function customerQuickLogin(payload) {
     if (!res.ok) {
       throw new Error(data.detail || `Numéro non reconnu (${res.status})`);
     }
-    if (data.access_token) {
-      setCustomerToken(data.access_token);
+    const token = data.access_token || data.token;
+    if (token) {
+      setCustomerToken(token);
     }
     if (data.customer) {
       safeStorage.setItem("gatoshop_local_customer", JSON.stringify(data.customer));
     }
-    return data;
+    dataCache.invalidate("customer:stats:");
+    dataCache.invalidate("customer:orders:");
+    dispatchStateEvent("gotoshop:customer_updated", data.customer);
+    dispatchStateEvent("gotoshop:stats_updated", data.customer);
+    return { ...data, access_token: token, token };
   } catch (err) {
     // Fallback: Check local saved profile
     const rawCust = safeStorage.getItem("gatoshop_local_customer");
@@ -911,7 +936,11 @@ export async function customerQuickLogin(payload) {
         if (cleanSaved && cleanInput && (cleanSaved.includes(cleanInput) || cleanInput.includes(cleanSaved))) {
           const token = parsed.session_token || "token_local_cust";
           setCustomerToken(token);
-          return { success: true, access_token: token, customer: parsed, is_local: true };
+          dataCache.invalidate("customer:stats:");
+          dataCache.invalidate("customer:orders:");
+          dispatchStateEvent("gotoshop:customer_updated", parsed);
+          dispatchStateEvent("gotoshop:stats_updated", parsed);
+          return { success: true, access_token: token, token, customer: parsed, is_local: true };
         }
       } catch {}
     }
@@ -993,14 +1022,29 @@ export async function fetchCustomerOrders() {
   );
 }
 
-export async function fetchCustomerStats() {
+export async function fetchCustomerStats({ force = false } = {}) {
   const token = getCustomerToken();
   if (!token) return null;
-  const res = await fetch(`${API_BASE}/customer/stats`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return null;
-  return res.json();
+  const cacheKey = `customer:stats:${token}`;
+  if (force) {
+    dataCache.invalidate(cacheKey);
+  }
+  return dataCache.swr(
+    cacheKey,
+    async () => {
+      const res = await fetch(`${API_BASE}/customer/stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    { ttl: 60000, persist: true }
+  );
+}
+
+export function invalidateCustomerStats() {
+  dataCache.invalidate("customer:stats:");
+  dispatchStateEvent("gotoshop:stats_updated");
 }
 
 export async function fetchCustomerLoyaltyCard() {
@@ -1878,8 +1922,11 @@ export async function createConversationalOrder(orderData) {
   }
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("customer:stats:");
   dataCache.invalidate("notifications:");
   dataCache.invalidate("intents:");
+  dispatchStateEvent("gotoshop:order_created", data);
+  dispatchStateEvent("gotoshop:stats_updated", data);
   return data;
 }
 
@@ -1922,8 +1969,12 @@ export async function acceptOrder(orderId, sellerName = "Commerçant") {
   }
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("customer:stats:");
   dataCache.invalidate("notifications:");
-  return res.json();
+  const data = await res.json();
+  dispatchStateEvent("gotoshop:order_updated", data);
+  dispatchStateEvent("gotoshop:stats_updated", data);
+  return data;
 }
 
 export async function rejectOrder(orderId, reason = "Indisponible", sellerName = "Commerçant") {
@@ -1938,8 +1989,12 @@ export async function rejectOrder(orderId, reason = "Indisponible", sellerName =
   }
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("customer:stats:");
   dataCache.invalidate("notifications:");
-  return res.json();
+  const data = await res.json();
+  dispatchStateEvent("gotoshop:order_updated", data);
+  dispatchStateEvent("gotoshop:stats_updated", data);
+  return data;
 }
 
 export async function cancelConversationalOrder(orderId, reason = "Annulé par le client", actorName = "Client") {
@@ -1954,8 +2009,12 @@ export async function cancelConversationalOrder(orderId, reason = "Annulé par l
   }
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("customer:stats:");
   dataCache.invalidate("notifications:");
-  return res.json();
+  const data = await res.json();
+  dispatchStateEvent("gotoshop:order_updated", data);
+  dispatchStateEvent("gotoshop:stats_updated", data);
+  return data;
 }
 
 export async function archiveClientOrder(orderId) {
@@ -2043,8 +2102,12 @@ export async function confirmOrderPayment(orderId, verifiedBy = "Commerçant", v
   }
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("customer:stats:");
   dataCache.invalidate("notifications:");
-  return res.json();
+  const data = await res.json();
+  dispatchStateEvent("gotoshop:order_updated", data);
+  dispatchStateEvent("gotoshop:stats_updated", data);
+  return data;
 }
 
 export async function requestOrderPaymentOtp(orderId, { phoneNumber, operator = "ORANGE" }) {
@@ -2115,8 +2178,12 @@ export async function payMobileMoneyOrder(orderId, { operator, phoneNumber, otpC
   }
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
+  dataCache.invalidate("customer:stats:");
   dataCache.invalidate("notifications:");
-  return res.json();
+  const data = await res.json();
+  dispatchStateEvent("gotoshop:order_updated", data);
+  dispatchStateEvent("gotoshop:stats_updated", data);
+  return data;
 }
 
 export async function rejectOrderPayment(orderId, reason = "Montant incorrect", verifiedBy = "Commerçant") {
