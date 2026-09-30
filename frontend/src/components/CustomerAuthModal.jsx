@@ -1,7 +1,8 @@
 import Icon from "./Icon";
 import React, { useState } from "react";
-import { customerQuickRegister, customerQuickLogin } from "../api/client";
+import { customerQuickRegister, customerQuickLogin, requestCustomerLoginOtp } from "../api/client";
 import { WEST_AFRICAN_COUNTRIES } from "../utils/locations";
+import PasskeyLoginBlock from "./PasskeyLoginBlock";
 
 export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToast, initialData = null }) {
   const [mode, setMode] = useState("register"); // "register" | "login"
@@ -13,6 +14,9 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
   const [locality, setLocality] = useState(initialData?.locality || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [otpStep, setOtpStep] = useState(false); // le serveur exige un code SMS
+  const [otpCode, setOtpCode] = useState("");
+  const [otpHint, setOtpHint] = useState(""); // code affiché uniquement en mode simulateur (développement)
 
   React.useEffect(() => {
     if (isOpen && initialData) {
@@ -22,6 +26,15 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
       if (initialData.locality) setLocality(initialData.locality);
     }
   }, [isOpen, initialData]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -54,18 +67,32 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
           city: fullAddress,
           country: currentCountry.name,
           locality: locality.trim(),
+          ...(otpStep ? { otp_code: otpCode.trim() } : {}),
         });
         showToast(`Bienvenue ${res.customer.name} ! Compte activé.`);
         onSuccess(res.customer);
       } else {
         if (!phone.trim()) throw new Error("Veuillez saisir votre numéro de téléphone.");
-        const res = await customerQuickLogin({ phone: phone.trim() });
+        const res = await customerQuickLogin({ phone: phone.trim(), ...(otpStep ? { otp_code: otpCode.trim() } : {}) });
         showToast(`Ravi de vous revoir ${res.customer.name} !`);
         onSuccess(res.customer);
       }
       onClose();
     } catch (err) {
-      setError(err.message || "Une erreur est survenue");
+      if (err.otpRequired && !otpStep) {
+        // Première tentative refusée faute de code : on envoie le SMS puis on affiche la saisie.
+        try {
+          const sent = await requestCustomerLoginOtp({ phone: phone.trim() });
+          setOtpStep(true);
+          setOtpCode("");
+          setOtpHint(sent.simulated_code ? `Mode test — code : ${sent.simulated_code}` : "");
+          setError("");
+        } catch (otpErr) {
+          setError(otpErr.message || "Impossible d'envoyer le code de vérification.");
+        }
+      } else {
+        setError(err.message || "Une erreur est survenue");
+      }
     } finally {
       setLoading(false);
     }
@@ -109,6 +136,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
             type="button"
             onClick={() => {
               setMode("register");
+              setOtpStep(false);
               setError("");
             }}
             className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
@@ -123,6 +151,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
             type="button"
             onClick={() => {
               setMode("login");
+              setOtpStep(false);
               setError("");
             }}
             className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
@@ -142,6 +171,13 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
         )}
 
         {/* Form */}
+        {mode === "login" && !otpStep && (
+          <div className="space-y-3 pb-1">
+            <PasskeyLoginBlock onSuccess={onSuccess} onClose={onClose} showToast={showToast} defaultPhone={phone} />
+            <div className="flex items-center gap-3 text-xs text-on-surface-variant"><span className="h-px flex-1 bg-current opacity-20" />Autre méthode<span className="h-px flex-1 bg-current opacity-20" /></div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-3.5">
           {mode === "register" && (
             <div>
@@ -191,7 +227,7 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
                 type="tel"
                 placeholder={`Ex: ${currentCountry.dial} 70 12 34 56`}
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => { setPhone(e.target.value); if (otpStep) setOtpStep(false); }}
                 className="w-full h-10 pl-9 pr-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface placeholder:text-on-surface-variant/50 text-xs sm:text-sm focus:outline-none focus:border-strong transition-all"
                 required
               />
@@ -244,6 +280,26 @@ export default function CustomerAuthModal({ isOpen, onClose, onSuccess, showToas
                 </div>
               </div>
             </>
+          )}
+
+          {otpStep && (
+            <div>
+              <label className="text-xs text-on-surface-variant font-medium block mb-1">
+                Code reçu par SMS (6 chiffres)
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="123456"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                className="w-full h-10 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface tracking-[0.4em] text-center text-sm focus:outline-none focus:border-strong transition-all"
+                required
+              />
+              {otpHint && <p className="text-[11px] text-on-surface-variant mt-1">{otpHint}</p>}
+            </div>
           )}
 
           <div className="pt-2">

@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class StoreChannel(Base):
     __tablename__ = "store_channels"
@@ -20,7 +21,7 @@ class StoreChannel(Base):
     is_active = Column(Boolean, default=True)
     is_recommended = Column(Boolean, default=False)
     display_order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     store = relationship("Store", back_populates="channels")
     order_intents = relationship("OrderIntent", back_populates="channel")

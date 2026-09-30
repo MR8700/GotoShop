@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class Customer(Base):
     __tablename__ = "customers"
@@ -21,7 +22,10 @@ class Customer(Base):
     avatar_url = Column(String(255), nullable=True)
     preferred_channel = Column(String(50), default="WHATSAPP")
     notes = Column(Text, nullable=True)
-    session_token = Column(String(128), nullable=True, index=True)
+    session_token = Column(String(128), nullable=True, index=True)  # empreinte h1$… (jamais le jeton brut)
+    session_expires_at = Column(DateTime, nullable=True)
+    # Le numéro n'est PAS considéré comme vérifié tant qu'aucune vérification (OTP...) n'a réellement eu lieu.
+    phone_verified = Column(Boolean, default=False)
     loyalty_card_no = Column(String(32), unique=True, index=True, nullable=True)
     notification_preferences = Column(Text, nullable=True) # JSON toggles for notification categories
     
@@ -32,8 +36,8 @@ class Customer(Base):
     custom_discount_percent = Column(Integer, default=0)
     custom_perk_note = Column(String(255), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     store = relationship("Store")
     order_intents = relationship("OrderIntent", back_populates="customer")

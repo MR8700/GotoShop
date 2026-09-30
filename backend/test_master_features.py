@@ -15,9 +15,10 @@ from app.services.capability_service import (
     CAP_STORE_NEWS,
     CAP_QR_ACCESS
 )
-from app.services.qr_service import QrService
+from app.services.qr_service import QRService as QrService
 from app.services.notification_engine import NotificationEngine
 from app.services.order_service import OrderService
+from app.core.clock import utcnow
 
 
 def run_all_tests():
@@ -57,7 +58,7 @@ def run_all_tests():
                 name="Cap Test Store",
                 slug="test-cap-store",
                 activity_type="RESTAURANT",
-                created_at=datetime.utcnow()
+                created_at=utcnow()
             )
             db.add(test_store)
             db.commit()
@@ -121,7 +122,7 @@ def run_all_tests():
                 store_id=test_store.id,
                 phone="+22670009988",
                 name="Aïcha Ouedraogo",
-                created_at=datetime.utcnow()
+                created_at=utcnow()
             )
             db.add(test_customer)
             db.commit()
@@ -137,7 +138,7 @@ def run_all_tests():
                 store_id=test_store.id,
                 customer_id=test_customer.id,
                 status="ACTIVE",
-                created_at=datetime.utcnow()
+                created_at=utcnow()
             )
             db.add(sub)
             db.commit()

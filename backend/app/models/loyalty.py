@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class LoyaltyLedgerEntry(Base):
     __tablename__ = "loyalty_points_ledger"
@@ -17,7 +18,10 @@ class LoyaltyLedgerEntry(Base):
     description = Column(String(255), nullable=True)
     expires_at = Column(DateTime, nullable=True)     # Rolling expiry for positive point additions
     is_expired = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    # Lots FIFO : pour une entrée positive, points encore utilisables (ni dépensés, ni expirés).
+    # NULL pour les débits / expirations (ce ne sont pas des lots).
+    points_remaining = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
 
     store = relationship("Store")
     customer = relationship("Customer")
@@ -38,7 +42,7 @@ class LoyaltyRewardCoupon(Base):
     used_at = Column(DateTime, nullable=True)
     order_id = Column(String(36), nullable=True)
     expires_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     store = relationship("Store")
     customer = relationship("Customer")

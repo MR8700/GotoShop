@@ -19,6 +19,9 @@ from app.schemas.customer import (
     MerchantClientDetail,
 )
 from app.config import settings
+from app.core.security import hash_session_token, lookup_hash
+from app.core.clock import utcnow
+from app.core import customer_session
 
 def normalize_phone(phone: str) -> str:
     """Removes extra characters for reliable matching while keeping leading digits/plus."""
@@ -27,7 +30,45 @@ def normalize_phone(phone: str) -> str:
     cleaned = re.sub(r"[^\d+]", "", phone.strip())
     return cleaned
 
+def _spot_snap(o):
+    import json
+    try:
+        return json.loads(o.delivery.spot_snapshot) if o.delivery and o.delivery.spot_snapshot else {}
+    except (TypeError, ValueError):
+        return {}
+
+
 class CustomerService:
+    @staticmethod
+    def _otp_key(store_id: str) -> str:
+        # Indépendante de la boutique : la demande de code et la connexion peuvent résoudre des boutiques différentes.
+        return "login"
+
+    @classmethod
+    def request_login_otp(cls, db: Session, phone: str, store_id: Optional[str] = None) -> dict:
+        from app.services.otp_service import OtpService
+        norm = normalize_phone(phone)
+        if not norm:
+            raise ValueError("Numéro de téléphone requis.")
+        sid = cls.get_or_default_store_id(db, store_id)
+        ok, msg, payload = OtpService.request_otp(norm, cls._otp_key(sid), 0)
+        if not ok:
+            raise ValueError(msg)
+        payload["message"] = msg
+        return payload
+
+    @classmethod
+    def _check_login_otp(cls, phone: str, store_id: str, code: Optional[str]) -> None:
+        """Exige un OTP valide si REQUIRE_LOGIN_OTP est activé (sinon comportement historique)."""
+        if not settings.REQUIRE_LOGIN_OTP:
+            return
+        from app.services.otp_service import OtpService
+        if not code:
+            raise ValueError("Code de vérification requis. Demandez-en un via /customer/login/otp/request.")
+        ok, msg = OtpService.verify_otp(normalize_phone(phone), cls._otp_key(store_id), code)
+        if not ok:
+            raise ValueError(msg)
+
     @classmethod
     def get_or_default_store_id(cls, db: Session, store_id: Optional[str] = None) -> str:
         if store_id:
@@ -36,7 +77,7 @@ class CustomerService:
         return primary_store.id if primary_store else "default-store"
 
     @classmethod
-    def quick_register(cls, db: Session, req: CustomerQuickRegisterRequest) -> Tuple[Customer, str]:
+    def quick_register(cls, db: Session, req: CustomerQuickRegisterRequest, _otp_checked: bool = False) -> Tuple[Customer, str]:
         store_id = cls.get_or_default_store_id(db, req.store_id)
         norm_phone = normalize_phone(req.phone)
         if not norm_phone:
@@ -44,8 +85,12 @@ class CustomerService:
         if not req.name or len(req.name.strip()) < 2:
             raise ValueError("Le nom doit comporter au moins 2 caractères.")
 
+        if not _otp_checked:
+            cls._check_login_otp(norm_phone, store_id, getattr(req, "otp_code", None))
+
         # Find existing customer by phone or create new
         customer = db.query(Customer).filter(
+            Customer.store_id == store_id,
             (Customer.phone == req.phone) | (Customer.phone == norm_phone)
         ).first()
 
@@ -57,20 +102,21 @@ class CustomerService:
                 name=req.name.strip(),
                 phone=norm_phone,
                 city=req.city or "Abidjan",
-                session_token=token,
             )
             db.add(customer)
             db.flush()
+            cls.set_session(customer, token)
         else:
             # Update name/city and session
             customer.name = req.name.strip()
             if req.city:
                 customer.city = req.city
-            customer.session_token = token
+            cls.set_session(customer, token)
 
         # Link past guest orders matching phone to this customer
         past_intents = db.query(OrderIntent).filter(
             (OrderIntent.customer_id == None) &
+            (OrderIntent.store_id == store_id) &
             ((OrderIntent.customer_phone == req.phone) | (OrderIntent.customer_phone == norm_phone))
         ).all()
         for intent in past_intents:
@@ -86,33 +132,91 @@ class CustomerService:
         if not norm_phone:
             raise ValueError("Numéro de téléphone requis.")
 
-        customer = db.query(Customer).filter(
-            (Customer.phone == req.phone) | (Customer.phone == norm_phone)
-        ).first()
+        login_store_id = cls.get_or_default_store_id(db, getattr(req, "store_id", None))
+        q_login = db.query(Customer).filter((Customer.phone == req.phone) | (Customer.phone == norm_phone))
+        if getattr(req, "store_id", None):
+            q_login = q_login.filter(Customer.store_id == login_store_id)  # sans store_id : ancien comportement (compat.)
+        customer = q_login.first()
+        cls._check_login_otp(norm_phone, customer.store_id if customer else login_store_id, getattr(req, "otp_code", None))
 
         if not customer:
             # Auto-register if not yet existing for ultra-fast friction-free entry
             name_guess = f"Client {norm_phone[-4:]}"
-            return cls.quick_register(db, CustomerQuickRegisterRequest(name=name_guess, phone=norm_phone))
+            return cls.quick_register(db, CustomerQuickRegisterRequest(name=name_guess, phone=norm_phone, store_id=login_store_id), _otp_checked=True)
 
         token = secrets.token_urlsafe(32)
-        customer.session_token = token
+        cls.set_session(customer, token)
         db.commit()
         db.refresh(customer)
         return customer, token
 
+    # ------------------------------------------------------------------ session (jeton haché + expiration + cookie)
     @classmethod
-    def get_by_token(cls, db: Session, token: Optional[str]) -> Optional[Customer]:
+    def set_session(cls, customer: Customer, raw_token: str) -> None:
+        """Stocke l'empreinte + l'expiration, et demande au middleware de poser le cookie HttpOnly."""
+        customer.session_token = hash_session_token(raw_token)
+        customer.session_expires_at = customer_session.session_expiry()
+        customer_session.queue_cookie(raw_token)
+
+    @classmethod
+    def clear_session(cls, customer: Customer) -> None:
+        customer.session_token = None
+        customer.session_expires_at = None
+        customer_session.queue_clear_cookie()
+
+    @staticmethod
+    def effective_token(explicit: Optional[str]) -> Optional[str]:
+        """Jeton présenté : explicite (en-tête / corps) sinon cookie HttpOnly de la requête."""
+        if explicit == customer_session.COOKIE_MARKER:
+            explicit = None
+        return explicit or customer_session.cookie_token()
+
+    @staticmethod
+    def is_guest_token(token: Optional[str]) -> bool:
+        return bool(token) and (str(token).startswith("guest_") or str(token).startswith("token_local_"))
+
+    @staticmethod
+    def expose(token: Optional[str]) -> Optional[str]:
+        """Jeton à renvoyer au JavaScript : jamais un jeton de session (sauf CUSTOMER_TOKEN_IN_BODY=true).
+        Les jetons invités, propres à une commande, restent renvoyés."""
         if not token:
             return None
-        return db.query(Customer).filter(Customer.session_token == token).first()
+        return token if (CustomerService.is_guest_token(token) or settings.CUSTOMER_TOKEN_IN_BODY) else None
+
+    @classmethod
+    def token_matches(cls, customer: Optional[Customer], token: Optional[str]) -> bool:
+        token = cls.effective_token(token)
+        if not customer or not token or not customer.session_token:
+            return False
+        if customer.session_expires_at and customer.session_expires_at < utcnow():
+            return False
+        return secrets.compare_digest(customer.session_token, lookup_hash(token))
+
+    @classmethod
+    def get_by_token(cls, db: Session, token: Optional[str], store_id: Optional[str] = None) -> Optional[Customer]:
+        token = cls.effective_token(token)
+        if not token:
+            return None
+        q = db.query(Customer).filter(Customer.session_token == lookup_hash(token))
+        if store_id:
+            q = q.filter(Customer.store_id == store_id)
+        customer = q.first()
+        if customer and customer.session_expires_at and customer.session_expires_at < utcnow():
+            return None  # session expirée
+        return customer
 
     @classmethod
     def update_profile(cls, db: Session, customer: Customer, req: CustomerProfileUpdateRequest) -> Customer:
         if req.name and len(req.name.strip()) >= 2:
             customer.name = req.name.strip()
         if req.phone:
-            customer.phone = normalize_phone(req.phone)
+            new_phone = normalize_phone(req.phone)
+            clash = db.query(Customer.id).filter(
+                Customer.store_id == customer.store_id, Customer.phone == new_phone, Customer.id != customer.id
+            ).first()
+            if clash:
+                raise ValueError("Ce numéro est déjà utilisé par un autre compte de cette boutique.")
+            customer.phone = new_phone
         if req.email is not None:
             customer.email = req.email.strip() if req.email else None
         if req.city is not None:
@@ -160,7 +264,7 @@ class CustomerService:
         real_orders = db.query(Order).filter(
             ((Order.customer_id == customer.id) |
              (Order.customer_phone == customer.phone) |
-             (Order.customer_token == customer.session_token)),
+             (Order.customer_id == customer.id)),
             (Order.is_client_hidden.is_(False) | Order.is_client_hidden.is_(None))
         ).order_by(Order.created_at.desc()).all()
 
@@ -193,6 +297,9 @@ class CustomerService:
                 quantity=int(sum([it.quantity for it in o.items])) if o.items else 1,
                 selected_color=first_item.variant_name if first_item else None,
                 delivery_city=o.delivery.delivery_city if o.delivery else None,
+                fulfillment_type=(o.delivery.fulfillment_type if o.delivery else None) or "HOME",
+                spot_name=(_spot_snap(o).get("name") if o.delivery else None),
+                spot_hours=(_spot_snap(o).get("hours") if o.delivery else None),
                 total_amount=o.total_amount,
                 currency=o.currency or "FCFA",
                 status=o.status,
@@ -286,7 +393,19 @@ class CustomerService:
         is_loyalty_active = store.is_loyalty_active if (store and store.is_loyalty_active is not None) else True
         spend_per_point = store.loyalty_spend_per_point if (store and store.loyalty_spend_per_point and store.loyalty_spend_per_point > 0) else 1000
         calculated_points = (total_spent // spend_per_point) if is_loyalty_active else 0
-        loyalty_points = max(customer.bonus_points or 0, calculated_points) if is_loyalty_active else 0
+        if is_loyalty_active:
+            # Le total dépensé ne suffit plus à lui seul : les points expirés ou rachetés doivent
+            # sortir du solde affiché (sinon ils « reviennent » à chaque calcul).
+            from app.services.loyalty_service import LoyaltyService
+            LoyaltyService.expire_due_points(db, customer.store_id, customer.id)
+            # Fidélité v3 : le solde (en dixièmes de point) est la seule source de vérité.
+            loyalty_points = (customer.bonus_points or 0) / 10.0
+        else:
+            loyalty_points = 0
+
+        # Le statut (palier) se base sur les points GAGNÉS depuis toujours : dépenser ses points ne le fait pas baisser.
+        from app.services.loyalty_v3 import lifetime_earned_points
+        tier_pts = lifetime_earned_points(db, customer.store_id, customer.id) if is_loyalty_active else 0
 
         tiers = db.query(LoyaltyTier).filter(
             LoyaltyTier.store_id == customer.store_id,
@@ -312,36 +431,36 @@ class CustomerService:
                     "display_order": t.display_order,
                 })
 
-            eligible_tiers = [t for t in tiers if loyalty_points >= t.min_points]
+            eligible_tiers = [t for t in tiers if tier_pts >= t.min_points]
             if eligible_tiers:
                 current_tier = eligible_tiers[-1].name
             else:
                 current_tier = tiers[0].name
 
-            higher_tiers = [t for t in tiers if t.min_points > loyalty_points]
+            higher_tiers = [t for t in tiers if t.min_points > tier_pts]
             if higher_tiers:
                 next_t = higher_tiers[0]
                 next_tier = next_t.name
                 prev_points = eligible_tiers[-1].min_points if eligible_tiers else 0
                 points_span = next_t.min_points - prev_points
-                points_earned = loyalty_points - prev_points
+                points_earned = tier_pts - prev_points
                 progress = min(100, max(0, int((points_earned / points_span) * 100))) if points_span > 0 else 0
             else:
                 next_tier = None
                 progress = 100
         else:
-            if loyalty_points >= 150:
+            if tier_pts >= 30:
                 current_tier = "Gold VIP"
                 next_tier = None
                 progress = 100
-            elif loyalty_points >= 50:
+            elif tier_pts >= 10:
                 current_tier = "Silver"
                 next_tier = "Gold VIP"
-                progress = min(100, int((loyalty_points - 50) / 100 * 100))
+                progress = min(100, int((tier_pts - 10) / 20 * 100))
             else:
                 current_tier = "Bronze"
                 next_tier = "Silver"
-                progress = min(100, int(loyalty_points / 50 * 100))
+                progress = min(100, int(tier_pts / 10 * 100))
 
         # Estimate savings as ~10% of total orders amount or at least 5000 FCFA on flash
         savings = int(total_spent * 0.12) if total_spent > 0 else 0
@@ -393,15 +512,11 @@ class CustomerService:
             total_spent = sum(o.total_amount for o in confirmed)
 
             # Loyalty points
-            spend_points = total_spent // 1000
-            bonus_pts = int(getattr(c, "bonus_points", 0) or 0)
-            loyalty_points = spend_points + bonus_pts
-
-            tier_label = "Membre Bronze"
-            if loyalty_points >= 200:
-                tier_label = "Membre Or VIP"
-            elif loyalty_points >= 75:
-                tier_label = "Membre Argent"
+            from app.services.loyalty_v3 import lifetime_earned_points, tier_for
+            bonus_pts = int(getattr(c, "bonus_points", 0) or 0) / 10.0
+            loyalty_points = bonus_pts
+            _lt = lifetime_earned_points(db, c.store_id, c.id)
+            tier_label = {"Gold VIP": "Membre Or VIP", "Silver": "Membre Argent"}.get(tier_for(_lt), "Membre Bronze")
 
             # Satisfaction rating avg
             rated = [o.client_satisfaction_rating for o in orders if o.client_satisfaction_rating]
@@ -447,15 +562,11 @@ class CustomerService:
         cancelled_orders = [o for o in orders if o.status == "CANCELLED" or o.client_status == "CANCELLED"]
         total_spent = sum(o.total_amount for o in confirmed_orders)
 
-        spend_points = total_spent // 1000
-        bonus_pts = int(getattr(customer, "bonus_points", 0) or 0)
-        loyalty_points = spend_points + bonus_pts
-
-        tier_label = "Membre Bronze"
-        if loyalty_points >= 200:
-            tier_label = "Membre Or VIP"
-        elif loyalty_points >= 75:
-            tier_label = "Membre Argent"
+        from app.services.loyalty_v3 import lifetime_earned_points, tier_for
+        bonus_pts = int(getattr(customer, "bonus_points", 0) or 0) / 10.0
+        loyalty_points = bonus_pts
+        _lt = lifetime_earned_points(db, customer.store_id, customer.id)
+        tier_label = {"Gold VIP": "Membre Or VIP", "Silver": "Membre Argent"}.get(tier_for(_lt), "Membre Bronze")
 
         rated = [o.client_satisfaction_rating for o in orders if o.client_satisfaction_rating]
         avg_rating = round(sum(rated) / len(rated), 1) if rated else None
@@ -506,13 +617,35 @@ class CustomerService:
 
     @classmethod
     def grant_client_perk(
-        cls, db: Session, store_id: str, customer_id: str, bonus_points: int = 0, discount_pct: int = 0, perk_note: Optional[str] = None
+        cls, db: Session, store_id: str, customer_id: str, bonus_points: float = 0, discount_pct: int = 0, perk_note: Optional[str] = None
     ) -> Optional[Customer]:
         customer = db.query(Customer).filter(Customer.id == customer_id, Customer.store_id == store_id).first()
         if not customer:
             return None
-        current_bonus = int(getattr(customer, "bonus_points", 0) or 0)
-        customer.bonus_points = max(0, current_bonus + bonus_points)
+        # Les points passent par le grand livre (LoyaltyService) au lieu de muter bonus_points
+        # directement : le geste commercial du marchand apparaît alors dans l'historique du
+        # client, au lieu d'un solde qui change sans explication.
+        bonus_points = int(round(float(bonus_points or 0) * 10))  # points saisis -> dixièmes (fidélité v3)
+        if bonus_points:
+            from app.services.loyalty_service import LoyaltyService
+            try:
+                if bonus_points > 0:
+                    LoyaltyService.credit_points(
+                        db=db, store_id=store_id, customer_id=customer_id, points=bonus_points, validity_days=0,
+                        entry_type="MERCHANT_GRANT",
+                        description=perk_note or "Avantage accordé par le commerçant",
+                    )
+                else:
+                    current_bonus = int(getattr(customer, "bonus_points", 0) or 0)
+                    to_debit = min(abs(bonus_points), current_bonus)
+                    if to_debit > 0:
+                        LoyaltyService.debit_points(
+                            db=db, store_id=store_id, customer_id=customer_id, points=to_debit,
+                            entry_type="MERCHANT_ADJUSTMENT",
+                            description=perk_note or "Ajustement du commerçant",
+                        )
+            except ValueError:
+                pass  # solde insuffisant ou autre cas déjà géré côté ledger : on ignore le crédit/débit de points
         if discount_pct is not None and discount_pct >= 0:
             customer.custom_discount_percent = discount_pct
         if perk_note is not None:

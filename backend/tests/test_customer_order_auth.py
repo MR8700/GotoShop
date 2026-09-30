@@ -16,9 +16,10 @@ run_migrations(engine)
 db = SessionLocal()
 store = db.query(Store).first()
 assert store is not None, "A store must exist for testing"
-product = db.query(Product).filter(Product.store_id == store.id).first()
+product = db.query(Product).filter(Product.store_id == store.id, Product.stock > 5).first()
 if not product:
-    product = db.query(Product).first()
+    product = db.query(Product).filter(Product.stock > 5).first()
+    store = db.query(Store).filter(Store.id == product.store_id).first()
 
 client = TestClient(app, base_url="https://gotoshop.example")
 
@@ -71,7 +72,7 @@ def test_order_creation_with_customer():
                 "product_id": product.id if product else None,
                 "product_name": product.name if product else "Robe Faso Danfani",
                 "quantity": 2,
-                "unit_price": 15000,
+                "unit_price": 1,  # ignoré : le prix vient du catalogue
                 "unit": "PIECE",
                 "unit_label": "pièce",
             }
@@ -92,7 +93,7 @@ def test_order_creation_with_customer():
     order_data = res.json()
     assert "order_number" in order_data
     assert order_data["customer_name"] == test_name
-    assert order_data["subtotal_amount"] == 30000
-    assert order_data["total_amount"] in [30500, 29000]  # with or without tier loyalty discount
+    assert order_data["subtotal_amount"] == int(round(product.price * 2))  # prix serveur, pas celui du client
+    assert 500 <= order_data["total_amount"] <= order_data["subtotal_amount"] + 500  # avec ou sans remise de palier
     assert "customer" in order_data
     assert order_data["customer"]["name"] == test_name

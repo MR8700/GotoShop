@@ -2,6 +2,7 @@ import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
 import { getMediaUrl, fetchStoreReviews, subscribeToStore, unsubscribeFromStore, fetchSubscriptionStatus } from "../api/client";
 import ProductManageModal from "./ProductManageModal";
+import ProductShareModal from "./ProductShareModal";
 import NewProductModal from "./NewProductModal";
 import Footer from "./Footer";
 import StoreHeader from "./StoreHeader";
@@ -35,6 +36,7 @@ export default function VitrinePage({
   const [selectedHeroColor, setSelectedHeroColor] = useState("Bleu Nuit");
   const [countdownSeconds, setCountdownSeconds] = useState(store?.flash_remaining_seconds || 15502);
   const [managedProduct, setManagedProduct] = useState(null);
+  const [promotedProduct, setPromotedProduct] = useState(null);
   const [isNewProductOpen, setIsNewProductOpen] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -70,7 +72,7 @@ export default function VitrinePage({
         setFollowersCount((prev) => prev + 1);
         showToast?.("Abonné avec succès ! Vous recevrez les actualités.");
       }
-    } catch (e) {
+    } catch  {
       showToast?.("Erreur lors de l'abonnement");
     }
   };
@@ -491,6 +493,14 @@ export default function VitrinePage({
                   <div className="grid grid-cols-2 gap-1.5 pt-1">
                     <button
                       type="button"
+                      onClick={() => setPromotedProduct(p)}
+                      className="col-span-2 h-9 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold border border-primary/30 flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <Icon name="campaign" className="text-[14px]" />
+                      <span>Promouvoir sur les réseaux</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setManagedProduct(p)}
                       className="h-9 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-on-surface text-xs font-medium border border-subtle flex items-center justify-center gap-1 cursor-pointer"
                     >
@@ -556,11 +566,16 @@ export default function VitrinePage({
               </div>
             </div>
             <span className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center gap-1">
-              ⭐ {store?.rating || 4.9} / 5
+              {(store?.rating ?? 0) > 0 ? `⭐ ${store.rating} / 5` : "✨ Pas encore noté"}
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            {!loadingReviews && reviews.length === 0 && (
+              <p className="col-span-full text-center text-xs text-on-surface-variant py-4">
+                Aucun avis pour le moment : les avis apparaissent après la première livraison notée par un client.
+              </p>
+            )}
             {reviews.map((rev) => (
               <div
                 key={rev.id}
@@ -580,9 +595,11 @@ export default function VitrinePage({
                       ))}
                     </div>
                   </div>
-                  <p className="text-xs text-on-surface-secondary leading-relaxed italic">
-                    "{rev.feedback}"
-                  </p>
+                  {rev.feedback && (
+                    <p className="text-xs text-on-surface-secondary leading-relaxed italic">
+                      "{rev.feedback}"
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between text-[10px] text-on-surface-variant pt-1 border-t border-slate-200 dark:border-slate-800">
@@ -660,6 +677,11 @@ export default function VitrinePage({
             </button>
           </div>
         </aside>
+      )}
+
+      {/* Publicité produit : partage sur les réseaux + résultats */}
+      {promotedProduct && (
+        <ProductShareModal store={store} product={promotedProduct} onClose={() => setPromotedProduct(null)} showToast={showToast} />
       )}
 
       {/* Owner Product Management Modal */}

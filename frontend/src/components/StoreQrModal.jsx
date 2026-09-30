@@ -19,6 +19,15 @@ export default function StoreQrModal({
     }
   }, [isOpen, store?.slug, store?.id]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const loadQr = () => {
     const slug = store?.slug || store?.id || "maboutique";
     const origin = typeof window !== "undefined" ? window.location.origin : "https://gotoshop.com";

@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class Payment(Base):
     __tablename__ = "payments"
@@ -23,8 +24,8 @@ class Payment(Base):
     confirmed_at = Column(DateTime, nullable=True)
     rejection_reason = Column(String(255), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     order = relationship("Order", back_populates="payments")
     proofs = relationship("PaymentProof", back_populates="payment", cascade="all, delete-orphan")
@@ -52,6 +53,6 @@ class PaymentProof(Base):
     verified_by = Column(String(100), nullable=True)
     verified_at = Column(DateTime, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     payment = relationship("Payment", back_populates="proofs")

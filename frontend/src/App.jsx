@@ -13,6 +13,7 @@ import {
   fetchCustomerProfile,
   fetchCustomerOrders,
   clearCustomerToken,
+  logoutCustomer,
   getLocalGuestOrders,
   linkGuestOrdersToAccount,
   clearLocalGuestOrders,
@@ -49,7 +50,9 @@ import DecisionSupportWidget from "./components/DecisionSupportWidget";
 import WalletPage from "./components/WalletPage";
 import VerifyCardModal from "./components/VerifyCardModal";
 import PwaInstallPrompt from "./components/PwaInstallPrompt";
-import { getActiveStoreSlug, setActiveStoreSlug, trackQrScan, dataCache } from "./api/client";
+import { getActiveStoreSlug, setActiveStoreSlug, trackQrScan, dataCache, resolveShareLink, sendShareEvent, trackShareIntent } from "./api/client";
+import { setShareRef } from "./utils/shareAttribution";
+import SharedProductBanner from "./components/SharedProductBanner";
 
 export default function App() {
   const [store, setStore] = useState(() => {
@@ -81,6 +84,10 @@ export default function App() {
 
   // Conversational Commerce State
   const [conversationalOrderProduct, setConversationalOrderProduct] = useState(null);
+  // Publicité produit : lien partagé (?c=CODE) → produit mis en avant
+  const [sharedAd, setSharedAd] = useState(null); // { code, productId }
+  const [sharedProduct, setSharedProduct] = useState(null);
+  const sharedViewSent = React.useRef(false);
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
 
@@ -119,7 +126,7 @@ export default function App() {
     try {
       const saved = safeStorage.getItem("gotoshop_last_visited_store");
       return saved ? JSON.parse(saved) : null;
-    } catch (e) {
+    } catch  {
       return null;
     }
   });
@@ -152,7 +159,7 @@ export default function App() {
         store_slugs: savedSlug ? [savedSlug] : [],
         owned_stores: ownedStores,
       };
-    } catch (e) {
+    } catch  {
       return {
         is_authenticated: false,
         must_change_password: true,
@@ -309,6 +316,17 @@ export default function App() {
       trackVisit(srcParam);
     }
 
+    // Lien de publicité produit (?c=CODE) : le clic est compté, le produit sera mis en avant une fois le catalogue chargé
+    const adCode = urlParams.get("c");
+    if (adCode) {
+      resolveShareLink(adCode).then((info) => {
+        if (!info) return;
+        setShareRef({ code: info.code, productId: info.product_id, network: info.network, storeSlug: info.store_slug });
+        setSharedAd({ code: info.code, productId: info.product_id });
+        sendShareEvent(info.code, "CLICK");
+      });
+    }
+
     // Auto-track QR scan if open via QR code (?qr=1)
     const qrParam = urlParams.get("qr");
     const initialSlug = urlParams.get("store") || urlParams.get("slug") || urlParams.get("s");
@@ -409,7 +427,7 @@ export default function App() {
       setLastVisitedStore(info);
       try {
         safeStorage.setItem("gotoshop_last_visited_store", JSON.stringify(info));
-      } catch (e) {}
+      } catch  {}
     }
   }, [store?.slug, store?.name, viewMode]);
 
@@ -451,7 +469,7 @@ export default function App() {
         const total = res.conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
         setUnreadChatCount(total);
       }
-    } catch (e) {}
+    } catch  {}
   };
 
   useEffect(() => {
@@ -498,7 +516,7 @@ export default function App() {
       const url = new URL(window.location);
       url.searchParams.set("tab", tab);
       window.history.pushState({ tab }, "", url);
-    } catch (e) {}
+    } catch  {}
   };
 
   const handleNavigateAction = (urlStr) => {
@@ -518,7 +536,7 @@ export default function App() {
       } else if (tabParam) {
         handleSelectTab(tabParam);
       }
-    } catch (e) {
+    } catch  {
       console.warn("Invalid action url:", urlStr);
     }
   };
@@ -656,7 +674,18 @@ export default function App() {
     }
   };
 
+  // Vue du produit partagé : comptée une fois, quand il s'affiche réellement au client
+  useEffect(() => {
+    if (!sharedAd || sharedViewSent.current) return;
+    const prod = (products || []).find((p) => String(p.id) === String(sharedAd.productId));
+    if (!prod) return;
+    sharedViewSent.current = true;
+    setSharedProduct(prod);
+    sendShareEvent(sharedAd.code, "VIEW");
+  }, [sharedAd, products]);
+
   const handleAddToCart = (product, customVariant = null, customQuantity = 1) => {
+    trackShareIntent(product?.id);
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
@@ -714,6 +743,7 @@ export default function App() {
 
   const handleOpenTunnel = (product = null, channel = "DIRECT", color = "Bleu Nuit") => {
     if (product) {
+      trackShareIntent(product.id);
       setTunnelProduct(product);
       setCart((prev) => {
         if (!prev.find((it) => it.id === product.id)) {
@@ -783,7 +813,7 @@ export default function App() {
     try {
       await deleteProduct(productId, true);
       showToast("Produit supprimé de la boutique !");
-    } catch (e) {
+    } catch  {
       // Handled
     }
     loadAllData();
@@ -801,7 +831,7 @@ export default function App() {
       if (openAdmin) url.searchParams.set("view", "admin");
       else url.searchParams.delete("view");
       window.history.pushState({}, "", url);
-    } catch (e) {}
+    } catch  {}
 
     await loadAllData(slug);
 
@@ -832,7 +862,7 @@ export default function App() {
       url.searchParams.set("store", slug);
       url.searchParams.delete("view");
       window.history.pushState({}, "", url);
-    } catch (e) {}
+    } catch  {}
     await loadAllData(slug);
     // Explorer browsing is always strictly client persona
     setAppMode("client");
@@ -851,7 +881,7 @@ export default function App() {
       url.searchParams.delete("store");
       url.searchParams.delete("view");
       window.history.pushState({}, "", url);
-    } catch (e) {}
+    } catch  {}
     loadPublicStores();
   };
 
@@ -890,7 +920,7 @@ export default function App() {
     setIsSubscriptionModalOpen(true);
     try {
       window.history.pushState({ modal: "subscription" }, "", window.location.href);
-    } catch (e) {}
+    } catch  {}
   };
 
   const handleCloseSubscriptionModal = () => {
@@ -899,7 +929,7 @@ export default function App() {
       if (window.history.state?.modal === "subscription") {
         window.history.back();
       }
-    } catch (e) {}
+    } catch  {}
   };
 
   if (isSuperAdminOpen) {
@@ -928,7 +958,7 @@ export default function App() {
           lastVisitedStore={lastVisitedStore}
           authStatus={authStatus}
           onLogoutCustomer={() => {
-            clearCustomerToken();
+            logoutCustomer();
             setCustomer(null);
             setClientOrdersCount(0);
             showToast("Déconnexion client réussie");
@@ -1231,7 +1261,7 @@ export default function App() {
                 showToast("Profil client mis à jour");
               }}
               onLogoutCustomer={() => {
-                clearCustomerToken();
+                logoutCustomer();
                 setCustomer(null);
                 setClientOrdersCount(0);
                 showToast("Déconnexion client réussie");
@@ -1272,6 +1302,16 @@ export default function App() {
           pendingCount={3}
           clientOrdersCount={clientOrdersCount}
           unreadChatCount={unreadChatCount}
+        />
+      )}
+
+      {/* Produit partagé via un lien de publicité */}
+      {sharedProduct && activeTab !== "tunnel" && (
+        <SharedProductBanner
+          product={sharedProduct}
+          storeName={store?.name}
+          onOrder={() => { const p = sharedProduct; setSharedProduct(null); handleOpenConversationalOrder(p); }}
+          onClose={() => setSharedProduct(null)}
         />
       )}
 

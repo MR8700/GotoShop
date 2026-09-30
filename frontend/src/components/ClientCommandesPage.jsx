@@ -16,7 +16,6 @@ import {
   recordClientOrderAction,
   dataCache,
 } from "../api/client";
-import { formatSalesQuantity } from "../utils/salesEngine";
 import Footer from "./Footer";
 import MobileMoneyPaymentModal from "./MobileMoneyPaymentModal";
 
@@ -124,7 +123,7 @@ export default function ClientCommandesPage({
               }
             });
           }
-        } catch (e) {}
+        } catch  {}
       }
 
       // 3. Merge local guest orders
@@ -144,7 +143,7 @@ export default function ClientCommandesPage({
       }
 
       setOrders(combined);
-    } catch (err) {
+    } catch  {
       showToast("Erreur lors du chargement des commandes");
     } finally {
       setLoading(false);
@@ -252,6 +251,13 @@ export default function ClientCommandesPage({
     setFeedbackNote("Produit reçu en parfait état, très satisfait(e) !");
   };
 
+  // Preuve de propriété envoyée au serveur : jeton d'accès de la commande (invité) ou session client.
+  const proofFor = (order) => ({
+    customer_id: customer?.id,
+    customer_token: order?.access_token || customer?.session_token || getCustomerToken() || undefined,
+  });
+  const isAuthRefusal = (e) => e?.status === 401 || e?.status === 403;
+
   const handleOpenCancelModal = (order) => {
     setActionOrder(order);
     setActionType("CANCEL");
@@ -265,11 +271,11 @@ export default function ClientCommandesPage({
     const isArchived = !order.is_client_archived;
     try {
       if (isArchived) {
-        await archiveClientOrder(targetId);
+        await archiveClientOrder(targetId, proofFor(order));
         archiveLocalGuestOrder(targetId, true);
         showToast("📦 Commande déplacée dans vos archives.");
       } else {
-        await unarchiveClientOrder(targetId);
+        await unarchiveClientOrder(targetId, proofFor(order));
         archiveLocalGuestOrder(targetId, false);
         showToast("📦 Commande replacée dans vos commandes actives.");
       }
@@ -289,6 +295,10 @@ export default function ClientCommandesPage({
         setSelectedOrderDetail((prev) => ({ ...prev, is_client_archived: isArchived }));
       }
     } catch (err) {
+      if (isAuthRefusal(err)) {
+        showToast(err.message || "Action refusée pour cette commande.");
+        return;
+      }
       archiveLocalGuestOrder(targetId, isArchived);
       setOrders((prev) =>
         prev.map((o) =>
@@ -309,8 +319,12 @@ export default function ClientCommandesPage({
 
     const targetId = order.id || order.order_number || order.reference_code;
     try {
-      await hideClientOrder(targetId);
+      await hideClientOrder(targetId, proofFor(order));
     } catch (err) {
+      if (isAuthRefusal(err)) {
+        showToast(err.message || "Action refusée pour cette commande.");
+        return;
+      }
       console.warn("Hide client order notice:", err);
     }
     hideLocalGuestOrder(targetId);
@@ -350,18 +364,21 @@ export default function ClientCommandesPage({
       if (actionType === "CANCEL") {
         let cancelSuccess = false;
         try {
-          await cancelConversationalOrder(targetId, reasonToSend);
+          await cancelConversationalOrder(targetId, reasonToSend, "Client", proofFor(actionOrder));
           cancelSuccess = true;
         } catch (e) {
+          // Un refus d'identité n'est pas une panne : on l'affiche au lieu d'annoncer un faux succès.
+          if (isAuthRefusal(e)) throw e;
           try {
-            await recordClientOrderAction(targetId, actionType, reasonToSend, rating);
+            await recordClientOrderAction(targetId, actionType, reasonToSend, rating, proofFor(actionOrder));
             cancelSuccess = true;
           } catch (e2) {
+            if (isAuthRefusal(e2)) throw e2;
             console.warn("Fallback cancel notice:", e2);
           }
         }
       } else {
-        await recordClientOrderAction(targetId, actionType, reasonToSend, rating);
+        await recordClientOrderAction(targetId, actionType, reasonToSend, rating, proofFor(actionOrder));
       }
 
       // Update local storage if guest
@@ -878,6 +895,12 @@ export default function ClientCommandesPage({
                             {order.total_amount?.toLocaleString("fr-FR")} {order.currency || "FCFA"}
                           </p>
                         </div>
+                      </div>
+                    )}
+
+                    {order.spot_name && (
+                      <div className="text-[11px] px-2 py-1 rounded-lg bg-secondary/15 text-secondary font-semibold">
+                        {order.fulfillment_type === "PICKUP" ? "Retrait" : "Livraison groupée"} : {order.spot_name}{order.spot_hours ? ` • ${order.spot_hours}` : ""}
                       </div>
                     )}
 

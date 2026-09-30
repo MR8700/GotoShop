@@ -1,5 +1,5 @@
 import Icon from "./Icon";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { getMediaUrl } from "../api/client";
 import ThemeToggle from "./ThemeToggle";
 import Footer from "./Footer";
@@ -28,6 +28,42 @@ export default function StoreExplorerPage({
   const [showReturnBubble, setShowReturnBubble] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const itemsPerPage = 12;
+  const heroRef = useRef(null);
+  const sheetRef = useRef(null);
+  const dockRef = useRef(null);
+
+  // Défilement : le hero reste en place et se floute (--gs-p 0 -> 1) pendant que le panneau remonte par-dessus ;
+  // le dock recherche se colle sous le header (data-docked).
+  useEffect(() => {
+    let raf = 0;
+    const HEADER_H = 65;
+    const update = () => {
+      raf = 0;
+      const hero = heroRef.current;
+      const sheet = sheetRef.current;
+      if (!hero || !sheet) return;
+      const y = window.scrollY || 0;
+      const heroH = hero.offsetHeight || 0;
+      // Hero plus haut que l'écran : il défile jusqu'à ce que son bas touche le bas de l'écran, puis se fixe.
+      hero.style.top = `${Math.min(HEADER_H, window.innerHeight - heroH)}px`;
+      const dist = sheet.getBoundingClientRect().top + y - HEADER_H;
+      const p = dist > 0 ? Math.min(1, Math.max(0, y / dist)) : 1;
+      hero.style.setProperty("--gs-p", p.toFixed(3));
+      const dock = dockRef.current;
+      if (dock) dock.dataset.docked = dock.getBoundingClientRect().top <= HEADER_H + 1 ? "true" : "false";
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [loading]);
 
   // Filter categories
   const filterOptions = [
@@ -445,9 +481,11 @@ export default function StoreExplorerPage({
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="px-4 sm:px-6 pt-6 sm:pt-10 pb-6 max-w-5xl mx-auto w-full">
-        <div className="relative overflow-hidden rounded-3xl border border-subtle bg-surface-container p-6 sm:p-10 shadow-card">
+      {/* Hero Section (collant : le panneau des boutiques glisse par-dessus pendant qu'il se floute) */}
+      <div ref={heroRef} className="gs-hero-stick">
+      <section className="px-4 sm:px-6 pt-6 sm:pt-10 pb-12 max-w-5xl mx-auto w-full">
+        <div className="gs-hero-card gs-3d-panel relative overflow-hidden rounded-3xl bg-surface-container p-6 sm:p-10">
+          <div className="gs-hero-veil" aria-hidden="true" />
           {/* Photographic Background - Clearly visible in light mode */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
             <img
@@ -480,15 +518,15 @@ export default function StoreExplorerPage({
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <a
                 href="#stores-directory"
-                className="h-11 px-5 rounded-xl bg-primary hover:brightness-105 text-white text-sm font-semibold flex items-center gap-2 shadow-sm transition-all active:scale-[0.98]"
+                className="gs-3d-btn gs-3d-btn--primary h-11 px-5 rounded-xl bg-primary text-white text-sm font-semibold flex items-center gap-2"
               >
                 <span>Explorer les boutiques</span>
-                <Icon name="arrow_downward" className="text-[18px]" />
+                <Icon name="arrow_downward" className="text-[18px] animate-bounce motion-reduce:animate-none" />
               </a>
 
               <button
                 onClick={onOpenRegisterStore}
-                className="h-11 px-5 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface text-sm font-medium border border-subtle transition-all flex items-center gap-2"
+                className="gs-3d-btn h-11 px-5 rounded-xl bg-surface-secondary text-on-surface text-sm font-medium flex items-center gap-2"
               >
                 <Icon name="store" className="text-[18px] text-amber-500" />
                 <span>Créer ma boutique</span>
@@ -498,7 +536,7 @@ export default function StoreExplorerPage({
 
           {/* Three Pillar Guarantees */}
           <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 mt-6 border-t border-subtle">
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-secondary/60 border border-subtle">
+            <div className="gs-3d-panel-sm flex items-start gap-3 p-3 rounded-xl bg-surface-secondary">
               <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                 <Icon name="chat" className="text-[18px]" />
               </div>
@@ -508,7 +546,7 @@ export default function StoreExplorerPage({
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-secondary/60 border border-subtle">
+            <div className="gs-3d-panel-sm flex items-start gap-3 p-3 rounded-xl bg-surface-secondary">
               <div className="w-8 h-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
                 <Icon name="verified_user" className="text-[18px]" />
               </div>
@@ -518,7 +556,7 @@ export default function StoreExplorerPage({
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-secondary/60 border border-subtle">
+            <div className="gs-3d-panel-sm flex items-start gap-3 p-3 rounded-xl bg-surface-secondary">
               <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
                 <Icon name="badge" className="text-[18px]" />
               </div>
@@ -528,11 +566,29 @@ export default function StoreExplorerPage({
               </div>
             </div>
           </div>
+
+          {/* Indice de défilement */}
+          <div className="relative z-10 flex justify-center pt-5">
+            <a
+              href="#stores-directory"
+              className="gs-3d-btn gs-cue inline-flex items-center gap-2 px-4 h-10 rounded-full bg-surface text-on-surface text-xs sm:text-sm font-semibold"
+            >
+              <span>Descendez pour découvrir les boutiques</span>
+              <Icon name="keyboard_double_arrow_down" className="text-[20px] text-primary animate-bounce motion-reduce:animate-none" />
+            </a>
+          </div>
         </div>
       </section>
+      </div>
 
-      {/* Directory Section Anchor */}
-      <section id="stores-directory" className="px-4 sm:px-6 pt-4 pb-2 max-w-5xl mx-auto w-full space-y-4">
+      {/* Panneau des boutiques : remonte par-dessus le hero flouté */}
+      <div ref={sheetRef} className="gs-sheet flex flex-col flex-1">
+      <div className="gs-grabber" aria-hidden="true" />
+      <div id="stores-directory" style={{ scrollMarginTop: "65px" }} className="flex flex-col flex-1">
+
+      {/* Dock recherche : se colle sous le header */}
+      <section ref={dockRef} className="gs-dock px-4 sm:px-6 pt-3 pb-3 w-full">
+       <div className="max-w-5xl mx-auto w-full space-y-3">
         {/* Search Bar */}
         <div className="relative">
           <Icon name="search" className="absolute left-3.5 top-3.5 text-slate-400 text-[19px]" />
@@ -544,7 +600,7 @@ export default function StoreExplorerPage({
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full h-11 pl-10 pr-10 rounded-xl bg-surface border border-subtle text-on-surface placeholder:text-on-surface-variant text-sm focus:outline-none focus:border-primary transition-all shadow-sm"
+            className="gs-3d-inset w-full h-11 pl-10 pr-10 rounded-xl bg-surface-secondary text-on-surface placeholder:text-on-surface-variant text-sm focus:outline-none focus:border-primary transition-all"
           />
           {searchQuery && (
             <button
@@ -557,7 +613,7 @@ export default function StoreExplorerPage({
         </div>
 
         {/* Filter Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex items-center gap-2 overflow-x-auto pt-0.5 pb-2 no-scrollbar">
           {filterOptions.map((f) => {
             const isActive = selectedFilter === f.id;
             return (
@@ -567,10 +623,10 @@ export default function StoreExplorerPage({
                   setSelectedFilter(f.id);
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                className={`gs-3d-btn px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                   isActive
-                    ? "bg-primary text-white font-semibold shadow-sm"
-                    : "bg-surface-secondary text-on-surface-variant hover:text-on-surface border border-subtle"
+                    ? "gs-3d-btn--active bg-primary text-white font-semibold"
+                    : "bg-surface-secondary text-on-surface-variant hover:text-on-surface"
                 }`}
               >
                 <Icon name={f.icon} className="text-[15px]" />
@@ -590,10 +646,11 @@ export default function StoreExplorerPage({
             Vendeurs en ligne
           </span>
         </div>
+       </div>
       </section>
 
       {/* Boutiques Cards Grid */}
-      <main className="px-4 sm:px-6 py-2 max-w-5xl mx-auto w-full flex-1">
+      <main className="px-4 sm:px-6 pt-4 pb-2 max-w-5xl mx-auto w-full flex-1">
         {loading ? (
           <div className="text-center py-20 space-y-3">
             <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
@@ -633,7 +690,7 @@ export default function StoreExplorerPage({
                 <div
                   key={st.id}
                   onClick={() => onSelectStore(st.slug)}
-                  className="group relative bg-surface-container rounded-2xl border-2 border-slate-300 dark:border-slate-700/80 hover:border-primary/60 transition-all duration-200 cursor-pointer flex flex-col justify-between overflow-hidden shadow-card hover:shadow-card-hover"
+                  className="gs-3d-panel-sm group relative bg-surface-container rounded-2xl hover:border-primary/60 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer flex flex-col justify-between overflow-hidden"
                 >
                   <div className="p-5 space-y-4">
                     {/* Top Identity Row */}
@@ -703,7 +760,7 @@ export default function StoreExplorerPage({
                       {/* Star Rating Badge */}
                       <div className="flex items-center gap-1 shrink-0 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-500 text-xs font-semibold">
                         <Icon name="star" className="text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }} aria-hidden="true" />
-                        <span>{st.rating || 4.9}</span>
+                        <span>{(st.rating ?? 0) > 0 ? st.rating : "Nouveau"}</span>
                       </div>
                     </div>
 
@@ -756,6 +813,7 @@ export default function StoreExplorerPage({
           </div>
         )}
       </main>
+      </div>
 
       {/* Platform Navigation Links & Branded Footer */}
       <div className="mt-8 pt-4 text-center text-xs text-on-surface-variant max-w-5xl mx-auto w-full px-4">
@@ -772,6 +830,7 @@ export default function StoreExplorerPage({
             Console Plateforme
           </button>
         </div>
+      </div>
       </div>
 
       {/* Floating Incentive Bubble to Return to Last Visited Store */}
@@ -834,7 +893,9 @@ export default function StoreExplorerPage({
         </aside>
       )}
 
-      <Footer onOpenSuperAdmin={onOpenSuperAdmin} />
+      <div className="relative z-10 bg-surface flow-root">
+        <Footer onOpenSuperAdmin={onOpenSuperAdmin} />
+      </div>
     </div>
   );
 }

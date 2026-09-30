@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
 from app.database import get_db
+from app.core.ratelimit import rate_limit
 from app.services.customer_service import CustomerService
 from app.services.store_service import StoreService
 from app.routers.auth import require_store_admin
@@ -10,6 +11,7 @@ from app.models.customer import Customer
 from app.schemas.customer import (
     CustomerQuickRegisterRequest,
     CustomerQuickLoginRequest,
+    CustomerLoginOtpRequest,
     CustomerProfileUpdateRequest,
     CustomerResponse,
     CustomerAuthResponse,
@@ -43,12 +45,32 @@ def get_current_customer(
         raise HTTPException(status_code=401, detail="Session client expirée ou invalide.")
     return customer
 
+def _bind_store(req, slug: Optional[str], db: Session):
+    """Sans store_id explicite, la boutique est celle du contexte (X-Store-Slug) : sinon le compte était créé
+    dans la première boutique de la base, pas dans celle où le client se trouve."""
+    if not getattr(req, "store_id", None) and slug:
+        store = StoreService.resolve_store(db, slug=slug)
+        if store:
+            req.store_id = store.id
+
+
+@router.post("/login/otp/request")
+def request_login_otp(req: CustomerLoginOtpRequest, x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
+                      db: Session = Depends(get_db)):
+    _bind_store(req, x_store_slug, db)
+    try:
+        return CustomerService.request_login_otp(db, req.phone, req.store_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.post("/quick-register", response_model=CustomerAuthResponse)
-def quick_register(req: CustomerQuickRegisterRequest, db: Session = Depends(get_db)):
+def quick_register(req: CustomerQuickRegisterRequest, x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
+                   db: Session = Depends(get_db), _rl=Depends(rate_limit("quick-register", 10, 60))):
+    _bind_store(req, x_store_slug, db)
     try:
         customer, token = CustomerService.quick_register(db, req)
         return CustomerAuthResponse(
-            access_token=token,
+            access_token=CustomerService.expose(token),
             token_type="bearer",
             customer=CustomerResponse.model_validate(customer),
             message="Bienvenue chez Awa Chic & Tech !"
@@ -59,11 +81,13 @@ def quick_register(req: CustomerQuickRegisterRequest, db: Session = Depends(get_
         raise HTTPException(status_code=500, detail=f"Erreur d'inscription: {str(e)}")
 
 @router.post("/quick-login", response_model=CustomerAuthResponse)
-def quick_login(req: CustomerQuickLoginRequest, db: Session = Depends(get_db)):
+def quick_login(req: CustomerQuickLoginRequest, x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
+                db: Session = Depends(get_db), _rl=Depends(rate_limit("quick-login", 10, 60))):
+    _bind_store(req, x_store_slug, db)
     try:
         customer, token = CustomerService.quick_login(db, req)
         return CustomerAuthResponse(
-            access_token=token,
+            access_token=CustomerService.expose(token),
             token_type="bearer",
             customer=CustomerResponse.model_validate(customer),
             message=f"Ravi de vous revoir, {customer.name} !"
@@ -139,7 +163,11 @@ def get_my_loyalty_history(
     db: Session = Depends(get_db)
 ):
     from app.services.loyalty_service import LoyaltyService
-    return LoyaltyService.get_ledger_history(db, customer.id, customer.store_id, limit=limit)
+    rows = LoyaltyService.get_ledger_history(db, customer.id, customer.store_id, limit=limit)
+    for r in rows:  # stockage en dixièmes -> points
+        r["points"] = r["points"] / 10.0
+        r["balance_after"] = r["balance_after"] / 10.0
+    return rows
 
 
 @router.get("/loyalty/coupons", summary="Coupons et récompenses actifs du client")
@@ -149,6 +177,47 @@ def get_my_loyalty_coupons(
 ):
     from app.services.loyalty_service import LoyaltyService
     return LoyaltyService.get_active_coupons(db, customer.id, customer.store_id)
+
+
+@router.get("/loyalty/summary", summary="Solde, échéances et conditions de rachat des points")
+def get_my_loyalty_summary(
+    customer = Depends(get_current_customer),
+    db: Session = Depends(get_db)
+):
+    from app.services.loyalty_service import (
+        LoyaltyService, REDEEM_FCFA_PER_POINT, REDEEM_MIN_POINTS, REDEEM_COUPON_VALIDITY_DAYS,
+    )
+    expiry = LoyaltyService.get_expiry_summary(db, customer.id, customer.store_id)
+    expiry["points_expiring_soon"] = (expiry.get("points_expiring_soon") or 0) / 10.0
+    db.refresh(customer)
+    return {
+        "balance": (customer.bonus_points or 0) / 10.0,
+        "model": "v3",
+        **__import__("app.services.loyalty_v3", fromlist=["next_gain_info"]).next_gain_info(db, customer.store_id, customer.id),
+        "redeem_fcfa_per_point": REDEEM_FCFA_PER_POINT,
+        "redeem_min_points": REDEEM_MIN_POINTS,
+        "coupon_validity_days": REDEEM_COUPON_VALIDITY_DAYS,
+        **expiry,
+        "coupons": LoyaltyService.get_active_coupons(db, customer.id, customer.store_id),
+    }
+
+
+class RedeemPointsRequest(BaseModel):
+    points: int
+
+
+@router.post("/loyalty/redeem", summary="Échanger des points contre un bon d'achat")
+def redeem_my_points(
+    req: RedeemPointsRequest,
+    customer = Depends(get_current_customer),
+    db: Session = Depends(get_db)
+):
+    from app.services.loyalty_service import LoyaltyService
+    try:
+        result = LoyaltyService.redeem_points_for_coupon(db, customer.store_id, customer.id, req.points)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return result
 
 
 class ValidateCouponRequest(BaseModel):
@@ -163,7 +232,7 @@ def validate_customer_coupon(
     db: Session = Depends(get_db)
 ):
     from app.services.loyalty_service import LoyaltyService
-    return LoyaltyService.validate_coupon(db, customer.store_id, req.code, req.order_amount)
+    return LoyaltyService.validate_coupon(db, customer.store_id, req.code, req.order_amount, customer_id=customer.id)
 
 
 class LinkOrdersRequest(BaseModel):
@@ -266,9 +335,16 @@ def grant_client_perk(
         raise HTTPException(status_code=404, detail="Client introuvable")
     return {
         "success": True,
-        "bonus_points": updated.bonus_points,
+        "bonus_points": (updated.bonus_points or 0) / 10.0,
         "custom_discount_percent": updated.custom_discount_percent,
         "custom_perk_note": updated.custom_perk_note,
         "message": f"Avantage accordé avec succès à {updated.name} !"
     }
 
+
+
+@router.post("/logout", summary="Fermer la session client (efface le cookie HttpOnly)")
+def customer_logout(customer=Depends(get_current_customer), db: Session = Depends(get_db)):
+    CustomerService.clear_session(customer)
+    db.commit()
+    return {"success": True, "message": "Déconnexion réussie."}

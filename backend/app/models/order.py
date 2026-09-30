@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class Order(Base):
     __tablename__ = "orders"
@@ -33,14 +34,15 @@ class Order(Base):
     currency = Column(String(10), default="FCFA", nullable=False)
 
     notes = Column(Text, nullable=True)
+    share_code = Column(String(20), nullable=True, index=True)  # lien de publicité produit à l'origine de la commande
     rejection_reason = Column(String(255), nullable=True)
 
     # Client-specific soft-lifecycle (strictly preserves database records for merchant/audit)
     is_client_archived = Column(Boolean, default=False, nullable=True, index=True)
     is_client_hidden = Column(Boolean, default=False, nullable=True, index=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow, index=True)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Relationships
     store = relationship("Store", foreign_keys=[store_id])
@@ -96,6 +98,13 @@ class OrderDelivery(Base):
     location_captured_at = Column(DateTime, nullable=True)
 
     delivery_notes = Column(Text, nullable=True)
+    # HOME (à domicile) | PICKUP (retrait en point) | MEETING_POINT (rejoint la tournée du commerçant)
+    fulfillment_type = Column(String(20), default="HOME")
+    spot_id = Column(String(36), nullable=True, index=True)
+    spot_snapshot = Column(Text, nullable=True)  # JSON figé du lieu au moment de la commande
+    # Cohérence position du client / ville de livraison : OK | MISMATCH | OUT_OF_ZONE | UNVERIFIABLE | NO_GPS
+    location_status = Column(String(20), nullable=True)
+    location_distance_km = Column(Float, nullable=True)
     # PENDING, ASSIGNED, IN_TRANSIT, DELIVERED, FAILED
     delivery_status = Column(String(50), default="PENDING")
     delivery_person_id = Column(String(100), nullable=True)
@@ -105,7 +114,7 @@ class OrderDelivery(Base):
     started_at = Column(DateTime, nullable=True)
     delivered_at = Column(DateTime, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     order = relationship("Order", back_populates="delivery")

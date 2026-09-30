@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime
 from app.database import Base
+from app.core.clock import utcnow
 
 class Media(Base):
     __tablename__ = "media"
@@ -24,4 +25,4 @@ class Media(Base):
     checksum = Column(String(64), nullable=True)
     is_secure_access = Column(Boolean, default=False) # True for sensitive media like payment proofs
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)

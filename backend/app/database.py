@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import NullPool
 from app.config import settings
@@ -59,6 +59,21 @@ def init_engine():
     return candidate_engine, db_url
 
 engine, ACTIVE_DATABASE_URL = init_engine()
+
+# Repli PostgreSQL -> SQLite : désactivé par défaut (les écritures partiraient dans un fichier local divergent).
+# Activer explicitement en dev avec ALLOW_SQLITE_FALLBACK=1 (toujours actif sur Vercel pour compatibilité).
+ALLOW_SQLITE_FALLBACK = os.getenv("ALLOW_SQLITE_FALLBACK", "").lower() in ("1", "true", "yes") or bool(os.getenv("VERCEL"))
+
+
+def _enable_sqlite_fk(eng):
+    """Applique les clés étrangères SQLite (GOTOSHOP_SQLITE_FK=1) — à activer APRÈS backend/repair_db.py."""
+    if eng.dialect.name == "sqlite" and os.getenv("GOTOSHOP_SQLITE_FK", "").lower() in ("1", "true", "yes"):
+        @event.listens_for(eng, "connect")
+        def _fk_on(dbapi_conn, _rec):
+            dbapi_conn.execute("PRAGMA foreign_keys=ON")
+
+
+_enable_sqlite_fk(engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -76,6 +91,10 @@ def get_db():
         # Verify connection can execute a query
         db.execute(text("SELECT 1"))
     except Exception as e_conn:
+        if "sqlite" not in ACTIVE_DATABASE_URL and not ALLOW_SQLITE_FALLBACK:
+            from fastapi import HTTPException
+            print(f"[Database] Remote PostgreSQL unavailable: {e_conn}")
+            raise HTTPException(status_code=503, detail="Base de données momentanément indisponible, réessayez.")
         if "sqlite" not in ACTIVE_DATABASE_URL:
             print(f"[Database] Remote PostgreSQL unavailable: {e_conn}. Activating instant SQLite fallback...")
             engine, ACTIVE_DATABASE_URL = get_sqlite_engine()

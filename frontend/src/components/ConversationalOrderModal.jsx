@@ -1,6 +1,6 @@
 import Icon from "./Icon";
-import React, { useState } from "react";
-import { createConversationalOrder, getActiveStoreSlug, setCustomerToken, getCustomerToken, checkOrderCoupon, customerQuickRegister } from "../api/client";
+import React, { useState, useEffect } from "react";
+import { createConversationalOrder, getActiveStoreSlug, setCustomerToken, getCustomerToken, checkOrderCoupon, customerQuickRegister, fetchLoyaltySummary, fetchCustomerLoyaltyCoupons, previewShopDiscount, fetchDeliverySpots, fetchDeliveryCities, checkDeliveryLocation } from "../api/client";
 import CustomerAuthModal from "./CustomerAuthModal";
 import { getBusinessContext } from "../utils/businessContext";
 import {
@@ -58,6 +58,54 @@ export default function ConversationalOrderModal({
   const [isLocating, setIsLocating] = useState(false);
   const [gpsCaptured, setGpsCaptured] = useState(Boolean(customer?.gps_coordinates));
 
+  // Cohérence position GPS du client / ville de livraison choisie
+  const [locCheck, setLocCheck] = useState(null);
+  const [locAck, setLocAck] = useState(false);
+
+  // Lieux de retrait / livraison définis par le commerçant (le client peut en choisir un)
+  const [spots, setSpots] = useState([]);
+  const [spotId, setSpotId] = useState(null);
+  const [spotImg, setSpotImg] = useState({});
+  useEffect(() => {
+    let alive = true;
+    const key = store?.id || store?.slug;
+    if (key) fetchDeliverySpots(key).then((r) => alive && setSpots(Array.isArray(r) ? r : []));
+    return () => { alive = false; };
+  }, [store?.id, store?.slug]);
+  const selectedSpot = spots.find((s) => s.id === spotId) || null;
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  useEffect(() => {
+    setLocAck(false);
+    const key = store?.id || store?.slug;
+    if (!key || selectedSpot || !gpsCaptured || deliveryMode === "ADDRESS_DESCRIPTION") {
+      setLocCheck(null);
+      return undefined;
+    }
+    let alive = true;
+    const timer = setTimeout(() => {
+      checkDeliveryLocation(key, { city: deliveryCity || defaultCity, latitude, longitude }).then((r) => alive && setLocCheck(r));
+    }, 400);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [store?.id, store?.slug, selectedSpot, gpsCaptured, latitude, longitude, deliveryCity, deliveryMode]);
+  const locBlocked = !!locCheck && (locCheck.status === "MISMATCH" || locCheck.status === "OUT_OF_ZONE") && !locAck;
+
+  // Villes livrées et tarifs du commerçant : le montant affiché est celui que le serveur appliquera
+  const [cities, setCities] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    const key = store?.id || store?.slug;
+    if (key) fetchDeliveryCities(key).then((r) => alive && setCities(Array.isArray(r) ? r : []));
+    return () => { alive = false; };
+  }, [store?.id, store?.slug]);
+
   // Customer Contact & Seamless Checkout Onboarding
   const [customerName, setCustomerName] = useState(customer?.name || "");
   const [customerPhone, setCustomerPhone] = useState(customer?.phone || "");
@@ -74,6 +122,31 @@ export default function ConversationalOrderModal({
   const [errorMessage, setErrorMessage] = useState("");
   const [createdOrder, setCreatedOrder] = useState(null);
 
+  // Remise boutique automatique (selon le public : visiteur, client, client choisi...)
+  const [shopDiscount, setShopDiscount] = useState(null);
+
+  // Fidélité v3 (points en dixièmes)
+  const [loyaltySummary, setLoyaltySummary] = useState(null);
+  const [loyaltyTenths, setLoyaltyTenths] = useState(0);
+  const isLoggedIn = Boolean(customer && !String(customer.id || "").startsWith("cust-local-"));
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let alive = true;
+    fetchLoyaltySummary().then((d) => { if (alive && d) setLoyaltySummary(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, [isLoggedIn]);
+  const [myCoupons, setMyCoupons] = useState([]);
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let alive = true;
+    fetchCustomerLoyaltyCoupons().then((d) => { if (alive && Array.isArray(d)) setMyCoupons(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, [isLoggedIn]);
+  const maxTenths = loyaltySummary
+    ? Math.max(0, Math.min(Math.round(loyaltySummary.balance * 10), Math.round(loyaltySummary.max_points_per_use * 10)))
+    : 0;
+  const fmtPt = (t) => (t / 10).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+
   // Coupon & Discount state
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -84,21 +157,53 @@ export default function ConversationalOrderModal({
   const [accountPromptOpen, setAccountPromptOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  const deliveryFee = 500;
+  const wantedCity = (deliveryCity || "").trim().toLowerCase();
+  const cityFee = cities.find(
+    (c) => c.delivery_fee != null && [c.name, c.display_label].some((n) => (n || "").trim().toLowerCase() === wantedCity)
+  )?.delivery_fee;
+  const deliveryFee = selectedSpot
+    ? selectedSpot.kind === "PICKUP" ? 0 : selectedSpot.delivery_fee ?? cityFee ?? 500
+    : cityFee ?? 500;
   const unitPrice = selectedVariant?.price_override || product?.price || 0;
   const subtotal = Math.round(unitPrice * quantity);
-  const discountAmount = appliedCoupon?.discount_amount || 0;
+  // Fidélité v3 : points (par pas de 0,1) dépensés sur CE produit, remise sur UNE unité
+  const pointsTenths = Math.max(0, Math.round(Number(loyaltyTenths) || 0));
+  // Montant calculé par le serveur (la remise peut ne porter que sur ce produit ou sa catégorie, selon le public)
+  const shopDiscountAmount = shopDiscount?.applicable ? Math.min(subtotal, Number(shopDiscount.amount) || 0) : 0;
+  const couponAmount = appliedCoupon?.discount_amount || 0;
+  // Une seule remise : la plus forte entre la remise boutique et le coupon (pas de cumul)
+  const useShopDiscount = shopDiscountAmount > 0 && shopDiscountAmount >= couponAmount;
+  const pointsDiscount = appliedCoupon ? 0 : Math.min(Math.floor((unitPrice * pointsTenths) / 1000), Math.round(unitPrice));
+  const discountAmount = (useShopDiscount ? shopDiscountAmount : couponAmount) + pointsDiscount;
   const totalAmount = Math.max(0, subtotal - discountAmount) + deliveryFee;
 
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) return;
+  useEffect(() => {
+    let alive = true;
+    const sid = store?.id || store?.slug || getActiveStoreSlug();
+    if (!sid || !subtotal) return undefined;
+    const t = setTimeout(() => {
+      previewShopDiscount(sid, subtotal, {
+        customer_id: customer?.id,
+        customer_token: customer?.session_token || getCustomerToken() || undefined,
+      }, product?.id ? [{ product_id: String(product.id), amount: subtotal }] : null).then((d) => { if (alive) setShopDiscount(d); }).catch(() => {});
+    }, 250);
+    return () => { alive = false; clearTimeout(t); };
+  }, [store?.id, store?.slug, subtotal, customer?.id, product?.id]);
+
+  const handleApplyCoupon = async (codeArg) => {
+    const codeToApply = (typeof codeArg === "string" ? codeArg : couponCode).trim();
+    if (!codeToApply) return;
     try {
       setValidatingCoupon(true);
       setCouponError("");
       const resolvedStoreId = store?.id || store?.slug || getActiveStoreSlug() || "default";
-      const res = await checkOrderCoupon(resolvedStoreId, couponCode.trim(), subtotal);
+      const res = await checkOrderCoupon(resolvedStoreId, codeToApply, subtotal, {
+        customer_id: customer?.id,
+        customer_token: customer?.session_token || getCustomerToken() || undefined,
+      });
       if (res.valid) {
         setAppliedCoupon(res);
+        setLoyaltyTenths(0);
         showToast?.(`Coupon appliqué : -${res.discount_amount} FCFA`);
       } else {
         setCouponError(res.message || "Code promo invalide");
@@ -198,10 +303,12 @@ export default function ConversationalOrderModal({
           delivery_mode: deliveryMode,
           delivery_city: deliveryCity || defaultCity,
           delivery_address: deliveryAddress || deliveryNeighborhood || "En magasin / Point de livraison",
-          latitude: deliveryMode !== "ADDRESS_DESCRIPTION" ? latitude : null,
-          longitude: deliveryMode !== "ADDRESS_DESCRIPTION" ? longitude : null,
+          latitude: deliveryMode !== "ADDRESS_DESCRIPTION" && gpsCaptured ? latitude : null,
+          longitude: deliveryMode !== "ADDRESS_DESCRIPTION" && gpsCaptured ? longitude : null,
           location_accuracy: locationAccuracy,
           delivery_notes: deliveryNotes,
+          spot_id: selectedSpot?.id || null,
+          fulfillment_type: selectedSpot ? (selectedSpot.kind === "PICKUP" ? "PICKUP" : "MEETING_POINT") : "HOME",
         },
         customer_name: targetCustomer?.name || customerName?.trim() || "Client GotoShop",
         customer_phone: targetCustomer?.phone || customerPhone?.trim() || null,
@@ -214,6 +321,8 @@ export default function ConversationalOrderModal({
         city: customerCity,
         delivery_neighborhood: deliveryNeighborhood || deliveryAddress,
         coupon_code: appliedCoupon ? appliedCoupon.code : null,
+        loyalty_item_index: pointsTenths > 0 && !appliedCoupon ? 0 : null,
+        loyalty_points: pointsTenths > 0 && !appliedCoupon ? pointsTenths / 10 : null,
       };
 
       const result = await createConversationalOrder(orderPayload);
@@ -256,8 +365,15 @@ export default function ConversationalOrderModal({
       showToast?.(msg);
       return;
     }
-    if (deliveryMode !== "EXACT_GPS" && !deliveryAddress.trim() && !deliveryNeighborhood.trim()) {
+    if (!selectedSpot && deliveryMode !== "EXACT_GPS" && !deliveryAddress.trim() && !deliveryNeighborhood.trim()) {
       const msg = "Veuillez préciser votre adresse ou repère de livraison";
+      setErrorMessage(msg);
+      showToast?.(msg);
+      return;
+    }
+
+    if (locBlocked) {
+      const msg = "Votre position ne correspond pas à la ville choisie : corrigez la ville ou confirmez l'alerte.";
       setErrorMessage(msg);
       showToast?.(msg);
       return;
@@ -302,7 +418,7 @@ export default function ConversationalOrderModal({
       }
       await executeOrderSubmission(res.customer, token);
     } catch (err) {
-      showToast?.(err.message || "Erreur lors de l'activation du compte. Vérifiez vos informations.");
+      showToast?.(err.otpRequired ? "Vérification par SMS requise : saisissez le code reçu pour continuer." : (err.message || "Erreur lors de l'activation du compte. Vérifiez vos informations."));
       setAuthModalOpen(true);
       setIsSubmitting(false);
     }
@@ -314,7 +430,12 @@ export default function ConversationalOrderModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn"
+    >
       <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col bg-surface border-2 border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden text-foreground">
         
         {/* Header */}
@@ -334,7 +455,8 @@ export default function ConversationalOrderModal({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-foreground-muted hover:bg-surface-elevated hover:text-foreground transition-colors"
+            aria-label="Fermer"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-foreground-muted hover:bg-surface-elevated hover:text-foreground transition-colors cursor-pointer"
           >
             <Icon name="close" className="text-xl" />
           </button>
@@ -625,7 +747,55 @@ export default function ConversationalOrderModal({
                 </div>
               )}
 
+              {/* Lieux de retrait / livraison du commerçant */}
+              {spots.length > 0 && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-foreground">
+                    Retrait ou point de livraison du commerçant :
+                  </label>
+                  <div className="space-y-2">
+                    {spots.map((s) => {
+                      const on = s.id === spotId;
+                      const imgs = s.images || [];
+                      const shown = imgs[spotImg[s.id] || 0];
+                      return (
+                        <div key={s.id} className={`rounded-xl border p-2.5 transition-all ${on ? "border-primary bg-primary/10" : "border-border bg-surface-elevated"}`}>
+                          <div className="flex gap-2.5">
+                            {shown && <img src={shown} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" />}
+                            <div className="min-w-0 flex-1 text-xs">
+                              <p className="font-bold text-foreground">
+                                {s.name}
+                                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                                  {s.kind === "PICKUP" ? "Retrait gratuit" : `Livraison • ${s.delivery_fee == null ? "tarif zone" : `${Number(s.delivery_fee).toLocaleString()} ${store?.currency || "FCFA"}`}`}
+                                </span>
+                              </p>
+                              {(s.city || s.address) && <p className="text-foreground-muted">{[s.city, s.address].filter(Boolean).join(" • ")}</p>}
+                              {s.hours && <p className="text-foreground-muted">🕒 {s.hours}</p>}
+                              {s.description && <p className="text-foreground-muted">{s.description}</p>}
+                            </div>
+                          </div>
+                          {imgs.length > 1 && (
+                            <div className="flex gap-1.5 mt-2 overflow-x-auto">
+                              {imgs.map((u, i) => (
+                                <img key={i} src={u} alt="" onClick={() => setSpotImg({ ...spotImg, [s.id]: i })}
+                                  className={`w-10 h-10 rounded object-cover cursor-pointer ${(spotImg[s.id] || 0) === i ? "ring-2 ring-primary" : "opacity-70"}`} />
+                              ))}
+                            </div>
+                          )}
+                          <button type="button" onClick={() => setSpotId(on ? null : s.id)}
+                            className={`mt-2 w-full py-2 rounded-lg text-xs font-bold ${on ? "bg-primary text-white" : "bg-surface border border-border text-foreground"}`}>
+                            {on ? "✓ Lieu choisi — Annuler" : s.kind === "PICKUP" ? "Retirer ma commande ici" : "Rejoindre la livraison ici"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {!selectedSpot && <p className="text-[11px] text-foreground-muted">Ou choisissez la livraison à domicile ci-dessous.</p>}
+                </div>
+              )}
+
               {/* Delivery Mode & Location Section */}
+              {!selectedSpot && (
               <div className="space-y-3">
                 <label className="block text-xs font-semibold text-foreground">
                   Mode de localisation & livraison :
@@ -693,6 +863,26 @@ export default function ConversationalOrderModal({
                 )}
 
                 {/* Described Address text */}
+                {locCheck && (locCheck.status === "MISMATCH" || locCheck.status === "OUT_OF_ZONE") && (
+                  <div className="p-3 rounded-xl border border-red-400/40 bg-red-500/10 text-xs space-y-2" role="alert">
+                    <p className="font-bold text-red-300">⚠️ Position et ville de livraison incohérentes</p>
+                    <p className="text-foreground">{locCheck.message}</p>
+                    {locCheck.nearest && (
+                      <button type="button" onClick={() => setDeliveryCity(locCheck.nearest.name)}
+                        className="w-full py-2 rounded-lg bg-primary text-white font-bold">
+                        Passer à « {locCheck.nearest.display_label || locCheck.nearest.name} » ({locCheck.nearest.distance_km} km)
+                      </button>
+                    )}
+                    <label className="flex items-start gap-2 text-foreground-muted">
+                      <input type="checkbox" checked={locAck} onChange={(e) => setLocAck(e.target.checked)} className="mt-0.5" />
+                      <span>Je confirme cette adresse malgré l'écart (le commerçant sera alerté).</span>
+                    </label>
+                  </div>
+                )}
+                {locCheck?.status === "UNVERIFIABLE" && (
+                  <p className="text-[11px] text-foreground-muted">La zone choisie n'a pas de GPS : votre position ne peut pas être vérifiée.</p>
+                )}
+
                 {(deliveryMode === "ADDRESS_DESCRIPTION" || deliveryMode === "GPS_AND_DESCRIPTION") && (
                   <div>
                     <label className="block text-[11px] font-medium text-foreground-muted mb-1">
@@ -708,6 +898,7 @@ export default function ConversationalOrderModal({
                   </div>
                 )}
               </div>
+              )}
 
               {/* CUSTOMER 5 MANDATORY FIELDS (Checkout Onboarding) */}
               <div className="p-4 bg-surface-elevated/40 rounded-xl border border-border space-y-3">
@@ -777,7 +968,11 @@ export default function ConversationalOrderModal({
                       }}
                       className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
                       placeholder="Ex: Ouagadougou, Bobo-Dioulasso, Abidjan..."
+                      list="store-delivery-cities"
                     />
+                    <datalist id="store-delivery-cities">
+                      {cities.map((c) => <option key={c.id} value={c.name} />)}
+                    </datalist>
                   </div>
                 </div>
 
@@ -810,6 +1005,62 @@ export default function ConversationalOrderModal({
                   </label>
                 )}
               </div>
+
+              {/* Points fidélité : 1 pt = 1 % sur ce produit */}
+              {isLoggedIn && loyaltySummary && maxTenths > 0 && (
+                <div className="p-3 bg-surface-elevated/50 rounded-xl border border-border space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-foreground flex items-center gap-1.5">
+                      <Icon name="redeem" className="text-[15px] text-primary" />
+                      <span>Utiliser mes points sur ce produit</span>
+                    </span>
+                    <span className="text-[11px] text-foreground-muted">Solde : {fmtPt(Math.round(loyaltySummary.balance * 10))} pt</span>
+                  </div>
+                  {appliedCoupon ? (
+                    <p className="text-[11px] text-foreground-muted">Retirez le coupon pour utiliser vos points : les deux ne se cumulent pas.</p>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => setLoyaltyTenths((t) => Math.max(0, t - 1))} disabled={loyaltyTenths <= 0}
+                          className="w-9 h-9 rounded-lg border border-border font-bold text-foreground disabled:opacity-40 cursor-pointer">−</button>
+                        <div className="flex-1 text-center">
+                          <span className="text-base font-bold text-foreground tabular-nums">{fmtPt(loyaltyTenths)} pt</span>
+                          <span className="block text-[10px] text-foreground-muted">= {fmtPt(loyaltyTenths)} % du prix du produit</span>
+                        </div>
+                        <button type="button" onClick={() => setLoyaltyTenths((t) => Math.min(maxTenths, t + 1))} disabled={loyaltyTenths >= maxTenths}
+                          className="w-9 h-9 rounded-lg border border-border font-bold text-foreground disabled:opacity-40 cursor-pointer">+</button>
+                        <button type="button" onClick={() => setLoyaltyTenths(maxTenths)}
+                          className="px-2.5 h-9 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[11px] font-bold cursor-pointer">Max</button>
+                      </div>
+                      <input type="range" min={0} max={maxTenths} step={1} value={loyaltyTenths}
+                        onChange={(e) => setLoyaltyTenths(parseInt(e.target.value, 10) || 0)} className="w-full accent-primary" />
+                      {loyaltyTenths > 0 && pointsDiscount > 0 && (
+                        <p className="text-[11px] text-emerald-400 font-semibold">
+                          ✓ -{pointsDiscount.toLocaleString()} {store?.currency || "FCFA"} sur une unité de « {product?.name} »
+                          {quantity > 1 ? " (les autres unités restent au prix normal)" : ""}
+                        </p>
+                      )}
+                      {loyaltyTenths > 0 && pointsDiscount <= 0 && (
+                        <p className="text-[11px] text-rose-400">Ces points n'apportent aucune remise sur ce produit.</p>
+                      )}
+                      <p className="text-[10px] text-foreground-muted">Maximum {fmtPt(maxTenths)} pt par utilisation. Les points sont rendus si la commande est annulée ou rejetée.</p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Remise boutique automatique */}
+              {shopDiscount?.applicable && shopDiscountAmount > 0 && (
+                <div className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2 ${useShopDiscount ? "bg-emerald-500/10 border-emerald-500/30" : "bg-surface-elevated/50 border-border opacity-70"}`}>
+                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Icon name="sell" className="text-[15px] text-emerald-400" />
+                    <span>{shopDiscount.name} : -{shopDiscount.percent}%</span>
+                  </span>
+                  <span className={useShopDiscount ? "font-bold text-emerald-400" : "text-foreground-muted"}>
+                    {useShopDiscount ? `-${shopDiscountAmount.toLocaleString()} ${store?.currency || "FCFA"}` : "Votre coupon est plus avantageux"}
+                  </span>
+                </div>
+              )}
 
               {/* Promo Code / Coupon Section */}
               <div className="p-3 bg-surface-elevated/50 rounded-xl border border-border space-y-2">
@@ -860,7 +1111,7 @@ export default function ConversationalOrderModal({
                     <button
                       type="button"
                       onClick={handleApplyCoupon}
-                      disabled={!couponCode.trim() || validatingCoupon}
+                      disabled={!couponCode.trim() || validatingCoupon || loyaltyTenths > 0}
                       className="px-3 h-9 rounded-lg bg-primary text-white font-bold text-xs flex items-center gap-1 disabled:opacity-50 cursor-pointer transition-all"
                     >
                       {validatingCoupon ? (
@@ -870,6 +1121,27 @@ export default function ConversationalOrderModal({
                       )}
                     </button>
                   </div>
+                )}
+                {!appliedCoupon && myCoupons.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase font-semibold text-foreground-muted">Mes bons disponibles</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {myCoupons.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          disabled={loyaltyTenths > 0 || validatingCoupon}
+                          onClick={() => { setCouponCode(c.code); handleApplyCoupon(c.code); }}
+                          className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[11px] font-mono font-bold disabled:opacity-40 cursor-pointer"
+                        >
+                          {c.code} · {c.discount_percent > 0 ? `-${c.discount_percent}%` : `-${Number(c.discount_amount).toLocaleString("fr-FR")} F`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {loyaltyTenths > 0 && !appliedCoupon && (
+                  <p className="text-[10px] text-foreground-muted">Vous utilisez vos points : remettez-les à 0 pour appliquer un coupon (les deux ne se cumulent pas).</p>
                 )}
                 {couponError && <p className="text-[11px] text-rose-400">{couponError}</p>}
               </div>
@@ -884,12 +1156,17 @@ export default function ConversationalOrderModal({
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-emerald-400 font-semibold">
-                    <span>Remise ({appliedCoupon?.code || "Fidélité"})</span>
+                    <span>
+                      Remises ({[
+                        useShopDiscount ? `${shopDiscount.name} -${shopDiscount.percent}%` : appliedCoupon?.code,
+                        pointsTenths > 0 && pointsDiscount > 0 ? `${fmtPt(pointsTenths)} pt` : null,
+                      ].filter(Boolean).join(" + ") || "Fidélité"})
+                    </span>
                     <span>-{discountAmount.toLocaleString()} {store?.currency || "FCFA"}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-foreground-muted">
-                  <span>Frais de livraison ({deliveryCity})</span>
+                  <span>{selectedSpot ? (selectedSpot.kind === "PICKUP" ? "Retrait sur place" : `Livraison — ${selectedSpot.name}`) : `Frais de livraison (${deliveryCity})`}</span>
                   <span className="font-semibold text-foreground">{deliveryFee.toLocaleString()} {store?.currency || "FCFA"}</span>
                 </div>
                 <div className="border-t border-border pt-1.5 flex justify-between font-bold text-sm text-foreground">
@@ -1028,7 +1305,7 @@ export default function ConversationalOrderModal({
                 </div>
                 <div className="flex items-center gap-2">
                   <Icon name="location_on" className="text-[16px] text-on-surface-variant" />
-                  <span>{deliveryCity} {deliveryAddress ? `(${deliveryAddress})` : ""}</span>
+                  <span>{selectedSpot ? `${selectedSpot.kind === "PICKUP" ? "Retrait" : "Livraison"} : ${selectedSpot.name}${selectedSpot.hours ? ` (${selectedSpot.hours})` : ""}` : `${deliveryCity} ${deliveryAddress ? `(${deliveryAddress})` : ""}`}</span>
                 </div>
               </div>
             </div>

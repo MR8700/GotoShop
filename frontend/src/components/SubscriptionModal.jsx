@@ -4,7 +4,6 @@ import {
   fetchSubscriptionPublicInfo,
   submitSubscriptionRequest,
   registerMerchantStore,
-  getMediaUrl,
 } from "../api/client";
 import { FALLBACK_SUBSCRIPTION_PUBLIC_INFO } from "../api/fallbackData";
 import { WEST_AFRICAN_COUNTRIES } from "../utils/locations";
@@ -28,7 +27,7 @@ export default function SubscriptionModal({
   onSuccess,
 }) {
   const [plans, setPlans] = useState(FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans);
-  const [ussdConfigs, setUssdConfigs] = useState(FALLBACK_SUBSCRIPTION_PUBLIC_INFO.ussd_configs);
+  const [_ussdConfigs, setUssdConfigs] = useState(FALLBACK_SUBSCRIPTION_PUBLIC_INFO.ussd_configs);
   const [plansWithUssd, setPlansWithUssd] = useState(FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans_with_ussd);
   const [loading, setLoading] = useState(false);
 
@@ -51,7 +50,7 @@ export default function SubscriptionModal({
   const [password, setPassword] = useState("");
   const [categoryName, setCategoryName] = useState("Mode & Tissus Danfani");
   const [tagline, setTagline] = useState("");
-  const [notes, setNotes] = useState("");
+  const [notes, _setNotes] = useState("");
 
   // Payment Selection
   const [selectedPlanCode, setSelectedPlanCode] = useState("STARTER");
@@ -84,6 +83,35 @@ export default function SubscriptionModal({
     (WEST_AFRICAN_COUNTRIES && WEST_AFRICAN_COUNTRIES.find((c) => c.code === selectedCountryCode)) ||
     WEST_AFRICAN_COUNTRIES?.[0] ||
     { code: "BF", name: "Burkina Faso", flag: "🇧🇫", dial: "+226", cities: ["Ouagadougou", "Bobo-Dioulasso", "Autre"] };
+
+  const loadInfo = async () => {
+    try {
+      const data = await fetchSubscriptionPublicInfo();
+      if (data?.plans?.length) setPlans(data.plans);
+      if (data?.ussd_configs?.length) setUssdConfigs(data.ussd_configs);
+      if (data?.plans_with_ussd?.length) setPlansWithUssd(data.plans_with_ussd);
+
+      const activePlans = data?.plans?.length
+        ? data.plans
+        : FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans;
+      if (activePlans.length > 0 && !initialStore?.subscription_plan) {
+        const pop = activePlans.find((p) => p.is_popular);
+        setSelectedPlanCode(pop ? pop.code : activePlans[0].code);
+      }
+    } catch (e) {
+      console.warn("Erreur chargement forfaits en ligne, utilisation des données sécurisées:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -170,27 +198,6 @@ export default function SubscriptionModal({
     setOtpError("");
     if (!otpPhone.trim() || otpPhone.trim() === "+226" || otpPhone.trim() === "+226 ") {
       setOtpPhone("+226 70 12 34 56");
-    }
-  };
-
-  const loadInfo = async () => {
-    try {
-      const data = await fetchSubscriptionPublicInfo();
-      if (data?.plans?.length) setPlans(data.plans);
-      if (data?.ussd_configs?.length) setUssdConfigs(data.ussd_configs);
-      if (data?.plans_with_ussd?.length) setPlansWithUssd(data.plans_with_ussd);
-
-      const activePlans = data?.plans?.length
-        ? data.plans
-        : FALLBACK_SUBSCRIPTION_PUBLIC_INFO.plans;
-      if (activePlans.length > 0 && !initialStore?.subscription_plan) {
-        const pop = activePlans.find((p) => p.is_popular);
-        setSelectedPlanCode(pop ? pop.code : activePlans[0].code);
-      }
-    } catch (e) {
-      console.warn("Erreur chargement forfaits en ligne, utilisation des données sécurisées:", e);
-    } finally {
-      setLoading(false);
     }
   };
 

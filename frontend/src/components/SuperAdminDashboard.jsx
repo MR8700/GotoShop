@@ -9,6 +9,7 @@ import {
   createSuperAdminStore,
   updateSuperAdminStoreStatus,
   verifySuperAdminStore,
+  superAdminResetOwnerCredentials,
   impersonateStoreOwner,
   deleteSuperAdminStore,
   setActiveStoreSlug,
@@ -73,6 +74,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
 
   const [zoomProofUrl, setZoomProofUrl] = useState(null);
   const [credentialsHandover, setCredentialsHandover] = useState(null);
+  const [ownerResetResult, setOwnerResetResult] = useState(null);
   const [rejectionModalReq, setRejectionModalReq] = useState(null);
   const [rejectionReasonText, setRejectionReasonText] = useState("");
 
@@ -119,7 +121,7 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
       } else {
         setAuth({ is_authenticated: false, admin: null });
       }
-    } catch (e) {
+    } catch  {
       setAuth({ is_authenticated: false, admin: null });
     } finally {
       setLoading(false);
@@ -358,6 +360,21 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
       await loadDashboardData();
     } catch (err) {
       alert(err.message || "Erreur de suppression");
+    }
+  };
+
+  // Réinitialise le mot de passe du commerçant : temporaire, affiché une seule fois, à copier ou envoyer par WhatsApp.
+  const handleResetOwner = async (st) => {
+    const ok = window.confirm(`Réinitialiser l'accès de ${st.owner_email || "ce commerçant"} ? Son mot de passe actuel et ses sessions seront invalidés.`);
+    if (!ok) return;
+    setActionLoading(true);
+    try {
+      const res = await superAdminResetOwnerCredentials(st.owner_id);
+      setOwnerResetResult({ ...res, store_name: st.name });
+    } catch (e) {
+      alert(e.message || "Erreur de réinitialisation");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -967,6 +984,18 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                       <Icon name="tune" className="text-sm" />
                       <span>Forfait</span>
                     </button>
+
+                    {st.owner_id && (
+                      <button
+                        onClick={() => handleResetOwner(st)}
+                        disabled={actionLoading}
+                        title="Réinitialiser le mot de passe du commerçant"
+                        className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition border border-slate-700 flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <Icon name="lock_reset" className="text-sm" />
+                        <span>Réinitialiser</span>
+                      </button>
+                    )}
 
                     {st.slug !== "faso-danfani" && (
                       <button
@@ -1939,6 +1968,61 @@ export default function SuperAdminDashboard({ onClose, onSwitchStore }) {
                 alt="Preuve de Paiement"
                 className="max-w-full max-h-[70vh] rounded-xl object-contain shadow"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal : mot de passe temporaire d'un commerçant réinitialisé */}
+      {ownerResetResult && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-black text-white">Accès réinitialisé</h3>
+              <p className="text-xs text-slate-300">
+                Boutique « {ownerResetResult.store_name} ». Ce mot de passe n'est affiché qu'une seule fois ; le commerçant devra le changer à sa prochaine connexion.
+              </p>
+            </div>
+            <div className="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 space-y-2 text-xs">
+              <div className="flex justify-between gap-2">
+                <span className="text-slate-400">E-mail</span>
+                <span className="font-mono text-amber-300 font-bold break-all">{ownerResetResult.email}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-slate-400">Mot de passe temporaire</span>
+                <span className="font-mono text-emerald-300 font-bold break-all">{ownerResetResult.temporary_password}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(ownerResetResult.message_to_copy);
+                    showToast("Message copié");
+                  } catch {
+                    showToast("Copie impossible : sélectionnez le mot de passe manuellement.");
+                  }
+                }}
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold"
+              >
+                Copier le message
+              </button>
+              <a
+                href={ownerResetResult.whatsapp_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2"
+              >
+                <span>📲 Envoyer par WhatsApp</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setOwnerResetResult(null)}
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+              >
+                Fermer
+              </button>
             </div>
           </div>
         </div>

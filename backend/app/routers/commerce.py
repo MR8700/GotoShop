@@ -14,14 +14,29 @@ from app.schemas.commerce import (
     ResolveDiscrepancyRequest,
 )
 from pydantic import BaseModel
+from app.routers.auth import get_merchant_principal, assert_store_access
+from app.core.ratelimit import rate_limit
+from app.models.commerce import OrderIntent
+from app.core.clock import utcnow
 
 class BatchLookupRequest(BaseModel):
     intent_ids: List[str]
 
 router = APIRouter(prefix="/intents", tags=["Commerce"])
 
+
+def _authorize_intent(db: Session, principal, intent_id: str) -> OrderIntent:
+    """Loads the intent (by id or reference) and checks the merchant owns its store."""
+    intent = db.query(OrderIntent).filter(
+        (OrderIntent.id == intent_id) | (OrderIntent.reference_code == intent_id)
+    ).first()
+    if not intent:
+        raise HTTPException(status_code=404, detail="Intention introuvable")
+    assert_store_access(principal, intent.store_id)
+    return intent
+
 def format_elapsed(dt: datetime) -> str:
-    diff = datetime.utcnow() - dt
+    diff = utcnow() - dt
     total_seconds = int(diff.total_seconds())
     hours = total_seconds // 3600
     minutes = (total_seconds % 3600) // 60
@@ -103,13 +118,18 @@ def list_pending_followups(
     request: Request = None,
     store_slug: Optional[str] = None,
     x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    principal=Depends(get_merchant_principal),
 ):
     slug = x_store_slug or store_slug
     host = request.headers.get("host") if request else None
     store = StoreService.resolve_store(db, slug=slug, host=host)
+    from app.models.super_admin import SuperAdmin
+    if not slug and not isinstance(principal, SuperAdmin) and principal.stores:
+        store = principal.stores[0]
     if not store:
         return []
+    assert_store_access(principal, store.id)
     intents = CommerceService.get_pending_followups(db, store.id)
     return [map_to_summary(it) for it in intents]
 
@@ -124,12 +144,17 @@ def list_intent_feed(
     store_slug: Optional[str] = None,
     x_store_slug: Optional[str] = Header(None, alias="X-Store-Slug"),
     db: Session = Depends(get_db),
+    principal=Depends(get_merchant_principal),
 ):
     slug = x_store_slug or store_slug
     host = request.headers.get("host") if request else None
     store = StoreService.resolve_store(db, slug=slug, host=host)
+    from app.models.super_admin import SuperAdmin
+    if not slug and not isinstance(principal, SuperAdmin) and principal.stores:
+        store = principal.stores[0]
     if not store:
         return []
+    assert_store_access(principal, store.id)
     intents = CommerceService.get_intent_feed(
         db,
         store.id,
@@ -142,41 +167,92 @@ def list_intent_feed(
     return [map_to_summary(it) for it in intents]
 
 @router.post("/{intent_id}/archive", response_model=IntentSummarySchema)
-def archive_intent(intent_id: str, db: Session = Depends(get_db)):
+def archive_intent(intent_id: str, db: Session = Depends(get_db), principal=Depends(get_merchant_principal)):
+    _authorize_intent(db, principal, intent_id)
     intent = CommerceService.toggle_archive_intent(db, intent_id)
     if not intent:
         raise HTTPException(status_code=404, detail="Intention introuvable")
     return map_to_summary(intent)
 
 @router.delete("/{intent_id}")
-def delete_intent(intent_id: str, db: Session = Depends(get_db)):
+def delete_intent(intent_id: str, db: Session = Depends(get_db), principal=Depends(get_merchant_principal)):
+    _authorize_intent(db, principal, intent_id)
     ok = CommerceService.delete_intent(db, intent_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Intention introuvable")
     return {"success": True, "message": "Intention supprimée définitivement"}
 
 @router.get("/discrepancies", response_model=List[IntentSummarySchema])
-def list_discrepancies(db: Session = Depends(get_db)):
-    store = StoreService.get_default_store(db)
+def list_discrepancies(db: Session = Depends(get_db), principal=Depends(get_merchant_principal)):
+    from app.models.super_admin import SuperAdmin
+    if isinstance(principal, SuperAdmin):
+        store = StoreService.get_default_store(db)
+    else:
+        store = principal.stores[0] if principal.stores else None
     if not store:
         return []
     intents = CommerceService.get_discrepancies(db, store.id)
     return [map_to_summary(it) for it in intents]
 
+def _has_intent_access(db: Session, intent, authorization: Optional[str], proof: Optional[str]) -> bool:
+    """True si l'appelant est le vendeur de la boutique ou détient la preuve client de cette intention."""
+    from app.services.order_access import verify_order_access
+    if not authorization and not proof:
+        return False
+    try:
+        verify_order_access(db, intent.id, None, proof, authorization, allow_seller=True)
+        return True
+    except HTTPException:
+        return False
+
+
+def _redact_summary(summary: IntentSummarySchema) -> IntentSummarySchema:
+    """Vue publique (suivi de statut) : aucune donnée personnelle du client."""
+    return summary.model_copy(update={
+        "customer_name": None,
+        "customer_phone": None,
+        "customer_location_url": None,
+        "customer_coordinates": None,
+        "client_feedback": None,
+    })
+
+
 @router.get("/by-reference/{reference_code}", response_model=IntentSummarySchema)
-def get_order_by_reference(reference_code: str, db: Session = Depends(get_db)):
+def get_order_by_reference(
+    reference_code: str,
+    authorization: Optional[str] = Header(None),
+    x_customer_token: Optional[str] = Header(None, alias="X-Customer-Token"),
+    db: Session = Depends(get_db),
+    _rl=Depends(rate_limit("intent-by-reference", 30, 60)),
+):
     intent = CommerceService.get_by_reference(db, reference_code)
     if not intent:
         raise HTTPException(status_code=404, detail="Commande introuvable avec cette référence")
-    return map_to_summary(intent)
+    summary = map_to_summary(intent)
+    if _has_intent_access(db, intent, authorization, x_customer_token):
+        return summary
+    return _redact_summary(summary)
+
 
 @router.post("/batch-lookup", response_model=List[IntentSummarySchema])
-def batch_lookup(req: BatchLookupRequest, db: Session = Depends(get_db)):
-    intents = CommerceService.get_intents_by_ids(db, req.intent_ids)
-    return [map_to_summary(it) for it in intents]
+def batch_lookup(
+    req: BatchLookupRequest,
+    authorization: Optional[str] = Header(None),
+    x_customer_token: Optional[str] = Header(None, alias="X-Customer-Token"),
+    db: Session = Depends(get_db),
+    _rl=Depends(rate_limit("intent-batch-lookup", 30, 60)),
+):
+    intents = CommerceService.get_intents_by_ids(db, req.intent_ids[:50])
+    out = []
+    for it in intents:
+        summary = map_to_summary(it)
+        out.append(summary if _has_intent_access(db, it, authorization, x_customer_token) else _redact_summary(summary))
+    return out
 
 @router.post("/{intent_id}/client-action", response_model=IntentSummarySchema)
 def client_order_action(intent_id: str, req: ClientOrderActionRequest, db: Session = Depends(get_db)):
+    from app.services.order_access import verify_order_access
+    verify_order_access(db, intent_id, req.customer_id, req.customer_token)
     try:
         intent = CommerceService.record_client_action(
             db=db,
@@ -188,7 +264,8 @@ def client_order_action(intent_id: str, req: ClientOrderActionRequest, db: Sessi
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/{intent_id}/resolve-discrepancy", response_model=IntentSummarySchema)
-def resolve_discrepancy(intent_id: str, req: ResolveDiscrepancyRequest, db: Session = Depends(get_db)):
+def resolve_discrepancy(intent_id: str, req: ResolveDiscrepancyRequest, db: Session = Depends(get_db), principal=Depends(get_merchant_principal)):
+    _authorize_intent(db, principal, intent_id)
     try:
         intent = CommerceService.resolve_discrepancy(
             db=db,
@@ -200,7 +277,8 @@ def resolve_discrepancy(intent_id: str, req: ResolveDiscrepancyRequest, db: Sess
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/{intent_id}/confirm")
-def confirm_sale(intent_id: str, req: ConfirmSaleRequest, db: Session = Depends(get_db)):
+def confirm_sale(intent_id: str, req: ConfirmSaleRequest, db: Session = Depends(get_db), principal=Depends(get_merchant_principal)):
+    _authorize_intent(db, principal, intent_id)
     try:
         intent = CommerceService.confirm_sale(db, intent_id, req)
         return {

@@ -68,6 +68,36 @@ def validate_strong_password(password: str) -> Tuple[bool, List[str]]:
         
     return len(errors) == 0, errors
 
+SESSION_HASH_PREFIX = "h1$"
+
+
+def hash_session_token(token: Optional[str]) -> Optional[str]:
+    """Empreinte stockée en base pour un jeton de session (le jeton brut n'est jamais conservé).
+
+    SHA-256 suffit ici : le jeton a 256 bits d'entropie (pas de dictionnaire à craindre, contrairement à un mot de passe).
+    Idempotent : une valeur déjà hachée est renvoyée telle quelle."""
+    if not token:
+        return None
+    token = str(token)
+    if token.startswith(SESSION_HASH_PREFIX):
+        return token
+    return SESSION_HASH_PREFIX + hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+_NEVER_MATCHES = SESSION_HASH_PREFIX + "invalid"
+
+
+def lookup_hash(presented: Optional[str]) -> str:
+    """Empreinte à comparer en base pour un jeton PRÉSENTÉ par un client.
+
+    Contrairement à hash_session_token (idempotent, réservé au stockage), une valeur qui ressemble déjà à une empreinte
+    est rejetée : sinon une fuite de la base équivaudrait à une fuite des sessions. Ne renvoie jamais None (un
+    `colonne == None` SQL correspondrait aux comptes sans session)."""
+    if not presented or str(presented).startswith(SESSION_HASH_PREFIX):
+        return _NEVER_MATCHES
+    return hash_session_token(presented)
+
+
 def generate_session_token() -> str:
     """Generates a high-entropy URL-safe session token."""
     return secrets.token_urlsafe(32)

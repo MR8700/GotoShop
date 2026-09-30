@@ -1,5 +1,5 @@
 import Icon from "./Icon";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { confirmByToken } from "../api/client";
 
 export default function ConfirmTokenPage({ token, onBackToStore, showToast }) {

@@ -38,7 +38,7 @@ export default function MyStoresPage({
       await unsubscribeFromStore(storeId, customer?.id);
       setSubscribedStores((prev) => prev.filter((s) => s.id !== storeId));
       if (showToast) showToast(`Désabonné de ${storeName}`);
-    } catch (err) {
+    } catch  {
       if (showToast) showToast("Erreur lors du désabonnement");
     }
   };

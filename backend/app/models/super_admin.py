@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime
 from app.database import Base
+from app.core.clock import utcnow
 
 class SuperAdmin(Base):
     __tablename__ = "super_admins"
@@ -12,5 +13,5 @@ class SuperAdmin(Base):
     password_hash = Column(String(255), nullable=False)
     password_salt = Column(String(64), nullable=False)
     session_token = Column(String(128), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     last_login_at = Column(DateTime, nullable=True)

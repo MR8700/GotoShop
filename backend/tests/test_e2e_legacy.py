@@ -1,3 +1,7 @@
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from fastapi.testclient import TestClient
 from app.main import app
 from app.database import SessionLocal
@@ -6,7 +10,13 @@ from app.services.auth_service import AuthService
 
 client = TestClient(app)
 
-def run_e2e_verification():
+import pytest
+
+
+@pytest.mark.skip(reason="Scénario obsolète : suppose la boutique unique 'Awa Chic & Tech' servie à la racine, "
+                         "un frontend servi sur '/' et des routes d'administration sans jeton. Remplacé par "
+                         "test_smoke_api.py ; à réécrire flux par flux si besoin.")
+def test_e2e_verification():
     print("=== STARTING FULL END-TO-END VERIFICATION ===")
 
     # 1. Frontend Serving
@@ -462,6 +472,7 @@ def run_e2e_verification():
 
     # Client marks order as SATISFIED (5 stars)
     r_action_sat = client.post(f"/api/intents/{satisfy_cmd_id}/client-action", json={
+        "customer_token": satisfy_cmd["secure_token"],  # preuve de propriété
         "action": "SATISFY",
         "reason": "Produit reçu en parfait état, super rapide !",
         "rating": 5
@@ -503,6 +514,7 @@ def run_e2e_verification():
 
     # Client cancels order
     r_action_cancel = client.post(f"/api/intents/{cancel_cmd_id}/client-action", json={
+        "customer_token": cancel_cmd["secure_token"],  # preuve de propriété
         "action": "CANCEL",
         "reason": "Changement d'avis"
     })
@@ -538,6 +550,7 @@ def run_e2e_verification():
 
     # But client subsequently declares cancellation (e.g. package never arrived or refused)
     r_client_conflict = client.post(f"/api/intents/{conflict_cmd_id}/client-action", json={
+        "customer_token": conflict_cmd["secure_token"],  # preuve de propriété
         "action": "CANCEL",
         "reason": "Colis non reçu, coursier injoignable"
     })

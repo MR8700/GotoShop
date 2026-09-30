@@ -1,3 +1,4 @@
+import re
 import json
 import uuid
 import secrets
@@ -18,8 +19,76 @@ from app.services.chat_service import ChatService
 from app.services.store_service import StoreService
 from app.services.notification_engine import NotificationEngine
 from app.realtime.connection_manager import manager
+from app.services.delivery_spot_service import spot_to_dict, load_json as _load_json
+from app.core.clock import utcnow
+
+_DELIVERY_STATUS_BY_ORDER = {
+    "READY_FOR_DELIVERY": "ASSIGNED",
+    "OUT_FOR_DELIVERY": "IN_TRANSIT",
+    "DELIVERED": "DELIVERED",
+    "COMPLETED": "DELIVERED",
+    "CANCELLED": "FAILED",
+    "REJECTED": "FAILED",
+}
+
+
+def sync_delivery_status(order):
+    """Aligne order_deliveries.delivery_status sur le statut de la commande (une seule vérité)."""
+    d = getattr(order, "delivery", None)
+    target = _DELIVERY_STATUS_BY_ORDER.get(order.status)
+    if not d or not target or d.delivery_status == target:
+        return
+    d.delivery_status = target
+    now = utcnow()
+    if target == "IN_TRANSIT" and not d.started_at:
+        d.started_at = now
+    if target == "DELIVERED" and not d.delivered_at:
+        d.delivered_at = now
+
+
+def _valid_share_code(db, store_id, code):
+    """Code de publicité accepté seulement s'il appartient à CETTE boutique (jamais d'attribution à une autre boutique)."""
+    try:
+        from app.services.share_ad_service import ShareAdService
+        return ShareAdService.valid_code(db, store_id, code)
+    except Exception:
+        return None
+
 
 class OrderService:
+    _TERMINAL_CANCELLED = ("CANCELLED", "ANNULEE", "REJECTED")
+    _FINAL_STATES = ("CANCELLED", "ANNULEE", "REJECTED", "COMPLETED")
+
+    @staticmethod
+    def _release_order_resources(db: Session, order: Order, reason: Optional[str] = None) -> None:
+        """Remet en stock, libère le coupon utilisé et annule l'intention liée (une seule fois par commande)."""
+        for it in (order.items or []):
+            if it.product_id:
+                prod = db.query(Product).filter(Product.id == it.product_id).first()
+                if prod and prod.stock is not None:
+                    prod.stock = round(float(prod.stock) + float(it.quantity), 3)
+                    prod.stock_label = f"Stock: {prod.stock} {it.unit_label}".strip()
+        try:
+            from app.models.loyalty import LoyaltyRewardCoupon
+            for c in db.query(LoyaltyRewardCoupon).filter(LoyaltyRewardCoupon.order_id == order.id, LoyaltyRewardCoupon.is_used == True).all():
+                c.is_used = False
+                c.used_at = None
+                c.order_id = None
+        except Exception as e_c:
+            print("Notice: coupon release skipped:", e_c)
+        try:
+            from app.services.loyalty_v3 import refund_spent
+            refund_spent(db, order)
+        except Exception as e_rs:
+            print("Notice: loyalty refund_spent skipped:", e_rs)
+        from app.models.commerce import OrderIntent
+        linked = db.query(OrderIntent).filter(OrderIntent.reference_code == order.order_number).first()
+        if linked and linked.status != "CANCELLED":
+            linked.status = "CANCELLED"
+            linked.client_status = "CANCELLED"
+            linked.client_feedback = reason or order.rejection_reason
+            linked.client_action_at = utcnow()
+
     @staticmethod
     def generate_order_number(db: Session, store_slug: Optional[str] = None) -> str:
         prefix = "CMD"
@@ -36,6 +105,28 @@ class OrderService:
             offset += 1
             candidate = f"{prefix}-{count + offset}"
         return candidate
+
+    @staticmethod
+    def _resolve_delivery_fee(db: Session, store_id: str, city_name: Optional[str], client_fee: Any) -> int:
+        """Frais de livraison décidés par le serveur.
+
+        - ville de la boutique avec tarif configuré → ce tarif (le client ne peut pas le modifier) ;
+        - sinon → valeur du client, bornée à [0, MAX_UNCONFIGURED_DELIVERY_FEE].
+        """
+        from app.config import settings
+        from app.models.store import DeliveryCity
+
+        wanted = (city_name or "").strip().lower()
+        if wanted:
+            for dc in db.query(DeliveryCity).filter(DeliveryCity.store_id == store_id).all():
+                names = {(dc.name or "").strip().lower(), (dc.display_label or "").strip().lower()}
+                if wanted in names and dc.delivery_fee is not None:
+                    return max(0, int(dc.delivery_fee))
+        try:
+            fee = int(client_fee or 0)
+        except (TypeError, ValueError):
+            fee = 0
+        return min(max(0, fee), settings.MAX_UNCONFIGURED_DELIVERY_FEE)
 
     @staticmethod
     def create_order(
@@ -56,6 +147,9 @@ class OrderService:
         delivery_neighborhood: Optional[str] = None,
         coupon_code: Optional[str] = None,
         use_tier_discount: bool = True,
+        loyalty_item_index: Optional[int] = None,
+        loyalty_points: Optional[float] = None,
+        share_code: Optional[str] = None,
     ) -> Dict[str, Any]:
         try:
             store = StoreService.resolve_store(db, slug=store_id)
@@ -74,51 +168,61 @@ class OrderService:
             # Validate or auto-create customer for seamless checkout onboarding
             actual_customer_id = None
             cust = None
+            _tok_ok = lambda t: bool(t) and not str(t).startswith("guest_") and not str(t).startswith("token_local_")
             if customer_id and not str(customer_id).startswith("cust-local-"):
-                cust = db.query(Customer).filter(Customer.id == str(customer_id)).first()
+                cust = db.query(Customer).filter(
+                    Customer.id == str(customer_id), Customer.store_id == actual_store_id
+                ).first()
             if not cust and customer_phone:
                 clean_phone = customer_phone.replace(" ", "").replace("-", "")
                 cust = db.query(Customer).filter(
-                    (Customer.phone == customer_phone) |
-                    (Customer.phone == clean_phone)
+                    Customer.store_id == actual_store_id,
+                    (Customer.phone == customer_phone) | (Customer.phone == clean_phone)
                 ).first()
 
+            # Un numéro de téléphone seul n'est PAS une preuve d'identité : sans jeton de session valide,
+            # on ne rattache pas la commande au compte existant et on ne lui fait pas adopter un jeton.
+            from app.services.customer_service import CustomerService as _CS
+            customer_token = _CS.effective_token(customer_token)
+            if cust and not (_tok_ok(customer_token) and _CS.token_matches(cust, customer_token)):
+                cust = None
+                customer_phone_taken = True
+            else:
+                customer_phone_taken = False
+
+            existing_client = cust  # compte déjà connu et prouvé (sinon : visiteur pour les remises boutique)
             if cust:
                 actual_customer_id = cust.id
                 if safe_customer_name and safe_customer_name != "Client GotoShop":
                     cust.name = safe_customer_name
-                if customer_token and not str(customer_token).startswith("guest_") and not str(customer_token).startswith("token_local_"):
-                    cust.session_token = customer_token
-                elif not cust.session_token:
-                    cust.session_token = secrets.token_hex(24)
-                customer_token = cust.session_token
+                # customer_token = jeton brut déjà prouvé ci-dessus (l'empreinte seule est en base)
                 if country and not cust.country:
                     cust.country = country
                 if city and not cust.city:
                     cust.city = city
                 if delivery_neighborhood and not cust.delivery_neighborhood:
                     cust.delivery_neighborhood = delivery_neighborhood
-            elif customer_phone and (register_account or safe_customer_name):
+            elif customer_phone and not customer_phone_taken and (register_account or safe_customer_name):
                 new_session_token = customer_token if (customer_token and not str(customer_token).startswith("guest_") and not str(customer_token).startswith("token_local_")) else secrets.token_hex(24)
                 cust = Customer(
                     id=str(uuid.uuid4()),
                     store_id=actual_store_id,
                     name=safe_customer_name,
-                    phone=customer_phone,
+                    phone=re.sub(r"[^\d+]", "", customer_phone) or customer_phone,
                     email=customer_email,
                     country=country or "Burkina Faso",
                     city=city or "Ouagadougou",
                     delivery_neighborhood=delivery_neighborhood,
-                    session_token=new_session_token,
-                    created_at=datetime.utcnow()
+                    created_at=utcnow()
                 )
+                _CS.set_session(cust, new_session_token)
                 db.add(cust)
                 db.flush()
                 actual_customer_id = cust.id
                 customer_token = new_session_token
             else:
-                # Unauthenticated guest without phone: generate a guest token if none provided
-                if not customer_token:
+                # Invité (sans téléphone, ou téléphone déjà lié à un compte non prouvé) : jeton invité propre à la commande
+                if not customer_token or customer_phone_taken:
                     customer_token = "guest_" + secrets.token_hex(12)
 
             order_number = OrderService.generate_order_number(db, store.slug)
@@ -131,14 +235,16 @@ class OrderService:
                 product_id = it.get("product_id")
                 variant_id = it.get("variant_id")
                 qty = float(it.get("quantity", 1.0))
+                if qty != qty or qty in (float("inf"), float("-inf")):
+                    raise ValueError("Quantité invalide.")
                 if qty <= 0:
                     qty = 1.0
 
                 product = None
                 if product_id:
-                    product = db.query(Product).filter(Product.id == product_id).first()
+                    product = db.query(Product).filter(Product.id == product_id, Product.store_id == actual_store_id).with_for_update().first()
                     if not product and hasattr(Product, "slug"):
-                        product = db.query(Product).filter(Product.slug == product_id).first()
+                        product = db.query(Product).filter(Product.slug == product_id, Product.store_id == actual_store_id).first()
 
                 if not product and it.get("product_name"):
                     product = db.query(Product).filter(
@@ -162,18 +268,26 @@ class OrderService:
                         qty = float(max_q)
 
                 product_name = it.get("product_name") or (product.name if product else "Produit")
-                raw_price = it.get("unit_price") if it.get("unit_price") is not None else it.get("price")
-                if raw_price is None or raw_price == 0:
-                    if product and getattr(product, "price", None):
-                        raw_price = product.price
-                    else:
+                # Le prix vient du catalogue : le prix envoyé par le client n'est retenu que pour un article
+                # hors catalogue, et jamais négatif.
+                if product and getattr(product, "price", None) is not None:
+                    raw_price = product.price
+                else:
+                    raw_price = it.get("unit_price") if it.get("unit_price") is not None else it.get("price")
+                    if raw_price is None:
                         raw_price = 0
+                    if float(raw_price) < 0:
+                        raise ValueError("Prix invalide.")
                 unit_price = int(round(float(raw_price or 0)))
 
                 var = None
                 variant_name = it.get("variant_name") or it.get("selected_color")
                 if variant_id:
-                    var = db.query(ProductVariant).filter(ProductVariant.id == variant_id).first()
+                    var_q = db.query(ProductVariant).filter(ProductVariant.id == variant_id)
+                    if product:
+                        # Le variant doit appartenir au produit commandé (sinon son prix pourrait être détourné)
+                        var_q = var_q.filter(ProductVariant.product_id == product.id)
+                    var = var_q.first()
                     if var:
                         variant_name = var.name
                         if var.price_override:
@@ -205,9 +319,18 @@ class OrderService:
                     "max_quantity": getattr(product, "max_quantity", 9999.0) if product else 9999.0,
                 }, ensure_ascii=False)
 
-                # Atomically decrement stock if tracked
+                # Atomically decrement stock if tracked (refus si insuffisant, plus d'écrêtage silencieux à 0)
                 if product and product.stock is not None:
-                    product.stock = max(0.0, round(float(product.stock) - qty, 3))
+                    # Décrément atomique : UPDATE ... WHERE stock >= qty (pas de survente en cas de commandes simultanées)
+                    from app.models.catalog import Product as _Product
+                    updated = db.query(_Product).filter(
+                        _Product.id == product.id, _Product.stock >= qty
+                    ).update({_Product.stock: _Product.stock - qty}, synchronize_session=False)
+                    if not updated:
+                        db.refresh(product)
+                        raise ValueError(f"Stock insuffisant pour « {product.name} » ({product.stock} disponible).")
+                    db.refresh(product)
+                    product.stock = max(0.0, round(float(product.stock), 3))
                     product.stock_label = f"Stock: {product.stock} {unit_label}".strip()
 
                 # Store only valid ForeignKeys
@@ -240,36 +363,106 @@ class OrderService:
             applied_coupon_id = None
             if coupon_code:
                 from app.services.loyalty_service import LoyaltyService
-                coupon_res = LoyaltyService.validate_coupon(db, actual_store_id, coupon_code, subtotal)
-                if coupon_res.get("valid"):
-                    discount_amount = coupon_res.get("discount_amount", 0)
-                    applied_coupon_id = coupon_res.get("coupon_id")
-            elif use_tier_discount and actual_customer_id:
-                from app.services.customer_service import CustomerService
-                from app.services.loyalty_service import LoyaltyService
-                cust_obj = db.query(Customer).filter(Customer.id == actual_customer_id).first()
-                if cust_obj:
-                    stats = CustomerService.get_customer_stats(db, cust_obj)
-                    tier_info = LoyaltyService.get_tier_info(stats.loyalty_points)
-                    disc_pct = tier_info.get("discount_percent", 0)
-                    if disc_pct > 0:
-                        discount_amount = int((subtotal * disc_pct) / 100)
+                coupon_res = LoyaltyService.validate_coupon(db, actual_store_id, coupon_code, subtotal, customer_id=actual_customer_id)
+                if not coupon_res.get("valid"):
+                    # Avant : le coupon était ignoré en silence et le client payait plus que le prix affiché.
+                    raise ValueError(coupon_res.get("message") or "Code promo invalide.")
+                discount_amount = coupon_res.get("discount_amount", 0)
+                applied_coupon_id = coupon_res.get("coupon_id")
+            # Remise boutique (audience : tous / clients / visiteurs / clients choisis) : une seule, la plus forte.
+            # Pas de cumul avec un coupon : le meilleur des deux s'applique (le coupon écarté n'est pas consommé).
+            shop_discount = None
+            try:
+                from app.services.discount_service import best_for as _best_shop_discount
+                from app.services.discount_service import build_lines as _discount_lines
+                _lines = _discount_lines(db, actual_store_id, [
+                    {"product_id": oi.product_id, "amount": int(oi.total_price or 0)} for oi in order_items
+                ])
+                shop_discount = _best_shop_discount(db, actual_store_id, existing_client, subtotal, _lines)
+            except Exception as e_sd:
+                print("Notice: shop discount skipped:", e_sd)
+            if shop_discount:
+                if shop_discount["amount"] >= discount_amount:
+                    discount_amount = shop_discount["amount"]
+                    applied_coupon_id = None
+                else:
+                    shop_discount = None
+            # Fidélité v3 : la remise de palier automatique est remplacée par la dépense de points sur UN produit.
+            if loyalty_points and float(loyalty_points) > 0:
+                if getattr(store, "is_loyalty_active", True) is False:
+                    raise ValueError("Le programme de fidélité est désactivé pour cette boutique.")
+                if not actual_customer_id:
+                    raise ValueError("Connectez-vous à votre compte client pour utiliser vos points.")
+                if coupon_code:
+                    raise ValueError("Un coupon et des points ne peuvent pas être cumulés : choisissez l'un des deux.")
+                if loyalty_item_index is None or not (0 <= int(loyalty_item_index) < len(order_items)):
+                    raise ValueError("Choisissez le produit sur lequel utiliser vos points.")
+                from app.services.loyalty_v3 import spend_on_item
+                target = order_items[int(loyalty_item_index)]
+                discount_amount += spend_on_item(
+                    db, store_id=actual_store_id, customer_id=actual_customer_id, order_id=order_id,
+                    order_number=order_number, unit_price=int(target.unit_price or 0),
+                    product_name=target.product_name, points=float(loyalty_points),
+                )
 
+            # Cohérence entre la position GPS du client et la ville de livraison choisie (alerte, non bloquant)
+            loc_status, loc_distance = None, None
+            if delivery_data.get("fulfillment_type", "HOME") == "HOME" and not delivery_data.get("spot_id"):
+                from app.models.store import DeliveryCity
+                from app.services.geo_service import check_location
+                _cities = db.query(DeliveryCity).filter(DeliveryCity.store_id == actual_store_id).all()
+                _res = check_location(_cities, delivery_data.get("delivery_city") or city,
+                                      delivery_data.get("latitude"), delivery_data.get("longitude"))
+                loc_status, loc_distance = _res["status"], _res["distance_km"]
+
+            # Lieu de retrait / de livraison choisi par le client (défini par le commerçant)
+            spot_row = None
+            if delivery_data.get("spot_id"):
+                from app.models.store import DeliverySpot
+                spot_row = db.query(DeliverySpot).filter(
+                    DeliverySpot.id == delivery_data["spot_id"],
+                    DeliverySpot.store_id == actual_store_id,
+                    DeliverySpot.is_active == True,
+                ).first()
+                if not spot_row:
+                    raise ValueError("Ce lieu de retrait ou de livraison n'est plus disponible. Choisissez-en un autre.")
+                delivery_data = dict(delivery_data)
+                delivery_data["fulfillment_type"] = "PICKUP" if spot_row.kind == "PICKUP" else "MEETING_POINT"
+                delivery_data["delivery_city"] = spot_row.city or delivery_data.get("delivery_city")
+                delivery_data["delivery_address"] = spot_row.name + (f" — {spot_row.address}" if spot_row.address else "")
+                if spot_row.latitude is not None and spot_row.longitude is not None:
+                    delivery_data["latitude"], delivery_data["longitude"] = spot_row.latitude, spot_row.longitude
+                else:
+                    delivery_data["latitude"] = delivery_data["longitude"] = None
+            else:
+                delivery_data = dict(delivery_data)
+                delivery_data["fulfillment_type"] = "HOME"
+
+            if spot_row is not None and spot_row.kind == "PICKUP":
+                delivery_fee = 0  # retrait sur place : aucun frais de livraison
+            elif spot_row is not None and spot_row.delivery_fee is not None:
+                delivery_fee = max(0, int(spot_row.delivery_fee))
+            else:
+                delivery_fee = OrderService._resolve_delivery_fee(
+                    db, actual_store_id, delivery_data.get("delivery_city") or city, delivery_fee
+                )
             total_amount = max(0, subtotal - discount_amount) + delivery_fee
 
             if applied_coupon_id:
                 from app.models.loyalty import LoyaltyRewardCoupon
-                c_row = db.query(LoyaltyRewardCoupon).filter(LoyaltyRewardCoupon.id == applied_coupon_id).first()
-                if c_row:
-                    c_row.is_used = True
-                    c_row.used_at = datetime.utcnow()
+                c_row = db.query(LoyaltyRewardCoupon).filter(LoyaltyRewardCoupon.id == applied_coupon_id).with_for_update().first()
+                if not c_row or c_row.is_used:
+                    raise ValueError("Ce coupon vient d'être utilisé. Retirez-le et validez à nouveau votre commande.")
+                c_row.is_used = True
+                c_row.used_at = utcnow()
+                c_row.order_id = order_id
 
             order = Order(
                 id=order_id,
                 order_number=order_number,
                 store_id=actual_store_id,
                 customer_id=actual_customer_id,
-                customer_token=customer_token,
+                customer_token=customer_token if _CS.is_guest_token(customer_token) else None,
                 customer_name=safe_customer_name,
                 customer_phone=customer_phone,
                 customer_email=customer_email,
@@ -281,9 +474,10 @@ class OrderService:
                 total_amount=total_amount,
                 currency=store.currency or "FCFA",
                 notes=notes,
+                share_code=_valid_share_code(db, actual_store_id, share_code),
                 is_client_archived=False,
                 is_client_hidden=False,
-                created_at=datetime.utcnow()
+                created_at=utcnow()
             )
             db.add(order)
             db.flush()
@@ -301,8 +495,13 @@ class OrderService:
                 latitude=delivery_data.get("latitude"),
                 longitude=delivery_data.get("longitude"),
                 location_accuracy=delivery_data.get("location_accuracy"),
-                location_captured_at=datetime.utcnow() if delivery_data.get("latitude") else None,
+                location_captured_at=utcnow() if delivery_data.get("latitude") else None,
                 delivery_notes=delivery_data.get("delivery_notes"),
+                fulfillment_type=delivery_data.get("fulfillment_type") or "HOME",
+                location_status=loc_status,
+                location_distance_km=loc_distance,
+                spot_id=spot_row.id if spot_row else None,
+                spot_snapshot=json.dumps(spot_to_dict(spot_row), ensure_ascii=False) if spot_row else None,
                 delivery_status="PENDING"
             )
             db.add(delivery)
@@ -359,7 +558,7 @@ class OrderService:
                 context_type="ORDER",
                 order_id=order.id,
                 customer_id=actual_customer_id,
-                customer_token=customer_token,
+                customer_token=customer_token if _CS.is_guest_token(customer_token) else None,
                 customer_name=customer_name
             )
 
@@ -434,9 +633,9 @@ class OrderService:
                     id=str(uuid.uuid4()),
                     store_id=actual_store_id,
                     customer_id=actual_customer_id,
-                    guest_token=customer_token,
+                    guest_token=customer_token if _CS.is_guest_token(customer_token) else None,
                     interaction_type="ORDER",
-                    last_interacted_at=datetime.utcnow()
+                    last_interacted_at=utcnow()
                 )
                 db.add(hist)
             except Exception as e_hist:
@@ -470,8 +669,13 @@ class OrderService:
             })
 
             formatted = OrderService.format_order_dict(order, conversation_id=conv.id)
+            # Jeton d'accès à CETTE commande, renvoyé uniquement à son créateur : il sert de preuve de
+            # propriété (annulation, archivage) y compris pour un invité sans compte.
+            formatted["access_token"] = _CS.expose(customer_token)
+            if shop_discount:
+                formatted["shop_discount"] = {k: shop_discount[k] for k in ("name", "percent", "amount")}
             if cust:
-                formatted["customer_token"] = cust.session_token
+                formatted["customer_token"] = _CS.expose(customer_token)
                 formatted["customer"] = {
                     "id": cust.id,
                     "name": cust.name,
@@ -479,7 +683,7 @@ class OrderService:
                     "city": cust.city,
                     "country": cust.country,
                     "delivery_neighborhood": cust.delivery_neighborhood,
-                    "bonus_points": cust.bonus_points or 0,
+                    "bonus_points": (cust.bonus_points or 0) / 10.0,
                 }
             return formatted
         except Exception as e:
@@ -495,7 +699,7 @@ class OrderService:
         prev_status = order.status
         order.status = "ACCEPTED"
         order.payment_status = "PAYMENT_PENDING"
-        order.updated_at = datetime.utcnow()
+        order.updated_at = utcnow()
 
         # Find conversation
         conv = db.query(Conversation).filter(Conversation.order_id == order.id).first()
@@ -552,9 +756,13 @@ class OrderService:
             raise ValueError(f"Order {order_id} not found")
 
         prev_status = order.status
+        if prev_status in OrderService._FINAL_STATES:
+            raise ValueError(f"Commande déjà {prev_status} : refus impossible.")
         order.status = "REJECTED"
         order.rejection_reason = reason or "Indisponibilité temporaire des ingrédients"
-        order.updated_at = datetime.utcnow()
+        order.updated_at = utcnow()
+        sync_delivery_status(order)
+        OrderService._release_order_resources(db, order, order.rejection_reason)
 
         conv = db.query(Conversation).filter(Conversation.order_id == order.id).first()
         if conv:
@@ -611,8 +819,15 @@ class OrderService:
             raise ValueError(f"Order {order_id} not found")
 
         prev_status = order.status
+        if prev_status == new_status:
+            return OrderService.format_order_dict(order)
+        if prev_status in OrderService._FINAL_STATES:
+            raise ValueError(f"Commande déjà {prev_status} : changement de statut vers {new_status} refusé.")
         order.status = new_status
-        order.updated_at = datetime.utcnow()
+        order.updated_at = utcnow()
+        sync_delivery_status(order)
+        if new_status in OrderService._TERMINAL_CANCELLED:
+            OrderService._release_order_resources(db, order, notes)
 
         status_messages = {
             "PREPARING": "👨‍🍳 Commande en cours de préparation en cuisine !",
@@ -657,18 +872,9 @@ class OrderService:
                 print("Notice: wallet release_escrow skipped:", e_w)
 
             try:
-                if order.customer_id:
-                    from app.services.loyalty_service import LoyaltyService
-                    points = max(1, int(order.total_amount / 1000))
-                    LoyaltyService.credit_points(
-                        db=db,
-                        store_id=order.store_id,
-                        customer_id=order.customer_id,
-                        points=points,
-                        entry_type="EARNED_ORDER",
-                        description=f"Points fidélité commande #{order.order_number}",
-                        order_id=order.id
-                    )
+                if order.customer_id and getattr(order.store, "is_loyalty_active", True) is not False:
+                    from app.services.loyalty_v3 import credit_for_delivery
+                    credit_for_delivery(db, order)
             except Exception as e_lp:
                 print("Notice: loyalty credit_points skipped:", e_lp)
         elif new_status in ("CANCELLED", "ANNULEE", "REJECTED"):
@@ -718,7 +924,7 @@ class OrderService:
                 intent.status = "CANCELLED"
                 intent.client_status = "CANCELLED"
                 intent.client_feedback = reason or "Annulé par le client"
-                intent.client_action_at = datetime.utcnow()
+                intent.client_action_at = utcnow()
                 db.commit()
                 db.refresh(intent)
                 return {
@@ -737,17 +943,16 @@ class OrderService:
             raise ValueError(f"Commande {order_id} introuvable")
 
         prev_status = order.status
+        if prev_status in OrderService._TERMINAL_CANCELLED:
+            return OrderService.format_order_dict(order)  # déjà annulée/refusée : pas de second remboursement de stock
+        if prev_status in ("DELIVERED", "COMPLETED", "LIVREE"):
+            raise ValueError("Cette commande est déjà livrée et ne peut plus être annulée.")
         order.status = "CANCELLED"
         order.rejection_reason = reason or "Annulé par le client"
-        order.updated_at = datetime.utcnow()
+        order.updated_at = utcnow()
+        sync_delivery_status(order)
 
-        # Restock products if stock was tracked
-        for it in (order.items or []):
-            if it.product_id:
-                prod = db.query(Product).filter(Product.id == it.product_id).first()
-                if prod and prod.stock is not None:
-                    prod.stock = round(float(prod.stock) + float(it.quantity), 3)
-                    prod.stock_label = f"Stock: {prod.stock} {it.unit_label}".strip()
+        OrderService._release_order_resources(db, order, order.rejection_reason)
 
         # Update linked conversation
         conv = db.query(Conversation).filter(Conversation.order_id == order.id).first()
@@ -767,7 +972,7 @@ class OrderService:
             linked_intent.status = "CANCELLED"
             linked_intent.client_status = "CANCELLED"
             linked_intent.client_feedback = order.rejection_reason
-            linked_intent.client_action_at = datetime.utcnow()
+            linked_intent.client_action_at = utcnow()
 
         # Audit log
         audit = AuditLog(
@@ -820,13 +1025,13 @@ class OrderService:
         ).first()
         if order:
             order.is_client_archived = is_archived
-            order.updated_at = datetime.utcnow()
+            order.updated_at = utcnow()
             from app.models.commerce import OrderIntent
             linked_intent = db.query(OrderIntent).filter(OrderIntent.reference_code == order.order_number).first()
             if linked_intent:
                 linked_intent.is_client_archived = is_archived
                 linked_intent.is_archived = is_archived
-                linked_intent.updated_at = datetime.utcnow()
+                linked_intent.updated_at = utcnow()
             db.commit()
             db.refresh(order)
             return {
@@ -844,7 +1049,7 @@ class OrderService:
         if intent:
             intent.is_client_archived = is_archived
             intent.is_archived = is_archived
-            intent.updated_at = datetime.utcnow()
+            intent.updated_at = utcnow()
             db.commit()
             db.refresh(intent)
             return {
@@ -869,12 +1074,12 @@ class OrderService:
         ).first()
         if order:
             order.is_client_hidden = True
-            order.updated_at = datetime.utcnow()
+            order.updated_at = utcnow()
             from app.models.commerce import OrderIntent
             linked_intent = db.query(OrderIntent).filter(OrderIntent.reference_code == order.order_number).first()
             if linked_intent:
                 linked_intent.is_client_hidden = True
-                linked_intent.updated_at = datetime.utcnow()
+                linked_intent.updated_at = utcnow()
             db.commit()
             db.refresh(order)
             return {
@@ -891,7 +1096,7 @@ class OrderService:
         ).first()
         if intent:
             intent.is_client_hidden = True
-            intent.updated_at = datetime.utcnow()
+            intent.updated_at = utcnow()
             db.commit()
             db.refresh(intent)
             return {
@@ -926,8 +1131,9 @@ class OrderService:
                 if cust_by_id and cust_by_id.phone:
                     cust_phones.append(cust_by_id.phone)
             if customer_token:
+                from app.services.customer_service import CustomerService as _CS2
                 conditions.append(Order.customer_token == customer_token)
-                cust_by_token = db.query(Customer).filter(Customer.session_token == customer_token).first()
+                cust_by_token = _CS2.get_by_token(db, customer_token)
                 if cust_by_token:
                     conditions.append(Order.customer_id == cust_by_token.id)
                     if cust_by_token.phone:
@@ -971,6 +1177,11 @@ class OrderService:
                 "longitude": order.delivery.longitude,
                 "location_accuracy": order.delivery.location_accuracy,
                 "delivery_notes": order.delivery.delivery_notes,
+                "fulfillment_type": order.delivery.fulfillment_type or "HOME",
+                "location_status": order.delivery.location_status,
+                "location_distance_km": order.delivery.location_distance_km,
+                "spot_id": order.delivery.spot_id,
+                "spot": _load_json(order.delivery.spot_snapshot),
                 "delivery_status": order.delivery.delivery_status,
                 "maps_url": f"https://maps.google.com/?q={order.delivery.latitude},{order.delivery.longitude}" if order.delivery.latitude else None
             }

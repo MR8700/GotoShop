@@ -255,3 +255,134 @@
   }
 }
 
+
+/* ==========================================================================
+   Accueil boutiques : bordures 3D en relief, hero flouté au défilement,
+   panneau « sheet » qui glisse par-dessus le hero et dock recherche collé sous le header.
+   ========================================================================== */
+:root {
+  --gs-edge-line: rgba(15, 23, 42, 0.30);
+  --gs-edge-hi: rgba(255, 255, 255, 0.95);
+  --gs-edge-lo: rgba(15, 23, 42, 0.10);
+  --gs-edge-base: #b6c2d1;
+  --gs-drop: rgba(15, 23, 42, 0.32);
+  --gs-header-h: 65px;
+}
+.dark, [data-theme="dark"] {
+  --gs-edge-line: rgba(255, 255, 255, 0.16);
+  --gs-edge-hi: rgba(255, 255, 255, 0.14);
+  --gs-edge-lo: rgba(0, 0, 0, 0.45);
+  --gs-edge-base: #04040a;
+  --gs-drop: rgba(0, 0, 0, 0.75);
+}
+
+/* Panneau surélevé : bord clair en haut, tranche épaisse en bas, ombre portée */
+.gs-3d-panel {
+  border: 2px solid var(--gs-edge-line);
+  box-shadow:
+    inset 0 2px 0 var(--gs-edge-hi),
+    inset 0 -2px 0 var(--gs-edge-lo),
+    0 7px 0 -1px var(--gs-edge-base),
+    0 18px 30px -10px var(--gs-drop);
+}
+.gs-3d-panel-sm {
+  border: 2px solid var(--gs-edge-line);
+  box-shadow:
+    inset 0 2px 0 var(--gs-edge-hi),
+    inset 0 -2px 0 var(--gs-edge-lo),
+    0 4px 0 -1px var(--gs-edge-base),
+    0 10px 18px -8px var(--gs-drop);
+}
+/* Bouton / puce : s'enfonce au clic */
+.gs-3d-btn {
+  border: 2px solid var(--gs-edge-line);
+  box-shadow:
+    inset 0 2px 0 var(--gs-edge-hi),
+    0 4px 0 0 var(--gs-edge-base),
+    0 8px 14px -6px var(--gs-drop);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+.gs-3d-btn:hover { transform: translateY(-1px); filter: brightness(1.04); }
+.gs-3d-btn:active {
+  transform: translateY(3px);
+  box-shadow: inset 0 2px 0 var(--gs-edge-hi), 0 1px 0 0 var(--gs-edge-base), 0 2px 4px -2px var(--gs-drop);
+}
+.gs-3d-btn--primary {
+  --gs-edge-base: #9a3f0e;
+  --gs-edge-hi: rgba(255, 255, 255, 0.45);
+  border-color: #f29a5c;
+}
+.gs-3d-btn--active { --gs-edge-base: #9a3f0e; border-color: #f29a5c; }
+/* Champ de recherche : creusé (effet inverse) */
+.gs-3d-inset {
+  border: 2px solid var(--gs-edge-line);
+  box-shadow: inset 0 3px 7px var(--gs-drop), inset 0 -1px 0 var(--gs-edge-hi), 0 2px 0 var(--gs-edge-hi);
+}
+
+/* Hero collant : reste en place pendant que le panneau glisse par-dessus */
+.gs-hero-stick { position: sticky; top: var(--gs-header-h); z-index: 0; }
+.gs-hero-card {
+  transform-origin: 50% 0;
+  transform: scale(calc(1 - var(--gs-p, 0) * 0.05));
+  will-change: transform;
+}
+/* Voile de flou dont l'intensité suit le défilement (--gs-p de 0 à 1) */
+.gs-hero-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: var(--gs-p, 0);
+  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 35%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
+}
+
+/* Panneau qui remonte sur le hero */
+.gs-sheet {
+  position: relative;
+  z-index: 10;
+  margin-top: -1.75rem;
+  min-height: calc(100svh - var(--gs-header-h));
+  border-radius: 2rem 2rem 0 0;
+  border: 2px solid var(--gs-edge-line);
+  border-bottom: 0;
+  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  box-shadow: inset 0 3px 0 var(--gs-edge-hi), 0 -16px 36px -10px var(--gs-drop);
+}
+.gs-grabber {
+  width: 3rem; height: 0.375rem; border-radius: 9999px; margin: 0.6rem auto 0;
+  background: var(--gs-edge-line);
+  box-shadow: 0 1px 0 var(--gs-edge-hi);
+}
+
+/* Bloc recherche + filtres : se colle sous le header, par-dessus le hero flouté */
+.gs-dock {
+  position: sticky;
+  top: var(--gs-header-h);
+  z-index: 30;
+  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  backdrop-filter: blur(16px) saturate(1.3);
+  border-bottom: 2px solid transparent;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.gs-dock[data-docked="true"] {
+  border-bottom-color: var(--gs-edge-line);
+  box-shadow: 0 5px 0 -1px var(--gs-edge-base), 0 14px 22px -12px var(--gs-drop);
+}
+
+/* Indice « descendez » */
+.gs-cue { animation: gs-cue-pulse 2.2s ease-in-out infinite; }
+@keyframes gs-cue-pulse {
+  0%, 100% { box-shadow: inset 0 2px 0 var(--gs-edge-hi), 0 4px 0 0 var(--gs-edge-base), 0 0 0 0 rgba(224, 106, 38, 0.45); }
+  50% { box-shadow: inset 0 2px 0 var(--gs-edge-hi), 0 4px 0 0 var(--gs-edge-base), 0 0 0 10px rgba(224, 106, 38, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gs-cue { animation: none; }
+  .gs-hero-card { transform: none; }
+}

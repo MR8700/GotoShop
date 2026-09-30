@@ -2,6 +2,7 @@
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from app.core.security import hash_session_token
 from fastapi.testclient import TestClient
 from app.main import app
 from app.database import SessionLocal, engine
@@ -19,11 +20,10 @@ def test_loyalty_card_flow():
         db.add(store); db.commit()
     cust = db.query(Customer).filter(Customer.store_id == store.id).first()
     if not cust:
-        cust = Customer(store_id=store.id, name="Awa Koné", phone="+22670000001", session_token="tok-test-card")
+        cust = Customer(store_id=store.id, name="Awa Koné", phone="+22670000001", session_token=hash_session_token("tok-test-card"))
         db.add(cust); db.commit()
-    if not cust.session_token:
-        cust.session_token = "tok-test-card"; db.commit()
-    tok = cust.session_token
+    cust.session_token = hash_session_token("tok-test-card"); db.commit()
+    tok = "tok-test-card"
 
     c = TestClient(app, base_url="https://gotoshop.example")
     r = c.get("/api/customer/loyalty-card", headers={"Authorization": f"Bearer {tok}"})

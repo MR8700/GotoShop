@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import engine, Base, get_db, ACTIVE_DATABASE_URL
 from fastapi import Depends
-from app.routers import store, catalog, channels, commerce, analytics, auth, customer, notifications, super_admin, subscription, orders, chat, calls, media, store_subscriptions, store_qr, loyalty, wallet
+from app.routers import store, catalog, channels, commerce, analytics, auth, customer, notifications, super_admin, subscription, orders, chat, calls, media, store_subscriptions, store_qr, loyalty, wallet, passkeys
 import app.models  # Ensures all models (Order, Chat, Payment, Media, Call, etc.) are registered
 from app.seed.seeder import seed_database
 import os
@@ -45,8 +45,9 @@ def ensure_database_initialized(force: bool = False):
         from app.migrations import run_migrations
         run_migrations(engine)
 
-        from app.seed.seeder import seed_database
-        seed_database()
+        if settings.SEED_DEMO_DATA:
+            from app.seed.seeder import seed_database
+            seed_database()
 
         if flag_file:
             try:
@@ -65,9 +66,34 @@ app = FastAPI(
 )
 
 # CORS Middleware
+def _cors_origins():
+    origins = {o.strip().rstrip("/") for o in settings.CORS_ORIGINS.split(",") if o.strip()}
+    if settings.FRONTEND_URL:
+        origins.add(settings.FRONTEND_URL.rstrip("/"))
+    if settings.BASE_URL:
+        origins.add(settings.BASE_URL.rstrip("/"))
+    if settings.APP_ENV != "production":
+        origins.update({"http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:3000"})
+    return sorted(origins)
+
+
+@app.middleware("http")
+async def _security_headers(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/media"):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers.setdefault("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; sandbox")
+        ctype = response.headers.get("content-type", "")
+        if not (ctype.startswith(("image/", "audio/", "video/")) or ctype == "application/pdf"):
+            response.headers["Content-Disposition"] = "attachment"
+    return response
+
+
+from app.core.customer_session import CustomerSessionMiddleware
+app.add_middleware(CustomerSessionMiddleware)  # ajouté avant CORS : CORS reste la couche la plus externe
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -101,10 +127,14 @@ all_routers = [
     store_qr.router,
     loyalty.router,
     wallet.router,
+    passkeys.router,
 ]
 for r in all_routers:
     app.include_router(r, prefix=settings.API_V1_STR)
-    app.include_router(r, prefix="")
+    # Le montage à la racine ne sert qu'à Vercel (le chemin réécrit peut perdre le préfixe /api) ;
+    # ailleurs il doublerait la surface d'attaque et masquerait des routes du frontend SPA.
+    if os.getenv("VERCEL"):
+        app.include_router(r, prefix="", include_in_schema=False)
 
 @app.get("/")
 @app.get("/api")
@@ -170,6 +200,9 @@ if not os.getenv("VERCEL"):
 
             @app.get("/{full_path:path}")
             async def serve_frontend(full_path: str):
+                if full_path == "api" or full_path.startswith("api/"):
+                    from fastapi.responses import JSONResponse
+                    return JSONResponse({"detail": "Not Found"}, status_code=404)
                 file_path = FRONTEND_DIST / full_path
                 if file_path.exists() and file_path.is_file():
                     return FileResponse(file_path)

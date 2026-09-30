@@ -4,6 +4,19 @@ from app.main import app
 
 client = TestClient(app)
 
+# Les routes vendeur exigent désormais un jeton commerçant : on en émet un pour le propriétaire de la boutique de test.
+from app.database import SessionLocal  # noqa: E402
+from app.models.store import Store  # noqa: E402
+from app.core.security import hash_session_token  # noqa: E402
+
+_db = SessionLocal()
+_store = _db.query(Store).filter(Store.slug == "garbadrome-kossodo").first()
+if _store is not None and _store.owner is not None:
+    _store.owner.session_token = hash_session_token("seller-test-token")
+    _db.commit()
+    client.headers.update({"Authorization": "Bearer seller-test-token"})
+_db.close()
+
 def test_conversational_commerce_suite():
     print("=== RUNNING AUTOMATED CONVERSATIONAL COMMERCE SUITE ===")
 
@@ -66,7 +79,9 @@ def test_conversational_commerce_suite():
     conv_id = order["conversation_id"]
     assert order["status"] == "PENDING_SELLER_ACCEPTANCE"
     assert order["payment_status"] == "PAYMENT_PENDING"
-    assert order["total_amount"] == (target_product["price"] * 2) + 500
+    # Sous-total = prix catalogue x 2 ; une remise de palier fidélité peut s'appliquer si le client est reconnu.
+    assert order["subtotal_amount"] == target_product["price"] * 2
+    assert order["total_amount"] == order["subtotal_amount"] - (order.get("discount_amount") or 0) + 500
     assert order["delivery"]["latitude"] == 12.4175
     assert conv_id is not None
     print(f"[PASS] Order Created OK: #{order['order_number']} | Total: {order['total_amount']} FCFA | Status: {order['status']}")
@@ -273,7 +288,8 @@ def test_multi_item_order_and_cancellation():
     # 4. Cancel pending order directly from client
     cancel_payload = {
         "reason": "Changement d'avis / Erreur de quantité",
-        "actor_name": "Amina Traoré"
+        "actor_name": "Amina Traoré",
+        "customer_token": cust_token,  # preuve de propriété
     }
     r = client.post(f"/api/orders/{order_id}/cancel", json=cancel_payload)
     assert r.status_code == 200
@@ -329,6 +345,8 @@ def test_ligdicash_mobile_money_payment():
     r = client.post("/api/orders", json=order_payload)
     assert r.status_code == 200
     order = r.json()
+    # Le serveur ne reprend plus un jeton fourni par l'appelant comme preuve d'identité : on utilise celui qu'il renvoie.
+    unique_token = order.get("access_token") or unique_token
     order_id = order["id"]
     conv_id = order["conversation_id"]
 
@@ -356,18 +374,22 @@ def test_ligdicash_mobile_money_payment():
         "otp_code": "123"
     })
     assert r.status_code == 400
-    assert "otp" in r.text.lower()
+    assert "6 chiffres" in r.text.lower() or "otp" in r.text.lower()
     print("[PASS] Validation: Invalid OTP length rejected")
 
-    # 4. Successful Orange Money Payment with 6-digit OTP
+    # 4. Successful Orange Money Payment with 6-digit OTP (code réel demandé au serveur ; exposé en mode simulateur)
+    r_otp = client.post(f"/api/orders/{order_id}/request-otp", json={"phone_number": "+226 70 12 34 56", "operator": "ORANGE_MONEY"})
+    assert r_otp.status_code == 200, r_otp.text
+    real_otp = r_otp.json().get("simulated_code")
+    assert real_otp, "PAYMENT_SIMULATOR doit être actif en local pour ce test"
     r = client.post(f"/api/orders/{order_id}/pay-mobile-money", json={
         "operator": "ORANGE_MONEY",
         "phone_number": "+226 70 12 34 56",
-        "otp_code": "749201",
+        "otp_code": real_otp,
         "customer_name": "Salif Ouédraogo",
         "is_test_mode": True
     })
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
     pay_res = r.json()
     assert pay_res["status"] == "PAID"
     assert pay_res["payment_status"] == "PAYMENT_CONFIRMED"
@@ -426,6 +448,8 @@ def test_client_order_cancellation_archiving_and_soft_delete():
     r = client.post("/api/orders", json=order_payload)
     assert r.status_code == 200, f"Order creation failed: {r.text}"
     order = r.json()
+    # Le serveur ne reprend plus un jeton fourni par l'appelant comme preuve d'identité : on utilise celui qu'il renvoie.
+    unique_token = order.get("access_token") or unique_token
     order_id = order["id"]
     order_number = order["order_number"]
     assert order["is_client_archived"] is False
@@ -435,7 +459,8 @@ def test_client_order_cancellation_archiving_and_soft_delete():
     # 3. Test Cancellation using order_number (not just UUID id)
     r = client.post(f"/api/orders/{order_number}/cancel", json={
         "reason": "Changement d'avis du client",
-        "actor_name": "Fatou Sawadogo"
+        "actor_name": "Fatou Sawadogo",
+        "customer_token": unique_token,  # preuve de propriété
     })
     assert r.status_code == 200, f"Cancellation by order_number failed: {r.text}"
     cancel_res = r.json()
@@ -443,7 +468,13 @@ def test_client_order_cancellation_archiving_and_soft_delete():
     print(f"[PASS] Cancellation by order_number #{order_number} succeeded!")
 
     # 4. Test Soft-Archiving
+    # Sans preuve de propriété, l'archivage est refusé (autre appareil : pas le cookie HttpOnly du client)
+    client.cookies.clear()
     r = client.post(f"/api/orders/{order_id}/archive-client")
+    assert r.status_code == 401
+    r = client.post(f"/api/orders/{order_id}/archive-client", json={"customer_token": "token_intrus"})
+    assert r.status_code == 403
+    r = client.post(f"/api/orders/{order_id}/archive-client", json={"customer_token": unique_token})
     assert r.status_code == 200
     assert r.json()["is_client_archived"] is True
 
@@ -454,13 +485,13 @@ def test_client_order_cancellation_archiving_and_soft_delete():
     print(f"[PASS] Soft-archiving verified on #{order_number}")
 
     # Test unarchive
-    r = client.post(f"/api/orders/{order_id}/unarchive-client")
+    r = client.post(f"/api/orders/{order_id}/unarchive-client", json={"customer_token": unique_token})
     assert r.status_code == 200
     assert r.json()["is_client_archived"] is False
     print(f"[PASS] Unarchiving verified on #{order_number}")
 
     # 5. Test Soft-Delete ("suppression définitive pour l'utilisateur sans rien effacer en base de donnée")
-    r = client.post(f"/api/orders/{order_id}/hide-client")
+    r = client.post(f"/api/orders/{order_id}/hide-client", json={"customer_token": unique_token})
     assert r.status_code == 200
     assert r.json()["is_client_hidden"] is True
 

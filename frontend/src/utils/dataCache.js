@@ -40,7 +40,7 @@ export const dataCache = {
           return true;
         }
       }
-    } catch (e) {}
+    } catch  {}
     return false;
   },
 
@@ -49,7 +49,7 @@ export const dataCache = {
     memoryCache.delete(key);
     try {
       safeStorage.removeItem(`gotoshop_cache_${key}`);
-    } catch (e) {}
+    } catch  {}
   },
 
   clear() {
@@ -65,7 +65,7 @@ export const dataCache = {
         }
         toRemove.forEach((k) => safeStorage.removeItem(k));
       }
-    } catch (e) {}
+    } catch  {}
   },
 
   get(key) {
@@ -81,7 +81,7 @@ export const dataCache = {
         memoryCache.set(key, { data: parsed.data, time: parsed.time });
         return parsed.data;
       }
-    } catch (e) {}
+    } catch  {}
     return null;
   },
 
@@ -96,7 +96,7 @@ export const dataCache = {
         memoryCache.set(key, parsed);
         return parsed;
       }
-    } catch (e) {}
+    } catch  {}
     return null;
   },
 
@@ -110,7 +110,7 @@ export const dataCache = {
     if (persist) {
       try {
         safeStorage.setItem(`gotoshop_cache_${key}`, JSON.stringify(entry));
-      } catch (e) {}
+      } catch  {}
     }
 
     // If data changed, notify all subscribers for this key
@@ -133,7 +133,7 @@ export const dataCache = {
         memoryCache.delete(k);
         try {
           safeStorage.removeItem(`gotoshop_cache_${k}`);
-        } catch (e) {}
+        } catch  {}
       }
     }
   },
@@ -170,7 +170,7 @@ export const dataCache = {
           this.set(key, fresh, persist);
         }
         return fresh;
-      } catch (err) {
+      } catch  {
         return cachedEntry?.data;
       }
     };

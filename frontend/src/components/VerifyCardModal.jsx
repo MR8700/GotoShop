@@ -33,8 +33,21 @@ export default function VerifyCardModal({ cardNo, code, onClose, onNavigateToSto
     };
   }, [cardNo, code]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+    >
       <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800">
         {/* Header decoration */}
         <div className="relative p-6 pb-4 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white text-center">
@@ -121,7 +134,7 @@ export default function VerifyCardModal({ cardNo, code, onClose, onNavigateToSto
                 <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700">
                   <span className="text-xs text-slate-500 dark:text-slate-400">Points fidélité réels</span>
                   <span className="text-sm font-extrabold text-slate-900 dark:text-white">
-                    {data.points ?? 0} pts
+                    {Number(data.points ?? 0).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} pt
                   </span>
                 </div>
                 {data.store && (

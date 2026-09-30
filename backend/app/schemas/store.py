@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, computed_field, ConfigDict
 from datetime import datetime, timedelta
+from app.core.clock import utcnow
 
 # The owner counts as "online" if his session pinged the server within this window.
 OWNER_ONLINE_WINDOW_SECONDS = 90
@@ -9,29 +10,27 @@ OWNER_ONLINE_WINDOW_SECONDS = 90
 def is_recently_seen(last_seen: Optional[datetime]) -> bool:
     if not last_seen:
         return False
-    return datetime.utcnow() - last_seen <= timedelta(seconds=OWNER_ONLINE_WINDOW_SECONDS)
+    return utcnow() - last_seen <= timedelta(seconds=OWNER_ONLINE_WINDOW_SECONDS)
 
 class TrustBadgeSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     icon_name: str
     label: str
     badge_type: str
     display_order: Optional[int] = 0
 
-    class Config:
-        from_attributes = True
-
 class DeliveryCitySchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     display_label: str
     is_default: bool
     display_order: Optional[int] = 0
-
-    class Config:
-        from_attributes = True
+    delivery_fee: Optional[int] = None
 
 class LoyaltyTierSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     min_points: int
@@ -41,9 +40,6 @@ class LoyaltyTierSchema(BaseModel):
     discount_percent: int = 0
     is_active: bool = True
     display_order: int = 0
-
-    class Config:
-        from_attributes = True
 
 class LoyaltyTierCreateUpdate(BaseModel):
     name: str
@@ -135,8 +131,7 @@ class StoreDetailSchema(BaseModel):
     def is_owner_online(self) -> bool:
         return is_recently_seen(self.owner_last_seen_at)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class StoreRegisterRequest(BaseModel):
     store_name: str

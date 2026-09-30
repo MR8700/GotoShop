@@ -6,6 +6,7 @@ from app.models.catalog import Product
 from app.models.commerce import OrderIntent
 from app.models.analytics import TrafficSource, TrackingEvent
 from app.schemas.analytics import AnalyticsOverview, ChannelMetric, TopProductMetric, TrafficSourceMetric
+from app.core.clock import utcnow
 
 class AnalyticsService:
     @staticmethod
@@ -17,7 +18,6 @@ class AnalyticsService:
         # Intentions count
         total_intents = db.query(OrderIntent).filter(OrderIntent.store_id == store_id).count()
         total_sold = db.query(OrderIntent).filter(OrderIntent.store_id == store_id, OrderIntent.status == "SOLD").count()
-        total_revenue = store.revenue or 8945000
 
         # Coherence & Satisfaction metrics
         satisfied_clients_count = db.query(OrderIntent).filter(
@@ -46,75 +46,93 @@ class AnalyticsService:
         if total_evaluated > 0:
             satisfaction_rate = round((satisfied_clients_count / total_evaluated) * 100, 1)
         else:
-            satisfaction_rate = 98.4
+            satisfaction_rate = 0.0  # aucune évaluation client : pas de taux inventé
 
-        # Adjust metrics according to period filter
+        # Fenêtre temporelle réelle selon la période (aucune valeur inventée)
+        from datetime import datetime, timedelta
+        now = utcnow()
         if period == "today":
-            cur_revenue = total_revenue
-            cur_visitors = 12843
-            cur_intents = 483 + total_intents
-            cur_sold = 127 + total_sold
-            growth = 18.4
-            sparkline = [40, 38, 22, 26, 30, 12, 18, 24, 4, 8]
+            start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         elif period == "7days":
-            cur_revenue = int(total_revenue * 1.85)
-            cur_visitors = 38450
-            cur_intents = 1420 + total_intents
-            cur_sold = 385 + total_sold
-            growth = 22.1
-            sparkline = [15, 25, 20, 35, 28, 42, 30, 50, 45, 60]
+            start = now - timedelta(days=7)
         elif period == "month":
-            cur_revenue = int(total_revenue * 4.2)
-            cur_visitors = 98120
-            cur_intents = 3980 + total_intents
-            cur_sold = 1045 + total_sold
-            growth = 31.0
-            sparkline = [10, 18, 25, 32, 28, 45, 52, 60, 58, 75]
-        else: # all
-            cur_revenue = int(total_revenue * 7.5)
-            cur_visitors = 184500
-            cur_intents = 7890 + total_intents
-            cur_sold = 2150 + total_sold
-            growth = 45.2
-            sparkline = [5, 12, 20, 30, 42, 55, 68, 80, 92, 100]
+            start = now - timedelta(days=30)
+        else:
+            start = None
+        span = (now - start) if start else None
+        prev_start = (start - span) if start else None
+
+        def _intents(q_start, q_end=None):
+            q = db.query(OrderIntent).filter(OrderIntent.store_id == store_id)
+            if q_start is not None:
+                q = q.filter(OrderIntent.created_at >= q_start)
+            if q_end is not None:
+                q = q.filter(OrderIntent.created_at < q_end)
+            return q
+
+        cur_rows = _intents(start).all()
+        sold_rows = [i for i in cur_rows if i.status == "SOLD"]
+        cur_intents = len(cur_rows)
+        cur_sold = len(sold_rows)
+        cur_revenue = sum(int(i.total_amount or 0) for i in sold_rows)
+
+        if start is not None:
+            prev_sold = [i for i in _intents(prev_start, start).all() if i.status == "SOLD"]
+            prev_revenue = sum(int(i.total_amount or 0) for i in prev_sold)
+            growth = round((cur_revenue - prev_revenue) / prev_revenue * 100, 1) if prev_revenue > 0 else 0.0
+        else:
+            growth = 0.0
+
+        vq = db.query(func.count(TrackingEvent.id)).filter(
+            TrackingEvent.store_id == store_id, TrackingEvent.event_type == "STORE_VIEW"
+        )
+        if start is not None:
+            vq = vq.filter(TrackingEvent.created_at >= start)
+        cur_visitors = int(vq.scalar() or 0)
+
+        # Sparkline : chiffre d'affaires réel réparti en 10 tranches de temps (normalisé 0-100)
+        sparkline = [0] * 10
+        if sold_rows:
+            t0 = start or min(i.created_at for i in sold_rows)
+            width = max((now - t0).total_seconds(), 1) / 10
+            buckets = [0] * 10
+            for i in sold_rows:
+                idx = min(9, max(0, int((i.created_at - t0).total_seconds() / width)))
+                buckets[idx] += int(i.total_amount or 0)
+            peak = max(buckets) or 1
+            sparkline = [int(v * 100 / peak) for v in buckets]
 
         consolidated_revenue = max(0, cur_revenue - discrepancy_amount)
         consolidated_sales_count = max(0, cur_sold - discrepancies_count)
-        conv_rate = round((cur_sold / cur_intents * 100), 1) if cur_intents > 0 else 26.3
+        conv_rate = round((cur_sold / cur_intents * 100), 1) if cur_intents > 0 else 0.0
 
-        # Channels performance
-        channels = [
-            ChannelMetric(
-                channel_type="WHATSAPP",
-                display_name="WhatsApp Direct",
-                clicks=281 if period == "today" else 840,
-                confirmed_sales=79 if period == "today" else 245,
-                conversion_rate=28.1,
-                badge_label="Top Rentable",
-                color_hex="#10b981",
-                percentage_bar=78.0
-            ),
-            ChannelMetric(
-                channel_type="MESSENGER",
-                display_name="Messenger FB",
-                clicks=132 if period == "today" else 390,
-                confirmed_sales=31 if period == "today" else 95,
-                conversion_rate=23.4,
-                badge_label="Standard",
-                color_hex="#6366f1",
-                percentage_bar=48.0
-            ),
-            ChannelMetric(
-                channel_type="TIKTOK",
-                display_name="TikTok Shop / DM",
-                clicks=70 if period == "today" else 190,
-                confirmed_sales=17 if period == "today" else 45,
-                conversion_rate=24.2,
-                badge_label="En hausse",
-                color_hex="#ff5733",
-                percentage_bar=35.0
-            ),
-        ]
+        # Canaux : agrégés depuis les intentions réelles
+        channel_meta = {
+            "WHATSAPP": ("WhatsApp Direct", "#10b981"),
+            "MESSENGER": ("Messenger FB", "#6366f1"),
+            "TIKTOK": ("TikTok Shop / DM", "#ff5733"),
+        }
+        agg = {}
+        for i in cur_rows:
+            key = (i.channel_type or "AUTRE").upper()
+            d = agg.setdefault(key, [0, 0])
+            d[0] += 1
+            if i.status == "SOLD":
+                d[1] += 1
+        max_clicks = max([v[0] for v in agg.values()] or [1])
+        channels = []
+        for key, (clicks, sales) in sorted(agg.items(), key=lambda kv: -kv[1][0]):
+            name, color = channel_meta.get(key, (key.title(), "#94a3b8"))
+            channels.append(ChannelMetric(
+                channel_type=key,
+                display_name=name,
+                clicks=clicks,
+                confirmed_sales=sales,
+                conversion_rate=round(sales / clicks * 100, 1) if clicks else 0.0,
+                badge_label=None,
+                color_hex=color,
+                percentage_bar=round(clicks / max_clicks * 100, 1),
+            ))
 
         # Top products
         db_products = db.query(Product).filter(Product.store_id == store_id, Product.is_published == True).order_by(Product.sales_count.desc()).limit(3).all()
@@ -133,11 +151,7 @@ class AnalyticsService:
         # Traffic sources from DB
         db_sources = db.query(TrafficSource).filter(TrafficSource.store_id == store_id).order_by(TrafficSource.display_order.asc()).all()
         if not db_sources:
-            traffic_sources = [
-                TrafficSourceMetric(source_name="TikTok Bio", source_code="tiktok_bio", percentage=45.0, visits_count=5779, color_hex="#ff5733"),
-                TrafficSourceMetric(source_name="FB Post", source_code="fb_post", percentage=35.0, visits_count=4495, color_hex="#6366f1"),
-                TrafficSourceMetric(source_name="Statut WA", source_code="wa_status", percentage=20.0, visits_count=2569, color_hex="#10b981"),
-            ]
+            traffic_sources = []
         else:
             total_visits = sum(s.visits_count for s in db_sources) or 1
             traffic_sources = [

@@ -60,6 +60,15 @@ export default function ProductManageModal({
 
   const fileInputRef = useRef(null);
 
+  React.useEffect(() => {
+    if (!product) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [product, onClose]);
+
   if (!product) return null;
 
   const handleImageFile = (file) => {
@@ -176,8 +185,13 @@ export default function ProductManageModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className="bg-surface-container-high rounded-2xl p-5 max-w-md w-full shadow-2xl border border-white/10 my-auto max-h-[92vh] overflow-y-auto">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md overflow-y-auto"
+    >
+      <div className="bg-surface-container-high rounded-2xl p-5 max-w-md w-full shadow-2xl border border-outline-variant/30 my-auto max-h-[92vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
           <div className="flex items-center gap-2">
@@ -189,7 +203,7 @@ export default function ProductManageModal({
                 {isEditing ? "Modifier le Produit" : "Gestion du Produit"}
               </h3>
               <p className="text-[11px] text-on-surface-variant">
-                Espace Propriétaire • Awa Chic & Tech
+                Espace Propriétaire • {product?.store_name || "Gestion du catalogue"}
               </p>
             </div>
           </div>

@@ -1,6 +1,8 @@
 import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
-import { fetchCustomerStats, dataCache, getCustomerToken } from "../api/client";
+import { fetchCustomerStats, dataCache, getCustomerToken, fetchLoyaltySummary } from "../api/client";
+
+const fmtPts = (n) => Number(n || 0).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
 
 export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop, showToast }) {
   const [stats, setStats] = useState(() => {
@@ -12,6 +14,17 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
     const cached = token ? dataCache.get(`customer:stats:${token}`) : null;
     return !cached && !!customer;
   });
+
+  const [summary, setSummary] = useState(null);
+
+  const loadSummary = async () => {
+    try {
+      const data = await fetchLoyaltySummary();
+      if (data) setSummary(data);
+    } catch {
+      /* le bloc de rachat reste simplement masqué */
+    }
+  };
 
   const loadStats = async (force = false) => {
     if (!stats) {
@@ -34,6 +47,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
   useEffect(() => {
     if (customer) {
       loadStats(false);
+      loadSummary();
     } else {
       setLoading(false);
     }
@@ -41,6 +55,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
     const handleStatsChange = () => {
       if (customer) {
         loadStats(true);
+        loadSummary();
       }
     };
 
@@ -82,13 +97,6 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
     );
   }
 
-  const tierBadge =
-    stats?.loyalty_tier === "Gold VIP"
-      ? "bg-amber-500/15 text-amber-300 border-amber-400/30"
-      : stats?.loyalty_tier === "Silver"
-      ? "bg-slate-400/15 text-slate-200 border-slate-300/30"
-      : "bg-primary/15 text-primary border-primary/30";
-
   return (
     <div className="flex flex-col w-full gap-6 max-w-2xl sm:max-w-3xl mx-auto pb-32">
       {/* Header */}
@@ -97,10 +105,6 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
           <h2 className="font-headline-sm text-headline-sm text-on-surface">Mes Avantages & Fidélité</h2>
           <p className="text-xs text-on-surface-variant">Espace Privilège Membre</p>
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 border ${tierBadge}`}>
-          <Icon name="verified" className="text-[15px]" />
-          {stats?.loyalty_tier || "Bronze"}
-        </span>
       </div>
 
       {/* Digital Loyalty Card */}
@@ -126,31 +130,83 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
           <div>
             <p className="text-[11px] text-on-surface-variant uppercase font-semibold">Solde Points</p>
             <p className="text-2xl font-bold text-on-surface tabular-nums">
-              {stats?.loyalty_points || 0} <span className="text-xs font-normal text-secondary">pts</span>
+              {fmtPts(stats?.loyalty_points)} <span className="text-xs font-normal text-secondary">pts</span>
             </p>
           </div>
           <div className="text-right">
-            <span className="text-[11px] text-on-surface-variant uppercase font-semibold block">Statut</span>
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border inline-block ${tierBadge}`}>{stats?.loyalty_tier || "Bronze"}</span>
+            <span className="text-[11px] text-on-surface-variant uppercase font-semibold block">Prochain gain</span>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full border inline-block bg-primary/15 text-primary border-primary/30">
+              +{fmtPts(summary?.next_gain ?? 0.5)} pt
+            </span>
           </div>
         </div>
 
-        {/* Progress bar to next tier */}
-        {stats?.next_tier && (
+        {summary && (
           <div className="space-y-1.5 pt-2 border-t border-white/10">
             <div className="flex justify-between text-[11px] text-on-surface-variant font-medium">
-              <span>Prochain niveau : {stats.next_tier}</span>
-              <span>{stats.next_tier_progress}%</span>
+              <span>Encore {summary.payments_before_increase} paiement(s) avant +{fmtPts(summary.gain_after_increase)} pt par paiement</span>
+              <span>{summary.payments_counted} validé(s)</span>
             </div>
             <div className="w-full h-2 rounded-full bg-surface-container-highest overflow-hidden">
               <div
                 className="h-full bg-primary rounded-full transition-all duration-500"
-                style={{ width: `${stats.next_tier_progress}%` }}
+                style={{ width: `${((3 - summary.payments_before_increase) / 3) * 100}%` }}
               />
             </div>
           </div>
         )}
       </div>
+
+      {/* Mes points : dépensés sur UN produit au moment de la commande */}
+      {summary && stats?.is_loyalty_active !== false && (
+        <div className="rounded-2xl bg-surface-container p-4 shadow-md border border-white/5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-headline-sm text-sm font-bold text-on-surface flex items-center gap-2">
+              <Icon name="redeem" className="text-[20px] text-secondary" />
+              Utiliser mes points
+            </h3>
+            <span className="text-[11px] text-on-surface-variant font-mono">1 pt = 1 % de remise</span>
+          </div>
+
+          <p className="text-xs text-on-surface-variant">
+            Solde disponible : <span className="font-bold text-on-surface tabular-nums">{fmtPts(summary.balance)} pt</span>
+            {summary.balance > 0 && (
+              <> · sur un produit à 20 000 F : <span className="font-bold text-secondary">-{Math.floor((20000 * Math.min(summary.balance, summary.max_points_per_use)) / 100).toLocaleString("fr-FR")} F</span></>
+            )}
+          </p>
+
+          <ul className="text-[11px] text-on-surface-variant space-y-1 list-disc pl-4">
+            <li>À la commande, choisissez <b>un seul produit</b> et le nombre de points à y consacrer (par pas de 0,1).</li>
+            <li>La remise s'applique à <b>une unité</b> du produit choisi. Maximum {fmtPts(summary.max_points_per_use)} pt par utilisation.</li>
+            <li>Vos points ne s'utilisent pas avec un coupon, et ceux gagnés par une commande servent dès sa livraison.</li>
+            <li>Une commande compte à partir de {Number(summary.min_order_fcfa).toLocaleString("fr-FR")} F, un paiement par boutique et par jour.</li>
+          </ul>
+
+          <button
+            type="button"
+            onClick={onNavigateToShop}
+            className="w-full h-11 rounded-xl bg-primary-container text-on-primary-container font-bold text-sm flex items-center justify-center gap-2"
+          >
+            <Icon name="storefront" className="text-[18px]" />
+            <span>Choisir un produit</span>
+          </button>
+
+          {summary.coupons?.length > 0 && (
+            <div className="space-y-1.5 pt-2 border-t border-white/10">
+              <p className="text-[11px] uppercase font-semibold text-on-surface-variant">Mes bons actifs (anciens échanges)</p>
+              {summary.coupons.map((c) => (
+                <div key={c.id} className="flex items-center justify-between text-xs text-on-surface">
+                  <span className="font-mono font-bold">{c.code}</span>
+                  <span className="text-on-surface-variant">
+                    {c.discount_amount > 0 ? `${c.discount_amount.toLocaleString()} FCFA` : `${c.discount_percent}%`}
+                    {c.expires_at ? ` · jusqu'au ${new Date(c.expires_at).toLocaleDateString("fr-FR")}` : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats KPI Tiles */}
       <div className="grid grid-cols-2 gap-3">
@@ -183,108 +239,34 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
         </div>
       )}
 
-      {/* Member Benefits List & Tiers from Store */}
+      {/* Progression des gains par paiement */}
       <div className="rounded-2xl bg-surface-container p-4 shadow-md border border-white/5 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-headline-sm text-sm font-bold text-on-surface flex items-center gap-2">
-            <Icon name="redeem" className="text-[20px] text-secondary" />
-            Paliers & Privilèges Définis par la Boutique
-          </h3>
-          <span className="text-[11px] text-on-surface-variant font-mono">
-            1 pt / {(stats?.loyalty_spend_per_point || 1000).toLocaleString()} {stats?.currency || "FCFA"}
-          </span>
+        <h3 className="font-headline-sm text-sm font-bold text-on-surface flex items-center gap-2">
+          <Icon name="trending_up" className="text-[20px] text-secondary" />
+          Plus vous commandez, plus vous gagnez
+        </h3>
+        <p className="text-[11px] text-on-surface-variant">
+          Chaque paiement validé rapporte des points, et le gain monte tous les 3 paiements. Vos points s'accumulent tant que vous ne les utilisez pas.
+        </p>
+        <div className="space-y-1.5">
+          {[0, 1, 2, 3, 4, 5].map((k) => {
+            const from = k === 0 ? 1 : 3 * k;
+            const to = 3 * k + 2;
+            const current = summary ? Math.floor((summary.payments_counted + 1) / 3) === k : k === 0;
+            return (
+              <div
+                key={k}
+                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs border ${
+                  current ? "bg-secondary/10 border-secondary/40 font-bold text-on-surface" : "bg-surface-container-high/60 border-white/5 text-on-surface-variant"
+                }`}
+              >
+                <span>Paiements {from} à {to}</span>
+                <span className="tabular-nums">+{fmtPts((5 + k) / 10)} pt{current ? " · vous êtes ici" : ""}</span>
+              </div>
+            );
+          })}
+          <p className="text-[11px] text-on-surface-variant pt-1">Et ainsi de suite : +0,1 pt de gain tous les 3 paiements.</p>
         </div>
-
-        {stats?.all_tiers && stats.all_tiers.length > 0 ? (
-          <div className="space-y-3">
-            {stats.all_tiers.map((tier) => {
-              const currentPoints = stats?.loyalty_points || 0;
-              const isUnlocked = currentPoints >= tier.min_points;
-              const pointsNeeded = tier.min_points - currentPoints;
-
-              return (
-                <div
-                  key={tier.id}
-                  className={`p-3.5 rounded-2xl border transition-all ${
-                    isUnlocked
-                      ? "bg-secondary/10 border-secondary/40 shadow-sm"
-                      : "bg-surface-container-high/60 border-white/5 opacity-80"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Icon name={isUnlocked ? "verified" : "lock"} className={`text-[20px] ${ isUnlocked ? "text-secondary" : "text-on-surface-variant" }`} />
-                        <h4 className="font-headline-sm text-sm font-bold text-on-surface">
-                          {tier.name}
-                        </h4>
-                        {tier.badge_label && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-on-surface-variant">
-                            {tier.badge_label}
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="font-bold text-xs text-primary flex items-center gap-1.5 pt-0.5">
-                        <span>{tier.perk_title}</span>
-                        {tier.discount_percent > 0 && (
-                          <span className="px-1.5 py-0.2 rounded bg-primary/20 text-primary font-mono text-[10px]">
-                            -{tier.discount_percent}% remise
-                          </span>
-                        )}
-                      </p>
-
-                      {tier.perk_description && (
-                        <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                          {tier.perk_description}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      {isUnlocked ? (
-                        <span className="px-2 py-1 rounded-full bg-secondary/20 text-secondary text-[10px] font-bold inline-block">
-                          Débloqué ✅
-                        </span>
-                      ) : (
-                        <div className="text-right">
-                          <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[10px] font-medium block">
-                            Dès {tier.min_points} pts
-                          </span>
-                          <span className="text-[10px] text-primary font-semibold block mt-0.5">
-                            encore {pointsNeeded} pts
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="space-y-2.5 text-xs">
-            <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-surface-container-high/60 border border-white/5">
-              <Icon name="bolt" className="text-secondary text-[18px] shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-on-surface">Traitement & Expédition Prioritaire</p>
-                <p className="text-on-surface-variant text-[11px]">
-                  Vos commandes sont traitées en tête de file pour une livraison ultra-rapide.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-surface-container-high/60 border border-white/5">
-              <Icon name="loyalty" className="text-primary text-[18px] shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-on-surface">Points Convertibles en Réductions</p>
-                <p className="text-on-surface-variant text-[11px]">
-                  Chaque tranche de {(stats?.loyalty_spend_per_point || 1000).toLocaleString()} {stats?.currency || "FCFA"} dépensée vous rapporte 1 point de fidélité.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       <button

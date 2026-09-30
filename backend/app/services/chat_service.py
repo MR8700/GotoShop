@@ -1,5 +1,6 @@
 import json
 import uuid
+from app.core.security import lookup_hash
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
@@ -10,6 +11,7 @@ from app.models.order import Order
 from app.models.store import Store
 from app.models.customer import Customer
 from app.realtime.connection_manager import manager
+from app.core.clock import utcnow
 
 class ChatService:
     @staticmethod
@@ -68,7 +70,7 @@ class ChatService:
             customer_token=customer_token,
             customer_name=customer_name or "Client",
             customer_avatar_url=customer_avatar_url,
-            last_message_at=datetime.utcnow(),
+            last_message_at=utcnow(),
             last_message_preview="Conversation démarrée"
         )
         db.add(conv)
@@ -82,7 +84,7 @@ class ChatService:
             user_id=customer_id or customer_token,
             display_name=customer_name or "Client",
             avatar_url=customer_avatar_url,
-            last_read_at=datetime.utcnow()
+            last_read_at=utcnow()
         )
         db.add(cust_part)
 
@@ -93,7 +95,7 @@ class ChatService:
             user_id=store.owner_id if store else None,
             display_name=store_name,
             avatar_url=store.avatar_url if store else None,
-            last_read_at=datetime.utcnow()
+            last_read_at=utcnow()
         )
         db.add(store_part)
 
@@ -121,7 +123,7 @@ class ChatService:
                 or_(
                     Conversation.customer_token == customer_token,
                     Conversation.customer_id.in_(
-                        db.query(Customer.id).filter(Customer.session_token == customer_token)
+                        db.query(Customer.id).filter(Customer.session_token == lookup_hash(customer_token))
                     )
                 )
             )
@@ -299,7 +301,7 @@ class ChatService:
             metadata_json=json.dumps(metadata) if metadata else None,
             status="SENT",
             reply_to_id=reply_to_id,
-            created_at=datetime.utcnow()
+            created_at=utcnow()
         )
         db.add(msg)
         db.flush()
@@ -344,7 +346,7 @@ class ChatService:
         elif message_type == "CALL_EVENT":
             preview_text = f"📞 {content}"
 
-        conv.last_message_at = datetime.utcnow()
+        conv.last_message_at = utcnow()
         conv.last_message_preview = preview_text[:250]
 
         # Increment unread count for recipients

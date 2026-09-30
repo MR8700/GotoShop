@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List, Dict
 import re
+import secrets
 from sqlalchemy.orm import Session
 from app.models.store import Owner, Store
-from app.core.security import hash_password, verify_password, validate_strong_password, generate_session_token
+from app.core.security import hash_password, verify_password, validate_strong_password, generate_session_token, hash_session_token, lookup_hash
 from app.schemas.auth import LoginRequest, ChangePasswordRequest, LoginResponse, PasswordCheckDetail
+from app.core.clock import utcnow
 
 DEFAULT_ADMIN_EMAIL = "awa@chictech.bf"
 DEFAULT_ADMIN_TEMP_PASSWORD = "AwaChic2026!"
@@ -13,21 +15,36 @@ LOCKOUT_MINUTES = 15
 
 class AuthService:
     @classmethod
+    def _temp_password(cls) -> str:
+        """Mot de passe temporaire. Le mot de passe public connu n'est utilisé qu'en développement (APP_ENV=dev) ;
+        ailleurs il est aléatoire : sinon tout commerçant sans mot de passe était accessible avec une valeur publiée."""
+        from app.config import settings as _cfg
+        if _cfg.APP_ENV == "dev":
+            return DEFAULT_ADMIN_TEMP_PASSWORD
+        alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+        while True:
+            pwd = "".join(secrets.choice(alphabet) for _ in range(12)) + "!7"
+            if validate_strong_password(pwd)[0]:
+                return pwd
+
+    @classmethod
     def ensure_default_owner_credentials(cls, db: Session, owner: Owner) -> None:
-        """Ensures the owner has the initial predefined temporary password if not set."""
+        """Un commerçant sans mot de passe reçoit un mot de passe temporaire (inconnu de tous hors développement)."""
         if not owner.password_hash:
             cls.reset_to_default_credentials(db, owner)
 
     @classmethod
-    def reset_to_default_credentials(cls, db: Session, owner: Owner) -> None:
-        """Resets the owner to the initial predefined temporary password and sets must_change_password=True."""
-        pwd_hash, salt = hash_password(DEFAULT_ADMIN_TEMP_PASSWORD)
+    def reset_to_default_credentials(cls, db: Session, owner: Owner) -> str:
+        """Pose un mot de passe temporaire + must_change_password=True ; le retourne (à transmettre au commerçant)."""
+        temp = cls._temp_password()
+        pwd_hash, salt = hash_password(temp)
         owner.password_hash = pwd_hash
         owner.password_salt = salt
         owner.must_change_password = True
         owner.failed_login_attempts = 0
         owner.locked_until = None
         db.commit()
+        return temp
 
     @classmethod
     def get_password_checks_breakdown(cls, password: str) -> List[PasswordCheckDetail]:
@@ -89,7 +106,8 @@ class AuthService:
                 owner = target_store.owner
 
         # 3. Flexible Demo Aliases fallback
-        if not owner and ident in ["demo", "test", "admin", "awa@chictech.bf", "awa", "demo_admin", "mariam"]:
+        from app.config import settings as _cfg
+        if not owner and _cfg.ALLOW_DEMO_ACCESS and ident in ["demo", "test", "admin", "awa@chictech.bf", "awa", "demo_admin", "mariam"]:
             owner = db.query(Owner).first()
 
         if not owner:
@@ -109,11 +127,11 @@ class AuthService:
             "demo123",
             "admin123"
         ]
-        is_demo_pwd = req.password in DEMO_PASSWORDS
+        is_demo_pwd = _cfg.ALLOW_DEMO_ACCESS and req.password in DEMO_PASSWORDS
 
         # Check account lockout (demo passwords bypass lockout and unlock)
-        if not is_demo_pwd and owner.locked_until and owner.locked_until > datetime.utcnow():
-            remaining = int((owner.locked_until - datetime.utcnow()).total_seconds() // 60) + 1
+        if not is_demo_pwd and owner.locked_until and owner.locked_until > utcnow():
+            remaining = int((owner.locked_until - utcnow()).total_seconds() // 60) + 1
             raise ValueError(f"Compte temporairement verrouillé suite à trop d'échecs. Réessayez dans {remaining} minutes ou cliquez sur 'Réinitialiser'.")
 
         # Verify password
@@ -121,7 +139,7 @@ class AuthService:
         if not is_valid:
             owner.failed_login_attempts = (owner.failed_login_attempts or 0) + 1
             if owner.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
-                owner.locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_MINUTES)
+                owner.locked_until = utcnow() + timedelta(minutes=LOCKOUT_MINUTES)
                 db.commit()
                 raise ValueError(f"Mot de passe incorrect. Compte verrouillé pendant {LOCKOUT_MINUTES} minutes.")
             db.commit()
@@ -131,9 +149,9 @@ class AuthService:
         # Success: reset failed attempts
         owner.failed_login_attempts = 0
         owner.locked_until = None
-        owner.last_login_at = datetime.utcnow()
+        owner.last_login_at = utcnow()
         token = generate_session_token()
-        owner.session_token = token
+        owner.session_token = hash_session_token(token)
         db.commit()
         db.refresh(owner)
 
@@ -142,6 +160,9 @@ class AuthService:
     @classmethod
     def demo_login(cls, db: Session, target_slug: Optional[str] = None) -> Tuple[Owner, str]:
         """Instant demo login shortcut bypassing credential forms for test admin and demo merchants."""
+        from app.config import settings as _cfg
+        if not _cfg.ALLOW_DEMO_ACCESS:
+            raise ValueError("Connexion de démonstration désactivée (ALLOW_DEMO_ACCESS=1 pour l'activer en local).")
         owner = None
         if target_slug:
             target_store = db.query(Store).filter(Store.slug == target_slug).first()
@@ -160,17 +181,17 @@ class AuthService:
             raise ValueError("Aucun compte commerçant de démonstration trouvé en base.")
 
         token = generate_session_token()
-        owner.session_token = token
+        owner.session_token = hash_session_token(token)
         owner.failed_login_attempts = 0
         owner.locked_until = None
-        owner.last_login_at = datetime.utcnow()
+        owner.last_login_at = utcnow()
         db.commit()
         db.refresh(owner)
         return owner, token
 
     @classmethod
     def change_password(cls, db: Session, token: str, req: ChangePasswordRequest) -> Owner:
-        owner = db.query(Owner).filter(Owner.session_token == token).first()
+        owner = db.query(Owner).filter(Owner.session_token == lookup_hash(token)).first()
         if not owner:
             raise ValueError("Session invalide ou expirée. Veuillez vous reconnecter.")
 
@@ -195,9 +216,11 @@ class AuthService:
         owner.password_hash = new_hash
         owner.password_salt = new_salt
         owner.must_change_password = False
-        owner.session_token = generate_session_token() # rotate token
+        new_raw = generate_session_token()  # rotate token
+        owner.session_token = hash_session_token(new_raw)
         db.commit()
         db.refresh(owner)
+        owner.raw_session_token = new_raw  # attribut transient (non persisté) : le routeur le renvoie au client
 
         return owner
 
@@ -205,11 +228,13 @@ class AuthService:
     def get_owner_by_token(cls, db: Session, token: Optional[str]) -> Optional[Owner]:
         if not token:
             return None
-        owner = db.query(Owner).filter(Owner.session_token == token).first()
+        owner = db.query(Owner).filter(Owner.session_token == lookup_hash(token)).first()
         if owner:
             return owner
-        # Fallback for demo tokens (demo_owner_token_<slug>)
-        if str(token).startswith("demo_owner_token_"):
+        # Jetons de démo prévisibles (demo_owner_token_<slug>) : donnent l'accès commerçant SANS mot de passe.
+        # Désactivés par défaut ; ALLOW_DEMO_TOKENS=1 uniquement en local.
+        from app.config import settings as _settings
+        if _settings.ALLOW_DEMO_ACCESS and str(token).startswith("demo_owner_token_"):
             slug = str(token).replace("demo_owner_token_", "").strip()
             from app.services.store_service import StoreService
             store = StoreService.get_store_by_slug(db, slug)

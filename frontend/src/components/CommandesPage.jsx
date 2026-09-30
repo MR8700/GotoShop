@@ -582,7 +582,13 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
           </div>
 
           {/* Orders List */}
-          {filteredConversationalOrders.length === 0 ? (
+          {loading && filteredConversationalOrders.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-surface-container border border-subtle text-center space-y-3 animate-pulse">
+              <div className="w-10 h-10 rounded-full bg-primary/20 mx-auto" />
+              <div className="h-4 w-48 bg-surface-container-high rounded mx-auto" />
+              <div className="h-3 w-64 bg-surface-container-high rounded mx-auto" />
+            </div>
+          ) : filteredConversationalOrders.length === 0 ? (
             <div className="p-8 rounded-2xl bg-surface-container border-2 border-dashed border-slate-200 dark:border-slate-800 text-center space-y-3">
               <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
                 <Icon name="inbox" className="text-[28px]" />
@@ -753,6 +759,16 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                               {order.delivery?.delivery_city || order.delivery_city || "Ouagadougou"}
                             </span>
                           </span>
+{(order.delivery?.location_status === "MISMATCH" || order.delivery?.location_status === "OUT_OF_ZONE") && (
+                            <span className="inline-block mt-0.5 mr-1 text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-300 font-semibold">
+                              ⚠️ Position à {order.delivery.location_distance_km} km de la ville choisie
+                            </span>
+                          )}
+                          {(order.delivery?.spot || order.delivery?.fulfillment_type === "PICKUP") && (
+                            <span className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded bg-secondary/15 text-secondary font-semibold">
+                              {order.delivery.fulfillment_type === "PICKUP" ? "Retrait" : "Livraison groupée"} : {order.delivery?.spot?.name}{order.delivery?.spot?.hours ? ` • ${order.delivery.spot.hours}` : ""}
+                            </span>
+                          )}
                           <p className="text-[11px] text-on-surface-variant leading-relaxed">
                             {order.delivery?.delivery_address ||
                               order.delivery_address ||
@@ -1795,6 +1811,13 @@ export default function CommandesPage({ store, categories, showToast, onSaleConf
                 <span>Adresse &amp; Géolocalisation</span>
               </span>
               <div className="text-xs space-y-1">
+                {selectedConversationalOrder.delivery?.spot && (
+                  <p>
+                    <strong>{selectedConversationalOrder.delivery.fulfillment_type === "PICKUP" ? "Retrait au lieu :" : "Point de livraison :"}</strong>{" "}
+                    {selectedConversationalOrder.delivery.spot.name}
+                    {selectedConversationalOrder.delivery.spot.hours ? ` (${selectedConversationalOrder.delivery.spot.hours})` : ""}
+                  </p>
+                )}
                 <p>
                   <strong>Ville :</strong>{" "}
                   {selectedConversationalOrder.delivery?.delivery_city ||

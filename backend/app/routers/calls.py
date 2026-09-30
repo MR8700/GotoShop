@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
@@ -7,6 +7,15 @@ from app.database import get_db
 from app.services.call_service import CallService
 
 router = APIRouter(prefix="/calls", tags=["Calls (Voice & Video)"])
+
+
+def _auth_call(db: Session, call_id: str, authorization, guest):
+    from app.models.call import CallSession
+    from app.routers.chat import require_conversation
+    call = db.query(CallSession).filter(CallSession.id == call_id).first()
+    if not call:
+        raise HTTPException(status_code=404, detail="Appel introuvable")
+    return require_conversation(db, call.conversation_id, authorization, guest)
 
 class StartCallRequest(BaseModel):
     conversation_id: str
@@ -20,7 +29,11 @@ class RejectCallRequest(BaseModel):
 
 
 @router.post("", summary="Démarrer un appel vocal ou vidéo WebRTC")
-def start_call(req: StartCallRequest, db: Session = Depends(get_db)):
+def start_call(req: StartCallRequest, authorization: Optional[str] = Header(None), x_customer_token: Optional[str] = Header(None, alias="X-Customer-Token"), db: Session = Depends(get_db)):
+    from app.routers.chat import require_conversation
+    _, who = require_conversation(db, req.conversation_id, authorization, x_customer_token)
+    if req.caller_type == "MERCHANT" and who[0] != "merchant":
+        raise HTTPException(status_code=403, detail="Accès interdit.")
     try:
         return CallService.start_call(
             db=db,
@@ -35,7 +48,8 @@ def start_call(req: StartCallRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/{call_id}/answer", summary="Accepter un appel entrant")
-def answer_call(call_id: str, db: Session = Depends(get_db)):
+def answer_call(call_id: str, authorization: Optional[str] = Header(None), x_customer_token: Optional[str] = Header(None, alias="X-Customer-Token"), db: Session = Depends(get_db)):
+    _auth_call(db, call_id, authorization, x_customer_token)
     try:
         return CallService.answer_call(db=db, call_id=call_id)
     except Exception as e:
@@ -43,7 +57,8 @@ def answer_call(call_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{call_id}/reject", summary="Refuser un appel entrant")
-def reject_call(call_id: str, req: Optional[RejectCallRequest] = None, db: Session = Depends(get_db)):
+def reject_call(call_id: str, req: Optional[RejectCallRequest] = None, authorization: Optional[str] = Header(None), x_customer_token: Optional[str] = Header(None, alias="X-Customer-Token"), db: Session = Depends(get_db)):
+    _auth_call(db, call_id, authorization, x_customer_token)
     try:
         reason = req.reason if req else "DECLINED"
         return CallService.reject_call(db=db, call_id=call_id, reason=reason)
@@ -52,7 +67,8 @@ def reject_call(call_id: str, req: Optional[RejectCallRequest] = None, db: Sessi
 
 
 @router.post("/{call_id}/end", summary="Raccrocher / Terminer l'appel")
-def end_call(call_id: str, db: Session = Depends(get_db)):
+def end_call(call_id: str, authorization: Optional[str] = Header(None), x_customer_token: Optional[str] = Header(None, alias="X-Customer-Token"), db: Session = Depends(get_db)):
+    _auth_call(db, call_id, authorization, x_customer_token)
     try:
         return CallService.end_call(db=db, call_id=call_id)
     except Exception as e:
@@ -64,8 +80,23 @@ def get_call_history(
     conversation_id: Optional[str] = Query(None),
     store_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=100),
+    authorization: Optional[str] = Header(None),
+    x_customer_token: Optional[str] = Header(None, alias="X-Customer-Token"),
     db: Session = Depends(get_db)
 ):
+    from app.routers.chat import require_conversation
+    if conversation_id:
+        require_conversation(db, conversation_id, authorization, x_customer_token)
+    elif store_id:
+        from app.routers.auth import get_merchant_principal, assert_store_access
+        from app.services.store_service import StoreService
+        principal = get_merchant_principal(authorization, db)
+        st = StoreService.resolve_store(db, slug=store_id)
+        assert_store_access(principal, st.id if st else store_id)
+    else:
+        from app.routers.auth import get_merchant_principal
+        get_merchant_principal(authorization, db)  # 401/403 pour un appelant anonyme avant tout message de validation
+        raise HTTPException(status_code=400, detail="conversation_id ou store_id requis.")
     return CallService.list_calls(
         db=db,
         conversation_id=conversation_id,

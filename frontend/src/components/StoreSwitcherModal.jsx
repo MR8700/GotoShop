@@ -15,6 +15,15 @@ export default function StoreSwitcherModal({ isOpen, onClose, onSelectStore, onO
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const loadStores = async () => {
     try {
       setLoading(true);

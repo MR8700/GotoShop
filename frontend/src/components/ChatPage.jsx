@@ -140,6 +140,103 @@ export default function ChatPage({
     }
   }, [filterTab, store?.id, appMode]);
 
+  // Native WebRTC Audio & Video Call helpers
+  const initWebRtcPeerConnection = (localStream, isInitiator) => {
+    try {
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
+      peerConnectionRef.current = pc;
+
+      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+
+      pc.ontrack = (event) => {
+        remoteStreamRef.current = event.streams[0];
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.send(
+            JSON.stringify({
+              type: "webrtc.signal",
+              signal: { candidate: event.candidate },
+            })
+          );
+        }
+      };
+
+      if (isInitiator) {
+        pc.createOffer().then((offer) => {
+          pc.setLocalDescription(offer);
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(
+              JSON.stringify({
+                type: "webrtc.signal",
+                signal: { sdp: offer },
+              })
+            );
+          }
+        });
+      }
+    } catch (e) {
+      console.error("WebRTC Init error", e);
+    }
+  };
+
+  const handleIncomingWebRtcSignal = async (signal) => {
+    const pc = peerConnectionRef.current;
+    if (!pc) return;
+
+    try {
+      if (signal.sdp) {
+        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        if (signal.sdp.type === "offer") {
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(
+              JSON.stringify({
+                type: "webrtc.signal",
+                signal: { sdp: answer },
+              })
+            );
+          }
+        }
+      } else if (signal.candidate) {
+        await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+      }
+    } catch (e) {
+      console.error("Signal handling error", e);
+    }
+  };
+
+  const startCallTimer = () => {
+    setCallDuration(0);
+    clearInterval(callTimerRef.current);
+    callTimerRef.current = setInterval(() => {
+      setCallDuration((d) => d + 1);
+    }, 1000);
+  };
+
+  const handleCleanupCall = () => {
+    clearInterval(callTimerRef.current);
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((t) => t.stop());
+      localStreamRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    setActiveCall(null);
+    setCallDuration(0);
+    setIsMicMuted(false);
+    setIsCameraOff(false);
+  };
+
   // 2. Load Active Conversation & Messages
   useEffect(() => {
     if (!activeConvId) return;
@@ -159,7 +256,7 @@ export default function ChatPage({
           setLoadingMessages(false);
           markConversationRead(activeConvId, currentUserType, currentUserId);
         }
-      } catch (err) {
+      } catch  {
         if (isMounted) setLoadingMessages(false);
       }
     };
@@ -359,7 +456,7 @@ export default function ChatPage({
           });
           setMessages((prev) => [...prev, msg]);
           showToast?.("Position envoyée dans le chat !");
-        } catch (e) {
+        } catch  {
           showToast?.("Erreur envoi position");
         }
       },
@@ -395,7 +492,7 @@ export default function ChatPage({
       recordingTimerRef.current = setInterval(() => {
         setRecordingSeconds((s) => s + 1);
       }, 1000);
-    } catch (err) {
+    } catch  {
       showToast?.("Accès au microphone refusé ou non supporté");
     }
   };
@@ -433,7 +530,7 @@ export default function ChatPage({
       const msg = await uploadChatMedia(activeConvId, formData);
       setMessages((prev) => [...prev, msg]);
       showToast?.("Note vocale envoyée !");
-    } catch (e) {
+    } catch  {
       showToast?.("Erreur envoi audio");
     }
   };
@@ -616,7 +713,7 @@ export default function ChatPage({
 
       initWebRtcPeerConnection(stream, false);
       startCallTimer();
-    } catch (err) {
+    } catch  {
       showToast?.("Erreur acceptation appel");
     }
   };
@@ -625,7 +722,7 @@ export default function ChatPage({
     if (!activeCall) return;
     try {
       await rejectCallSession(activeCall.id, "DECLINED");
-    } catch (e) {}
+    } catch  {}
     handleCleanupCall();
   };
 
@@ -633,105 +730,9 @@ export default function ChatPage({
     if (!activeCall) return;
     try {
       await endCallSession(activeCall.id);
-    } catch (e) {}
+    } catch  {}
     handleCleanupCall();
     showToast?.("Appel terminé");
-  };
-
-  const initWebRtcPeerConnection = (localStream, isInitiator) => {
-    try {
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-      });
-      peerConnectionRef.current = pc;
-
-      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
-
-      pc.ontrack = (event) => {
-        remoteStreamRef.current = event.streams[0];
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
-      };
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          wsRef.current.send(
-            JSON.stringify({
-              type: "webrtc.signal",
-              signal: { candidate: event.candidate },
-            })
-          );
-        }
-      };
-
-      if (isInitiator) {
-        pc.createOffer().then((offer) => {
-          pc.setLocalDescription(offer);
-          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
-                type: "webrtc.signal",
-                signal: { sdp: offer },
-              })
-            );
-          }
-        });
-      }
-    } catch (e) {
-      console.error("WebRTC Init error", e);
-    }
-  };
-
-  const handleIncomingWebRtcSignal = async (signal) => {
-    const pc = peerConnectionRef.current;
-    if (!pc) return;
-
-    try {
-      if (signal.sdp) {
-        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-        if (signal.sdp.type === "offer") {
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
-                type: "webrtc.signal",
-                signal: { sdp: answer },
-              })
-            );
-          }
-        }
-      } else if (signal.candidate) {
-        await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
-      }
-    } catch (e) {
-      console.error("Signal handling error", e);
-    }
-  };
-
-  const startCallTimer = () => {
-    setCallDuration(0);
-    clearInterval(callTimerRef.current);
-    callTimerRef.current = setInterval(() => {
-      setCallDuration((d) => d + 1);
-    }, 1000);
-  };
-
-  const handleCleanupCall = () => {
-    clearInterval(callTimerRef.current);
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((t) => t.stop());
-      localStreamRef.current = null;
-    }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
-    setActiveCall(null);
-    setCallDuration(0);
-    setIsMicMuted(false);
-    setIsCameraOff(false);
   };
 
   const formatTimer = (totalSeconds) => {
@@ -1223,7 +1224,14 @@ export default function ChatPage({
 
             {/* Messages Scroll View */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.length === 0 ? (
+              {loadingMessages ? (
+                <div className="py-12 text-center text-xs text-foreground-muted space-y-3 animate-pulse">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 mx-auto flex items-center justify-center text-primary">
+                    <Icon name="sync" className="animate-spin text-lg" />
+                  </div>
+                  <p>Chargement des échanges...</p>
+                </div>
+              ) : messages.length === 0 ? (
                 <div className="py-12 text-center text-xs text-foreground-muted space-y-2">
                   <div className="w-12 h-12 rounded-full bg-surface-elevated mx-auto flex items-center justify-center text-primary">
                     <Icon name="chat" className="text-2xl" />
@@ -1889,7 +1897,7 @@ export default function ChatPage({
           order={activeConv.order}
           isOpen={isMobileMoneyModalOpen}
           onClose={() => setIsMobileMoneyModalOpen(false)}
-          onSuccess={async (paymentResult) => {
+          onSuccess={async (_paymentResult) => {
             setIsMobileMoneyModalOpen(false);
             showToast?.("🎉 Paiement Mobile Money validé ! Votre commande passe en préparation.");
             const updated = await fetchConversationDetail(activeConvId);

@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class Conversation(Base):
     __tablename__ = "conversations"
@@ -20,12 +21,12 @@ class Conversation(Base):
     customer_name = Column(String(100), nullable=True)
     customer_avatar_url = Column(String(255), nullable=True)
 
-    last_message_at = Column(DateTime, default=datetime.utcnow, index=True)
+    last_message_at = Column(DateTime, default=utcnow, index=True)
     last_message_preview = Column(String(255), nullable=True)
     is_archived = Column(Boolean, default=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Relationships
     store = relationship("Store", foreign_keys=[store_id])
@@ -83,7 +84,7 @@ class ChatMessage(Base):
     status = Column(String(50), default="SENT", nullable=False)
     reply_to_id = Column(String(36), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
 
     conversation = relationship("Conversation", back_populates="messages")
     attachments = relationship("MessageAttachment", back_populates="message", cascade="all, delete-orphan")

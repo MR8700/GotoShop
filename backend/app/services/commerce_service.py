@@ -15,6 +15,15 @@ from app.schemas.commerce import CreateIntentRequest, ConfirmSaleRequest, Client
 from app.services.notification_service import NotificationService
 from app.services.store_service import StoreService
 from app.adapters.factory import get_channel_adapter
+from app.core.clock import utcnow
+
+def _valid_share_code(db, store_id, code):
+    try:
+        from app.services.share_ad_service import ShareAdService
+        return ShareAdService.valid_code(db, store_id, code)
+    except Exception:
+        return None
+
 
 class CommerceService:
     @staticmethod
@@ -78,6 +87,7 @@ class CommerceService:
             customer_name=req.customer_name,
             customer_phone=req.customer_phone,
             customer_source=req.customer_source or "DIRECT",
+            share_code=_valid_share_code(db, actual_store_id, getattr(req, "share_code", None)),
             customer_location_url=req.customer_location_url,
             customer_coordinates=req.customer_coordinates,
             quantity=req.quantity,
@@ -90,7 +100,7 @@ class CommerceService:
             client_status="PENDING",
             coherence_status="HARMONIZED_PENDING",
             coherence_notes="Commande créée, en attente de discussion et d'arbitrage 24h.",
-            redirected_at=datetime.utcnow(),
+            redirected_at=utcnow(),
         )
         db.add(intent)
         db.flush()
@@ -100,7 +110,7 @@ class CommerceService:
         followup = FollowUpTask(
             order_intent_id=intent.id,
             secure_token=secure_token,
-            scheduled_for=datetime.utcnow() + timedelta(hours=24),
+            scheduled_for=utcnow() + timedelta(hours=24),
             status="SCHEDULED",
         )
         db.add(followup)
@@ -112,6 +122,7 @@ class CommerceService:
             event_type="ADD_INTENT",
             channel_type=req.channel_type.upper(),
             source=req.customer_source or "DIRECT",
+            share_code=intent.share_code,
         )
         db.add(event)
 
@@ -239,14 +250,14 @@ class CommerceService:
                 is_sold=confirmation.is_sold,
                 reason=confirmation.reason,
                 amount_paid=confirmation.amount_paid or (intent.total_amount if confirmation.is_sold else 0),
-                confirmed_at=datetime.utcnow()
+                confirmed_at=utcnow()
             )
             db.add(existing_conf)
         else:
             existing_conf.is_sold = confirmation.is_sold
             existing_conf.reason = confirmation.reason
             existing_conf.amount_paid = confirmation.amount_paid or (intent.total_amount if confirmation.is_sold else 0)
-            existing_conf.confirmed_at = datetime.utcnow()
+            existing_conf.confirmed_at = utcnow()
 
         if confirmation.is_sold:
             intent.status = "SOLD"
@@ -335,7 +346,7 @@ class CommerceService:
 
         if intent.followup_task:
             intent.followup_task.status = "CONFIRMED" if confirmation.is_sold else "REJECTED"
-            intent.followup_task.responded_at = datetime.utcnow()
+            intent.followup_task.responded_at = utcnow()
 
         db.commit()
         db.refresh(intent)
@@ -357,7 +368,7 @@ class CommerceService:
                     OrderService.cancel_order(db, order.id, reason=req.reason or "Annulé par le client")
                 elif req.action.strip().upper() == "SATISFY":
                     order.status = "COMPLETED"
-                    order.updated_at = datetime.utcnow()
+                    order.updated_at = utcnow()
                     db.commit()
 
                 class OrderProxy:
@@ -382,7 +393,7 @@ class CommerceService:
                 p.client_status = "SATISFIED" if req.action.strip().upper() == "SATISFY" else "CANCELLED"
                 p.client_feedback = req.reason
                 p.client_satisfaction_rating = req.rating
-                p.client_action_at = datetime.utcnow()
+                p.client_action_at = utcnow()
                 p.coherence_status = "CONSOLIDATED_SALE" if req.action.strip().upper() == "SATISFY" else "CLIENT_CANCELLED_EARLY"
                 p.coherence_notes = None
                 p.is_urgent_followup = False
@@ -402,7 +413,7 @@ class CommerceService:
             intent.client_status = "SATISFIED"
             intent.client_feedback = req.reason or "Client très satisfait(e)"
             intent.client_satisfaction_rating = req.rating or 5
-            intent.client_action_at = datetime.utcnow()
+            intent.client_action_at = utcnow()
 
             # Check coherence with merchant status
             has_conf = intent.sale_confirmation is not None
@@ -451,7 +462,7 @@ class CommerceService:
         elif action_upper == "CANCEL":
             intent.client_status = "CANCELLED"
             intent.client_feedback = req.reason or "Annulé par le client"
-            intent.client_action_at = datetime.utcnow()
+            intent.client_action_at = utcnow()
 
             has_conf = intent.sale_confirmation is not None
             is_sold = intent.sale_confirmation.is_sold if has_conf else False
@@ -489,6 +500,8 @@ class CommerceService:
         else:
             raise ValueError(f"Action '{req.action}' invalide. Utilisez 'SATISFY' ou 'CANCEL'.")
 
+        from app.services.store_service import StoreService
+        StoreService.recompute_rating(db, intent.store_id)
         db.commit()
         db.refresh(intent)
         return intent
@@ -522,13 +535,13 @@ class CommerceService:
                     order_intent_id=intent.id,
                     is_sold=False,
                     reason=req.notes or "Annulation acceptée après conciliation",
-                    confirmed_at=datetime.utcnow()
+                    confirmed_at=utcnow()
                 )
                 db.add(intent.sale_confirmation)
             else:
                 intent.sale_confirmation.is_sold = False
                 intent.sale_confirmation.reason = req.notes or "Annulation acceptée après conciliation"
-                intent.sale_confirmation.confirmed_at = datetime.utcnow()
+                intent.sale_confirmation.confirmed_at = utcnow()
 
             intent.coherence_status = "MUTUAL_ABANDON"
             intent.coherence_notes = f"Incohérence arbitrée : annulation validée par la commerçante. {req.notes or ''}".strip()
@@ -553,13 +566,13 @@ class CommerceService:
                     order_intent_id=intent.id,
                     is_sold=True,
                     reason=req.notes or "Vente maintenue sur justificatif",
-                    confirmed_at=datetime.utcnow()
+                    confirmed_at=utcnow()
                 )
                 db.add(intent.sale_confirmation)
             else:
                 intent.sale_confirmation.is_sold = True
                 intent.sale_confirmation.reason = req.notes or "Vente maintenue sur justificatif"
-                intent.sale_confirmation.confirmed_at = datetime.utcnow()
+                intent.sale_confirmation.confirmed_at = utcnow()
 
             intent.coherence_status = "MANUALLY_RESOLVED_SALE"
             intent.coherence_notes = f"Incohérence arbitrée : vente confirmée par la commerçante. {req.notes or ''}".strip()

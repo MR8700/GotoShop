@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class StoreNotification(Base):
     __tablename__ = "store_notifications"
@@ -19,7 +20,7 @@ class StoreNotification(Base):
     is_read = Column(Boolean, default=False)
     action_type = Column(String(50), nullable=True) # CONFIRM_SALE, RESOLVE_DISCREPANCY, VIEW_ORDER
     
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     store = relationship("Store")
     order_intent = relationship("OrderIntent")
@@ -58,7 +59,7 @@ class AppNotification(Base):
     
     is_read = Column(Boolean, default=False, index=True)
     read_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
 
     store = relationship("Store")
 

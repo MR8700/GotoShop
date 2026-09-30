@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 class CreateIntentRequest(BaseModel):
@@ -15,8 +15,10 @@ class CreateIntentRequest(BaseModel):
     customer_location_url: Optional[str] = None
     customer_coordinates: Optional[str] = None
     customer_id: Optional[str] = None
+    share_code: Optional[str] = None  # code du lien de publicité produit
 
 class IntentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     reference_code: str
     store_id: str
@@ -45,15 +47,14 @@ class IntentResponse(BaseModel):
     secure_token: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 class ConfirmSaleRequest(BaseModel):
     is_sold: bool
     reason: Optional[str] = None
     amount_paid: Optional[int] = None
 
 class ClientOrderActionRequest(BaseModel):
+    customer_id: Optional[str] = None     # preuve de propriété (avec customer_token)
+    customer_token: Optional[str] = None
     action: str # "SATISFY" or "CANCEL"
     reason: Optional[str] = None # e.g. "Changement d'avis", "Super qualité", etc.
     rating: Optional[int] = 5 # 1 to 5 stars
@@ -63,6 +64,7 @@ class ResolveDiscrepancyRequest(BaseModel):
     notes: Optional[str] = None
 
 class IntentSummarySchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     reference_code: str
     product_name: str
@@ -91,6 +93,3 @@ class IntentSummarySchema(BaseModel):
     is_client_hidden: Optional[bool] = False
     time_elapsed_display: str
     created_at: datetime
-
-    class Config:
-        from_attributes = True

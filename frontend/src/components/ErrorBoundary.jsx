@@ -46,7 +46,7 @@ export class ErrorBoundary extends React.Component {
       if (typeof window !== "undefined") {
         window.location.reload();
       }
-    } catch (e) {
+    } catch  {
       this.handleCleanReset();
     }
   };
@@ -73,7 +73,7 @@ export class ErrorBoundary extends React.Component {
     if (typeof window !== "undefined") {
       try {
         window.location.replace(window.location.origin);
-      } catch (e) {
+      } catch  {
         window.location.href = "/";
       }
     }
@@ -87,7 +87,7 @@ export class ErrorBoundary extends React.Component {
       } else {
         window.location.href = "/";
       }
-    } catch (e) {
+    } catch  {
       this.handleCleanReset();
     }
   };

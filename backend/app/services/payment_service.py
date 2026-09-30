@@ -13,6 +13,7 @@ from app.models.audit import AuditLog
 from app.services.chat_service import ChatService
 from app.services.notification_engine import NotificationEngine
 from app.realtime.connection_manager import manager
+from app.core.clock import utcnow
 
 class PaymentService:
     @staticmethod
@@ -58,7 +59,7 @@ class PaymentService:
             mime_type=mime_type,
             customer_note=customer_note,
             status="SUBMITTED",
-            created_at=datetime.utcnow()
+            created_at=utcnow()
         )
         db.add(proof)
 
@@ -66,7 +67,7 @@ class PaymentService:
         prev_payment_status = payment.status
         payment.status = "PAYMENT_PROOF_SUBMITTED"
         order.payment_status = "PAYMENT_PROOF_SUBMITTED"
-        order.updated_at = datetime.utcnow()
+        order.updated_at = utcnow()
 
         # Find conversation
         conv = db.query(Conversation).filter(Conversation.order_id == order.id).first()
@@ -161,6 +162,16 @@ class PaymentService:
         if not order:
             raise ValueError(f"Commande {order_id} introuvable")
 
+        # Aucun appel à la passerelle LigdiCash n'est fait ici : la « confirmation » ne prouve pas qu'un argent a été
+        # débité. Hors mode simulateur (PAYMENT_SIMULATOR), on refuse plutôt que de marquer la commande payée et de
+        # créditer le portefeuille vendeur. Le paiement par preuve (payment-proof + confirmation vendeur) reste actif.
+        from app.config import settings as _cfg
+        if not getattr(_cfg, "PAYMENT_SIMULATOR", False):
+            raise ValueError("Le paiement Mobile Money automatique n'est pas encore activé. "
+                             "Envoyez une preuve de paiement au vendeur.")
+        if order.payment_status == "PAYMENT_CONFIRMED" or order.status in ("CANCELLED", "ANNULEE", "REJECTED"):
+            raise ValueError("Cette commande ne peut plus être payée.")
+
         # 1. Validation de l'opérateur
         norm_operator = operator.upper().strip().replace(" ", "_")
         if norm_operator not in ["ORANGE_MONEY", "MOOV_MONEY", "ORANGE", "MOOV"]:
@@ -203,7 +214,7 @@ class PaymentService:
         payment.transaction_reference = tx_ref
         payment.status = "PAYMENT_CONFIRMED"
         payment.confirmed_by = "LIGDICASH_GATEWAY"
-        payment.confirmed_at = datetime.utcnow()
+        payment.confirmed_at = utcnow()
         payment.rejection_reason = None
 
         # 5. Mise en séquestre du paiement dans le portefeuille vendeur (garantie zéro perte)
@@ -216,15 +227,12 @@ class PaymentService:
         # 6. Validation de la commande et passage en PAID
         order.payment_status = "PAYMENT_CONFIRMED"
         order.status = "PAID"
-        order.updated_at = datetime.utcnow()
+        order.updated_at = utcnow()
 
-        # 6. Attribution de points fidélité / avantages au client (5% du montant)
-        if order.customer:
-            try:
-                perk_points = int(order.total_amount * 0.05)
-                order.customer.bonus_points = (order.customer.bonus_points or 0) + perk_points
-            except Exception as e_pts:
-                print("Notice: bonus points calculation skipped:", e_pts)
+        # 6. Fidélité : les points ne sont PLUS attribués au paiement (cela créait un double
+        #    crédit avec le crédit fait à la livraison dans OrderService.update_status, avec
+        #    deux formules différentes). Les points sont crédités une seule fois, à la
+        #    livraison confirmée — voir OrderService.update_status.
 
         # 7. Notification dans la conversation interne
         conv = db.query(Conversation).filter(Conversation.order_id == order.id).first()
@@ -318,7 +326,7 @@ class PaymentService:
         prev_payment_status = payment.status
         payment.status = "PAYMENT_CONFIRMED"
         payment.confirmed_by = verified_by
-        payment.confirmed_at = datetime.utcnow()
+        payment.confirmed_at = utcnow()
         payment.rejection_reason = None
 
         # Also mark all submitted proofs as verified
@@ -326,13 +334,13 @@ class PaymentService:
             if proof.status == "SUBMITTED":
                 proof.status = "VERIFIED"
                 proof.verified_by = verified_by
-                proof.verified_at = datetime.utcnow()
+                proof.verified_at = utcnow()
                 proof.verification_note = verification_note
 
         order.payment_status = "PAYMENT_CONFIRMED"
         # Advance order to PAID / PREPARING
         order.status = "PAID"
-        order.updated_at = datetime.utcnow()
+        order.updated_at = utcnow()
 
         conv = db.query(Conversation).filter(Conversation.order_id == order.id).first()
         if conv:
@@ -404,13 +412,13 @@ class PaymentService:
         payment.status = "PAYMENT_REJECTED"
         payment.rejection_reason = reason
         order.payment_status = "PAYMENT_REJECTED"
-        order.updated_at = datetime.utcnow()
+        order.updated_at = utcnow()
 
         for proof in payment.proofs:
             if proof.status == "SUBMITTED":
                 proof.status = "REJECTED"
                 proof.verified_by = verified_by
-                proof.verified_at = datetime.utcnow()
+                proof.verified_at = utcnow()
                 proof.verification_note = reason
 
         conv = db.query(Conversation).filter(Conversation.order_id == order.id).first()

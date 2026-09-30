@@ -25,6 +25,7 @@ from app.schemas.super_admin import SuperAdminStoreCreateRequest
 from app.services.catalog_service import save_base64_media
 from app.services.super_admin_service import SuperAdminService
 from app.config import settings
+from app.core.clock import utcnow
 
 class SubscriptionService:
     @staticmethod
@@ -275,7 +276,7 @@ class SubscriptionService:
             from app.models.store import Store
             store = db.query(Store).filter(Store.id == req_data.store_id).first()
             if store:
-                now = datetime.utcnow()
+                now = utcnow()
                 base_date = store.subscription_expires_at if (store.subscription_expires_at and store.subscription_expires_at > now) else now
                 store.subscription_expires_at = base_date + timedelta(days=plan.duration_days if plan else 30)
                 store.subscription_status = "ACTIVE"
@@ -313,7 +314,7 @@ class SubscriptionService:
         if review.status == "REJECTED":
             sub_req.status = "REJECTED"
             sub_req.rejection_reason = review.rejection_reason or "Paiement non confirmé ou reçu non lisible."
-            sub_req.reviewed_at = datetime.utcnow()
+            sub_req.reviewed_at = utcnow()
             sub_req.reviewed_by = admin_name
             db.commit()
             db.refresh(sub_req)
@@ -362,7 +363,7 @@ class SubscriptionService:
 
                 if store:
                     # Calculate new expiration date
-                    now = datetime.utcnow()
+                    now = utcnow()
                     base_date = store.subscription_expires_at if (store.subscription_expires_at and store.subscription_expires_at > now) else now
                     store.subscription_expires_at = base_date + timedelta(days=sub_req.duration_days)
                     store.subscription_status = "ACTIVE"
@@ -370,7 +371,7 @@ class SubscriptionService:
                     db.flush()
 
             sub_req.status = "APPROVED"
-            sub_req.reviewed_at = datetime.utcnow()
+            sub_req.reviewed_at = utcnow()
             sub_req.reviewed_by = admin_name
             db.commit()
             db.refresh(sub_req)
@@ -387,10 +388,10 @@ class SubscriptionService:
 
         days_remaining = 0
         if store.subscription_expires_at:
-            delta = store.subscription_expires_at - datetime.utcnow()
+            delta = store.subscription_expires_at - utcnow()
             days_remaining = max(0, delta.days)
 
-        is_expired = store.subscription_status == "EXPIRED" or (store.subscription_expires_at and store.subscription_expires_at < datetime.utcnow())
+        is_expired = store.subscription_status == "EXPIRED" or (store.subscription_expires_at and store.subscription_expires_at < utcnow())
 
         return {
             "store_id": store.id,
@@ -410,7 +411,7 @@ class SubscriptionService:
             return None
         for key, val in data.dict(exclude_unset=True).items():
             setattr(plan, key, val)
-        plan.updated_at = datetime.utcnow()
+        plan.updated_at = utcnow()
         db.commit()
         db.refresh(plan)
         return plan
@@ -422,7 +423,7 @@ class SubscriptionService:
             return None
         for key, val in data.dict(exclude_unset=True).items():
             setattr(cfg, key, val)
-        cfg.updated_at = datetime.utcnow()
+        cfg.updated_at = utcnow()
         db.commit()
         db.refresh(cfg)
         return cfg

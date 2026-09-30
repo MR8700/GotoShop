@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Text
 from app.database import Base
+from app.core.clock import utcnow
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -23,4 +24,4 @@ class AuditLog(Base):
     new_state = Column(String(100), nullable=True)
     metadata_json = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)

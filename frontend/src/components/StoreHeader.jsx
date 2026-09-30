@@ -200,9 +200,9 @@ export default function StoreHeader({
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/35" />
 
         {/* "You are in this shop" chip */}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/45 backdrop-blur-md border border-white/20 text-white text-[11px] font-semibold">
-          <Icon name={isOwnerView ? "storefront" : "door_open"} className="text-[15px]" />
-          <span>{isOwnerView ? "Vous êtes dans votre boutique" : "Vous êtes dans la boutique"}</span>
+        <div className="absolute top-3 left-3 max-w-[calc(100%-4.25rem)] flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/45 backdrop-blur-md border border-white/20 text-white text-[11px] font-semibold truncate">
+          <Icon name={isOwnerView ? "storefront" : "door_open"} className="text-[15px] shrink-0" />
+          <span className="truncate">{isOwnerView ? "Vous êtes dans votre boutique" : "Vous êtes dans la boutique"}</span>
         </div>
 
         {onOpenQrModal && (
@@ -277,7 +277,7 @@ export default function StoreHeader({
         </div>
 
         {/* Name + verified */}
-        <div className="mt-6 sm:mt-5">
+        <div className="mt-7 sm:mt-5">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
             {isOwnerView
               ? "Espace commerçant"
@@ -323,9 +323,11 @@ export default function StoreHeader({
               <div className="rounded-2xl bg-surface-secondary border border-subtle py-2.5 text-center">
                 <p className="flex items-center justify-center gap-1 text-base font-extrabold text-amber-500 tabular-nums">
                   <Icon name="star" className="text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }} />
-                  {store?.rating ?? 4.9}
+                  {(store?.rating ?? 0) > 0 ? store.rating : "Nouveau"}
                 </p>
-                <p className="text-[10px] text-on-surface-variant font-medium">Note clients</p>
+                <p className="text-[10px] text-on-surface-variant font-medium">
+                  {(store?.rating ?? 0) > 0 ? "Note clients" : "Pas encore noté"}
+                </p>
               </div>
             )}
             {store?.show_sales_count_publicly !== false && (

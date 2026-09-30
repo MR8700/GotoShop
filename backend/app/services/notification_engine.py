@@ -12,6 +12,7 @@ from app.models.order import Order
 from app.models.payment import PaymentProof
 from app.services.capability_service import CapabilityService, CAP_ORDERING, CAP_PAYMENT_PROOF, CAP_DELIVERY
 from app.realtime.connection_manager import manager
+from app.core.clock import utcnow
 
 
 class NotificationEngine:
@@ -60,7 +61,7 @@ class NotificationEngine:
             action_label=action_label,
             action_payload=payload_str,
             is_read=False,
-            created_at=datetime.utcnow(),
+            created_at=utcnow(),
         )
         db.add(notif)
         db.flush()
@@ -397,7 +398,7 @@ class NotificationEngine:
         Strict rule: Respect store capabilities and never use surveillance phrasing.
         """
         insights = []
-        now = datetime.utcnow()
+        now = utcnow()
 
         # 1. Orders awaiting seller acceptance (if CAP_ORDERING is active)
         if CapabilityService.has_capability(store, CAP_ORDERING):

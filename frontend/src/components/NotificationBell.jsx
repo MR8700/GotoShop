@@ -24,7 +24,7 @@ export default function NotificationBell({
         limit: 1,
       });
       setUnreadCount(res.unread_count || 0);
-    } catch (e) {
+    } catch  {
       // Non-blocking
     }
   };

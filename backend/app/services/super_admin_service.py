@@ -2,6 +2,7 @@ import uuid
 import hashlib
 import re
 import secrets
+from app.core.security import hash_session_token, lookup_hash
 from datetime import datetime, timedelta
 from typing import Optional, List
 from sqlalchemy.orm import Session
@@ -18,6 +19,7 @@ from app.schemas.super_admin import (
     SuperAdminStoreItem,
     SuperAdminOverview
 )
+from app.core.clock import utcnow
 
 def slugify(text: str) -> str:
     text = text.lower().strip()
@@ -53,8 +55,8 @@ class SuperAdminService:
             return None
 
         token = secrets.token_hex(32)
-        admin.session_token = token
-        admin.last_login_at = datetime.utcnow()
+        admin.session_token = hash_session_token(token)
+        admin.last_login_at = utcnow()
         db.commit()
 
         return {
@@ -71,7 +73,7 @@ class SuperAdminService:
     def get_admin_by_token(db: Session, token: str) -> Optional[SuperAdmin]:
         if not token:
             return None
-        return db.query(SuperAdmin).filter(SuperAdmin.session_token == token).first()
+        return db.query(SuperAdmin).filter(SuperAdmin.session_token == lookup_hash(token)).first()
 
     @staticmethod
     def get_overview(db: Session) -> SuperAdminOverview:
@@ -130,7 +132,7 @@ class SuperAdminService:
             products_count=prod_count,
             orders_count=orders_count,
             total_revenue=s.revenue or 0,
-            created_at=s.created_at or datetime.utcnow()
+            created_at=s.created_at or utcnow()
         )
 
     @staticmethod
@@ -164,13 +166,13 @@ class SuperAdminService:
                 password_hash=hashed,
                 password_salt=salt,
                 must_change_password=True,
-                session_token=secrets.token_hex(32)
+                session_token=hash_session_token(secrets.token_hex(32))
             )
             db.add(owner)
             db.flush()
 
         # 3. Create Store
-        expires_at = datetime.utcnow() + timedelta(days=data.trial_days or 30)
+        expires_at = utcnow() + timedelta(days=data.trial_days or 30)
         status = "TRIAL" if (data.trial_days and data.trial_days > 0) else "ACTIVE"
 
         store = Store(
@@ -390,9 +392,9 @@ class SuperAdminService:
         if data.is_verified is not None:
             store.is_verified = data.is_verified
         if data.extend_days and data.extend_days > 0:
-            current_expiry = store.subscription_expires_at or datetime.utcnow()
-            if current_expiry < datetime.utcnow():
-                current_expiry = datetime.utcnow()
+            current_expiry = store.subscription_expires_at or utcnow()
+            if current_expiry < utcnow():
+                current_expiry = utcnow()
             store.subscription_expires_at = current_expiry + timedelta(days=data.extend_days)
             if store.subscription_status == "EXPIRED":
                 store.subscription_status = "ACTIVE"
@@ -421,7 +423,7 @@ class SuperAdminService:
             return None
         
         token = secrets.token_hex(32)
-        owner.session_token = token
+        owner.session_token = hash_session_token(token)
         db.commit()
 
         return {

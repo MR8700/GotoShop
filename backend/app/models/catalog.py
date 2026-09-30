@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class Category(Base):
     __tablename__ = "categories"
@@ -12,7 +13,7 @@ class Category(Base):
     name = Column(String(100), nullable=False)
     slug = Column(String(100), nullable=False, index=True)
     display_order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     store = relationship("Store", back_populates="categories")
     products = relationship("Product", back_populates="category")
@@ -62,8 +63,8 @@ class Product(Base):
     allow_custom_measurements = Column(Boolean, default=False)
     measurement_specs = Column(Text, nullable=True) # JSON array: [{"name": "largeur", "unit": "m", "step": 0.1}]
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow, index=True)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     store = relationship("Store", back_populates="products")
     category = relationship("Category", back_populates="products")
@@ -113,7 +114,7 @@ class SalesUnit(Base):
     is_system = Column(Boolean, default=True)
     domain_hint = Column(String(50), nullable=True) # FASHION, FOOD, ELECTRONICS, SERVICE, GENERAL_COMMERCE
     description = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class SalesProfile(Base):
@@ -133,5 +134,5 @@ class SalesProfile(Base):
     quantity_precision = Column(Integer, default=0)
     allow_custom_measurements = Column(Boolean, default=False)
     description = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 

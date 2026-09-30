@@ -67,10 +67,22 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
     }
   };
 
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md">
-      <div className="bg-surface-container-high rounded-2xl p-5 max-w-md w-full shadow-2xl border border-white/5 max-h-[90vh] overflow-y-auto">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md"
+    >
+      <div className="bg-surface-container-high rounded-2xl p-5 max-w-md w-full shadow-2xl border border-outline-variant/30 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-lg bg-secondary/20 text-secondary flex items-center justify-center">
@@ -137,7 +149,7 @@ export default function ShareSocialModal({ store, onClose, showToast }) {
               </div>
             </div>
           ) : (
-            <div className="p-2.5 rounded-lg bg-surface-container-lowest flex items-center justify-between gap-2 border border-white/5">
+            <div className="p-2.5 rounded-lg bg-surface-container-lowest flex items-center justify-between gap-2 border border-outline-variant/30">
               <div className="flex items-center gap-2 min-w-0">
                 <Icon name="link" className="text-secondary text-[16px]" />
                 <span className="font-mono text-xs text-on-surface-variant truncate">

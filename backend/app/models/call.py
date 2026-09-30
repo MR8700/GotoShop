@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class CallSession(Base):
     __tablename__ = "call_sessions"
@@ -23,11 +24,11 @@ class CallSession(Base):
     # RINGING, ACCEPTED, REJECTED, MISSED, ENDED, BUSY
     status = Column(String(50), default="RINGING", nullable=False, index=True)
 
-    started_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, default=utcnow)
     answered_at = Column(DateTime, nullable=True)
     ended_at = Column(DateTime, nullable=True)
     duration_seconds = Column(Integer, default=0)
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
 
     conversation = relationship("Conversation", back_populates="call_sessions")

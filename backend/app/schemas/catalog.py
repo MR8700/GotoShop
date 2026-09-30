@@ -1,7 +1,8 @@
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class VariantSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     group_name: str
     name: str
@@ -9,19 +10,15 @@ class VariantSchema(BaseModel):
     is_default: bool
     display_order: int
 
-    class Config:
-        from_attributes = True
-
 class ProductImageSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     image_url: str
     alt_text: Optional[str] = None
     display_order: int
 
-    class Config:
-        from_attributes = True
-
 class SalesUnitSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     code: str
     name: str
@@ -35,11 +32,9 @@ class SalesUnitSchema(BaseModel):
     domain_hint: Optional[str] = None
     description: Optional[str] = None
 
-    class Config:
-        from_attributes = True
-
 
 class SalesProfileSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     code: str
     name: str
@@ -55,11 +50,9 @@ class SalesProfileSchema(BaseModel):
     allow_custom_measurements: bool = False
     description: Optional[str] = None
 
-    class Config:
-        from_attributes = True
-
 
 class ProductSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     store_id: str
     category_id: Optional[str] = None
@@ -103,9 +96,6 @@ class ProductSchema(BaseModel):
 
     variants: List[VariantSchema] = []
     images: List[ProductImageSchema] = []
-
-    class Config:
-        from_attributes = True
 
 class ProductCreateSchema(BaseModel):
     store_id: Optional[str] = None
@@ -165,12 +155,10 @@ class ProductUpdateSchema(BaseModel):
     measurement_specs: Optional[str] = None
 
 class CategorySchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     store_id: str
     name: str
     slug: str
     display_order: int
     product_count: Optional[int] = 0
-
-    class Config:
-        from_attributes = True

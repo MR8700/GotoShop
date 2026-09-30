@@ -128,6 +128,19 @@ def public_origin(request=None) -> str:
     return configured or "http://localhost:5173"
 
 
+def _points_to_next(db, customer, tiers, stats):
+    """Points (gagnés depuis toujours) qui manquent pour le prochain statut."""
+    from app.services.loyalty_v3 import lifetime_earned_points
+    lt = lifetime_earned_points(db, customer.store_id, customer.id)
+    if tiers:
+        higher = [t for t in tiers if t.get("min_points", 0) > lt]
+        return round(higher[0]["min_points"] - lt, 1) if higher else 0
+    for thr in (10, 30):
+        if lt < thr:
+            return round(thr - lt, 1)
+    return 0
+
+
 def build_card_payload(db: Session, customer: Customer, store, stats, origin: str) -> Dict[str, Any]:
     """Everything the front-end needs to draw/print the card."""
     card_no = ensure_card_number(db, customer)
@@ -151,6 +164,7 @@ def build_card_payload(db: Session, customer: Customer, store, stats, origin: st
         "tier_count": max(len(tiers), 1),
         "next_tier": stats.next_tier,
         "next_tier_progress": stats.next_tier_progress,
+        "points_to_next": _points_to_next(db, customer, tiers, stats),
         "is_blocked": bool(customer.is_blocked),
         "store": {
             "id": store.id,

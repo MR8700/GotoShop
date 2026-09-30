@@ -1,8 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
 class SubscriptionPlanSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     code: str
@@ -16,9 +17,6 @@ class SubscriptionPlanSchema(BaseModel):
     is_active: bool = True
     display_order: int = 0
     created_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 
 class SubscriptionPlanCreateSchema(BaseModel):
@@ -47,6 +45,7 @@ class SubscriptionPlanUpdateSchema(BaseModel):
 
 
 class PaymentUssdConfigSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     operator_name: str
     operator_code: str
@@ -59,9 +58,6 @@ class PaymentUssdConfigSchema(BaseModel):
     is_active: bool = True
     display_order: int = 0
     created_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 
 class PaymentUssdConfigUpdateSchema(BaseModel):
@@ -121,6 +117,7 @@ class SubscriptionRequestReviewSchema(BaseModel):
 
 
 class SubscriptionRequestItemSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     request_type: str
     store_id: Optional[str] = None
@@ -145,6 +142,3 @@ class SubscriptionRequestItemSchema(BaseModel):
     created_at: datetime
     reviewed_at: Optional[datetime] = None
     reviewed_by: Optional[str] = None
-
-    class Config:
-        from_attributes = True

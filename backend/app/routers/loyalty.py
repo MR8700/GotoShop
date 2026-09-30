@@ -17,7 +17,8 @@ _attempts = defaultdict(deque)
 
 
 def _throttle(request: Request) -> None:
-    ip = (request.client.host if request.client else "unknown")
+    fwd = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    ip = fwd or (request.client.host if request.client else "unknown")
     now = time.time()
     q = _attempts[ip]
     while q and now - q[0] > _WINDOW_SECONDS:

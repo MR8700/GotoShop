@@ -17,7 +17,7 @@ export default function DecisionSupportWidget({ store, onNavigate }) {
       setLoading(true);
       const res = await fetchDecisionInsights(store.slug || store.id);
       setInsights(res.insights || []);
-    } catch (e) {
+    } catch  {
       // Non-blocking
     } finally {
       setLoading(false);

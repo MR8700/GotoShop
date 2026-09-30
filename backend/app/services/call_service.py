@@ -10,6 +10,7 @@ from app.models.chat import Conversation
 from app.models.audit import AuditLog
 from app.services.chat_service import ChatService
 from app.realtime.connection_manager import manager
+from app.core.clock import utcnow
 
 class CallService:
     @staticmethod
@@ -47,7 +48,7 @@ class CallService:
             callee_name=callee_name,
             call_type=call_type,
             status="RINGING",
-            started_at=datetime.utcnow()
+            started_at=utcnow()
         )
         db.add(call)
 
@@ -94,7 +95,7 @@ class CallService:
             raise ValueError(f"Call {call_id} not found")
 
         call.status = "ACCEPTED"
-        call.answered_at = datetime.utcnow()
+        call.answered_at = utcnow()
         db.commit()
 
         call_data = {
@@ -117,7 +118,7 @@ class CallService:
             raise ValueError(f"Call {call_id} not found")
 
         call.status = "REJECTED" if reason == "DECLINED" else "MISSED"
-        call.ended_at = datetime.utcnow()
+        call.ended_at = utcnow()
         db.commit()
 
         # Post call event message in conversation
@@ -147,7 +148,7 @@ class CallService:
         if not call:
             raise ValueError(f"Call {call_id} not found")
 
-        now = datetime.utcnow()
+        now = utcnow()
         call.status = "ENDED"
         call.ended_at = now
 

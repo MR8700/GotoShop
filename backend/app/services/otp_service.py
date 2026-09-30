@@ -1,96 +1,104 @@
 import hashlib
 import hmac
-import random
-import time
+import secrets
+from datetime import datetime, timedelta
 from typing import Dict, Any, Tuple
 from app.config import settings
-
-# In-memory storage for OTP sessions: key -> {hash, salt, expires_at, attempts, order_id, amount}
-_otp_store: Dict[str, Dict[str, Any]] = {}
-_request_throttle: Dict[str, float] = {}
+from app.core.clock import utcnow
 
 OTP_EXPIRY_SECONDS = 300  # 5 minutes
 MAX_ATTEMPTS = 3
-THROTTLE_SECONDS = 20     # Minimum interval between resends
+THROTTLE_SECONDS = 20     # Intervalle minimal entre deux envois
+
+
+def _clean_phone(phone: str) -> str:
+    return "".join(ch for ch in (phone or "") if ch.isdigit() or ch == "+")
 
 
 class OtpService:
+    """Codes OTP stockés en base (table otp_codes), hachés en HMAC : compatible Vercel / multi-instances."""
+
     @staticmethod
     def _hash_code(code: str, salt: str) -> str:
         secret = (getattr(settings, "OTP_SECRET", None) or "gotoshop-otp-secret").encode("utf-8")
-        msg = f"{code}:{salt}".encode("utf-8")
-        return hmac.new(secret, msg, hashlib.sha256).hexdigest()
+        return hmac.new(secret, f"{code}:{salt}".encode("utf-8"), hashlib.sha256).hexdigest()
+
+    @staticmethod
+    def _session():
+        from app.database import SessionLocal
+        return SessionLocal()
 
     @staticmethod
     def request_otp(phone: str, order_id: str, amount: int) -> Tuple[bool, str, Dict[str, Any]]:
-        """Generate and securely store a 6-digit OTP code."""
-        clean_phone = "".join(ch for ch in phone if ch.isdigit() or ch == "+")
-        now = time.time()
-
-        # Check throttle
-        last_req = _request_throttle.get(clean_phone, 0)
-        if now - last_req < THROTTLE_SECONDS:
-            remaining = int(THROTTLE_SECONDS - (now - last_req))
-            return False, f"Veuillez patienter {remaining}s avant de demander un nouveau code.", {}
-
-        # Generate 6-digit numeric OTP
-        code = f"{random.randint(100000, 999999)}"
-        salt = hashlib.sha256(f"{now}:{clean_phone}:{order_id}".encode()).hexdigest()[:16]
-        code_hash = OtpService._hash_code(code, salt)
-
+        """Génère un code à 6 chiffres, le stocke haché, puis l'envoie par SMS (ou le renvoie en mode simulateur)."""
+        from app.models.otp import OtpCode
+        from app.services.sms_service import send_sms, sms_configured
+        clean_phone = _clean_phone(phone)
+        now = utcnow()
         key = f"{clean_phone}:{order_id}"
-        _otp_store[key] = {
-            "hash": code_hash,
-            "salt": salt,
-            "expires_at": now + OTP_EXPIRY_SECONDS,
-            "attempts": 0,
-            "order_id": order_id,
-            "amount": amount,
-        }
-        _request_throttle[clean_phone] = now
+        simulator = bool(getattr(settings, "PAYMENT_SIMULATOR", True)) and not sms_configured()
+        if not simulator and not sms_configured():
+            return False, "Envoi de SMS non configuré : impossible d'envoyer le code.", {}
 
-        is_simulator = getattr(settings, "PAYMENT_SIMULATOR", True)
-        result_payload = {
-            "expires_in": OTP_EXPIRY_SECONDS,
-            "phone": clean_phone,
-            "order_id": order_id,
-            "is_simulated": is_simulator,
-        }
-        # In simulator mode, include code for convenient testing in development
-        if is_simulator:
-            result_payload["simulated_code"] = code
+        db = OtpService._session()
+        try:
+            last = db.query(OtpCode).filter(OtpCode.phone == clean_phone).order_by(OtpCode.created_at.desc()).first()
+            if last and (now - last.created_at).total_seconds() < THROTTLE_SECONDS:
+                remaining = int(THROTTLE_SECONDS - (now - last.created_at).total_seconds())
+                return False, f"Veuillez patienter {remaining}s avant de demander un nouveau code.", {}
 
-        return True, "Code de confirmation envoyé.", result_payload
+            code = f"{secrets.randbelow(900000) + 100000}"
+            salt = secrets.token_hex(8)
+            db.query(OtpCode).filter(OtpCode.key == key).delete()
+            db.query(OtpCode).filter(OtpCode.expires_at < now).delete()  # purge des codes périmés
+            db.add(OtpCode(key=key, phone=clean_phone, code_hash=OtpService._hash_code(code, salt), salt=salt,
+                           amount=int(amount or 0), created_at=now, expires_at=now + timedelta(seconds=OTP_EXPIRY_SECONDS)))
+            db.commit()
+        finally:
+            db.close()
+
+        payload: Dict[str, Any] = {"expires_in": OTP_EXPIRY_SECONDS, "phone": clean_phone, "order_id": order_id,
+                                   "is_simulated": simulator}
+        if simulator:
+            payload["simulated_code"] = code
+        else:
+            ok, info = send_sms(clean_phone, f"GotoShop : votre code de confirmation est {code}. Valable 5 minutes.")
+            if not ok:
+                db = OtpService._session()
+                try:
+                    db.query(OtpCode).filter(OtpCode.key == key).delete()
+                    db.commit()
+                finally:
+                    db.close()
+                return False, info, {}
+        return True, "Code de confirmation envoyé.", payload
 
     @staticmethod
     def verify_otp(phone: str, order_id: str, code: str) -> Tuple[bool, str]:
-        """Verify the user-entered 6-digit code against server-held hash."""
-        clean_phone = "".join(ch for ch in phone if ch.isdigit() or ch == "+")
-        clean_code = "".join(ch for ch in code if ch.isdigit()).strip()
-
+        from app.models.otp import OtpCode
+        clean_phone = _clean_phone(phone)
+        clean_code = "".join(ch for ch in (code or "") if ch.isdigit()).strip()
         if len(clean_code) != 6:
             return False, "Le code doit comporter exactement 6 chiffres."
 
         key = f"{clean_phone}:{order_id}"
-        record = _otp_store.get(key)
-        if not record:
-            return False, "Aucun code en attente ou session expirée. Veuillez redemander un code."
-
-        now = time.time()
-        if now > record["expires_at"]:
-            _otp_store.pop(key, None)
-            return False, "Le code a expiré (validité 5 minutes). Veuillez en demander un nouveau."
-
-        if record["attempts"] >= MAX_ATTEMPTS:
-            _otp_store.pop(key, None)
-            return False, "Trop de tentatives erronées. La transaction a été verrouillée par sécurité."
-
-        candidate_hash = OtpService._hash_code(clean_code, record["salt"])
-        if not hmac.compare_digest(candidate_hash, record["hash"]):
-            record["attempts"] += 1
-            remaining = MAX_ATTEMPTS - record["attempts"]
-            return False, f"Code incorrect. {remaining} tentative(s) restante(s)."
-
-        # Consume OTP so it cannot be used again
-        _otp_store.pop(key, None)
-        return True, "Validation réussie."
+        db = OtpService._session()
+        try:
+            record = db.query(OtpCode).filter(OtpCode.key == key).order_by(OtpCode.created_at.desc()).first()
+            if not record:
+                return False, "Aucun code en attente ou session expirée. Veuillez redemander un code."
+            if utcnow() > record.expires_at:
+                db.delete(record); db.commit()
+                return False, "Le code a expiré (validité 5 minutes). Veuillez en demander un nouveau."
+            if (record.attempts or 0) >= MAX_ATTEMPTS:
+                db.delete(record); db.commit()
+                return False, "Trop de tentatives erronées. La transaction a été verrouillée par sécurité."
+            if not hmac.compare_digest(OtpService._hash_code(clean_code, record.salt), record.code_hash):
+                record.attempts = (record.attempts or 0) + 1
+                remaining = MAX_ATTEMPTS - record.attempts
+                db.commit()
+                return False, f"Code incorrect. {remaining} tentative(s) restante(s)."
+            db.delete(record); db.commit()  # usage unique
+            return True, "Validation réussie."
+        finally:
+            db.close()

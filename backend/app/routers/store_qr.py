@@ -8,6 +8,7 @@ from app.database import get_db
 from app.services.store_service import StoreService
 from app.services.qr_service import QRService
 from app.models.store import StoreAccessHistory
+from app.core.clock import utcnow
 
 router = APIRouter(prefix="/stores/{store_id}/qr", tags=["Store QR Codes & Printing"])
 
@@ -68,7 +69,7 @@ def track_qr_scan(
         customer_id=customer_id,
         guest_token=guest_token,
         interaction_type="QR_SCAN",
-        last_interacted_at=datetime.utcnow()
+        last_interacted_at=utcnow()
     )
     db.add(history)
     db.commit()

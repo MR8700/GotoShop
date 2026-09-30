@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class SubscriptionPlan(Base):
     __tablename__ = "subscription_plans"
@@ -19,8 +20,8 @@ class SubscriptionPlan(Base):
     is_popular = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     display_order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class PaymentUssdConfig(Base):
@@ -37,8 +38,8 @@ class PaymentUssdConfig(Base):
     icon_type = Column(String(50), default="orange")
     is_active = Column(Boolean, default=True)
     display_order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class SubscriptionRequest(Base):
@@ -65,6 +66,6 @@ class SubscriptionRequest(Base):
     notes = Column(Text, nullable=True)
     generated_password = Column(String(100), nullable=True) # Saved upon approval for merchant handover
     created_store_id = Column(String(36), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     reviewed_at = Column(DateTime, nullable=True)
     reviewed_by = Column(String(100), nullable=True)

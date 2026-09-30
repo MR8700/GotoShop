@@ -9,7 +9,6 @@ import {
   setCustomerToken,
   customerQuickRegister,
 } from "../api/client";
-import safeStorage from "../utils/safeStorage";
 import { sendNativeNotification, requestNotificationPermission } from "../utils/nativeNotifications";
 import CustomerAuthModal from "./CustomerAuthModal";
 
@@ -218,7 +217,11 @@ export default function TunnelHandoffModal({
 
   // Pricing calculations
   const subtotal = items.reduce((sum, it) => sum + it.unit_price * it.quantity, 0);
-  const deliveryFee = store?.delivery_fee !== undefined ? store.delivery_fee : 500;
+  const wantedCity = String(selectedCity || "").trim().toLowerCase();
+  const cityFee = cities.find(
+    (c) => c.delivery_fee != null && [c.name, c.display_label].some((n) => String(n || "").trim().toLowerCase() === wantedCity)
+  )?.delivery_fee;
+  const deliveryFee = cityFee ?? (store?.delivery_fee !== undefined ? store.delivery_fee : 500);
   const totalAmount = subtotal + deliveryFee;
   const currency = store?.currency || "FCFA";
 
@@ -287,6 +290,7 @@ export default function TunnelHandoffModal({
         status: orderResult.status || "PENDING_SELLER_ACCEPTANCE",
         client_status: "PENDING",
         conversation_id: orderResult.conversation_id,
+        access_token: orderResult.access_token || null, // preuve de propriété pour annuler / archiver cette commande
         created_at: orderResult.created_at || new Date().toISOString(),
       });
 
@@ -362,7 +366,7 @@ export default function TunnelHandoffModal({
       }
       await executeOrderSubmission(res.customer, token);
     } catch (err) {
-      showToast?.(err.message || "Erreur lors de l'activation du compte. Vérifiez vos informations.");
+      showToast?.(err.otpRequired ? "Vérification par SMS requise : saisissez le code reçu pour continuer." : (err.message || "Erreur lors de l'activation du compte. Vérifiez vos informations."));
       setAuthModalOpen(true);
       setIsSubmitting(false);
     }
@@ -382,7 +386,10 @@ export default function TunnelHandoffModal({
     showToast?.("Annulation de la commande en cours...");
     try {
       const targetId = createdOrder.id || createdOrder.order_number || createdOrder.reference_code;
-      const res = await cancelConversationalOrder(targetId, "Annulé par le client directement");
+      const res = await cancelConversationalOrder(targetId, "Annulé par le client directement", "Client", {
+        customer_token: createdOrder.access_token || getCustomerToken() || undefined,
+        customer_id: createdOrder.customer?.id,
+      });
       setCreatedOrder((prev) => ({ ...prev, ...res, status: "CANCELLED" }));
       showToast?.(`Commande #${res.order_number || targetId} annulée avec succès.`);
 

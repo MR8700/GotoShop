@@ -7,6 +7,7 @@ from app.database import get_db
 from app.services.order_service import OrderService
 from app.services.payment_service import PaymentService
 from app.services.media_service import MediaService
+from app.services.order_access import verify_order_access
 from app.routers.auth import require_store_admin
 from app.models.order import Order
 
@@ -41,15 +42,26 @@ class OrderItemSchema(BaseModel):
             return None
         return str(v).strip()
 
-    @field_validator("unit_price", "quantity", mode="before")
+    @field_validator("quantity", mode="before")
     @classmethod
-    def parse_numeric(cls, v):
+    def parse_quantity(cls, v):
         if v is None or v == "" or str(v).strip().lower() in ["none", "null", "nan"]:
             return 1.0
         try:
             return float(v)
         except (ValueError, TypeError):
             return 1.0
+
+    @field_validator("unit_price", mode="before")
+    @classmethod
+    def parse_unit_price(cls, v):
+        # Un prix absent/invalide reste absent (None) : ne plus le transformer en 1 FCFA pour un article hors catalogue.
+        if v is None or v == "" or str(v).strip().lower() in ["none", "null", "nan"]:
+            return None
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None
 
 class OrderDeliverySchema(BaseModel):
     delivery_mode: str = "GPS_AND_DESCRIPTION" # EXACT_GPS, ADDRESS_DESCRIPTION, GPS_AND_DESCRIPTION
@@ -59,6 +71,8 @@ class OrderDeliverySchema(BaseModel):
     longitude: Optional[float] = None
     location_accuracy: Optional[float] = None
     delivery_notes: Optional[str] = None
+    fulfillment_type: Optional[str] = "HOME"  # HOME | PICKUP | MEETING_POINT (déduit du lieu choisi côté serveur)
+    spot_id: Optional[str] = None             # lieu de retrait / de livraison défini par le commerçant
 
     @field_validator("latitude", "longitude", "location_accuracy", mode="before")
     @classmethod
@@ -87,6 +101,9 @@ class CreateOrderRequest(BaseModel):
     delivery_neighborhood: Optional[str] = None
     coupon_code: Optional[str] = None
     use_tier_discount: Optional[bool] = True
+    loyalty_item_index: Optional[int] = None
+    loyalty_points: Optional[float] = None
+    share_code: Optional[str] = None  # code du lien de publicité produit (suivi des commandes générées)
 
     @field_validator("customer_id", "customer_token", "customer_phone", "customer_email", "coupon_code", mode="before")
     @classmethod
@@ -112,7 +129,12 @@ class RejectOrderRequest(BaseModel):
     reason: Optional[str] = "Indisponible temporairement"
     seller_name: Optional[str] = "Commerçant"
 
-class CancelOrderRequest(BaseModel):
+class ClientProofRequest(BaseModel):
+    """Preuve de propriété fournie par le client pour agir sur sa commande."""
+    customer_id: Optional[str] = None
+    customer_token: Optional[str] = None
+
+class CancelOrderRequest(ClientProofRequest):
     reason: Optional[str] = "Annulé par le client"
     actor_name: Optional[str] = "Client"
 
@@ -145,7 +167,7 @@ class MobileMoneyPaymentRequest(BaseModel):
     customer_name: Optional[str] = "Client"
     is_test_mode: Optional[bool] = False
 
-class CheckCouponRequest(BaseModel):
+class CheckCouponRequest(ClientProofRequest):
     store_id: str
     code: str
     order_amount: int = 0
@@ -158,7 +180,45 @@ def check_order_coupon(req: CheckCouponRequest, db: Session = Depends(get_db)):
     store = StoreService.resolve_store(db, slug=req.store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Boutique introuvable")
-    return LoyaltyService.validate_coupon(db, store.id, req.code, req.order_amount)
+    holder_id = None
+    if req.customer_token:
+        from app.models.customer import Customer
+        from app.services.customer_service import CustomerService
+        holder = CustomerService.get_by_token(db, req.customer_token, store_id=store.id)
+        holder_id = holder.id if holder else None
+    return LoyaltyService.validate_coupon(db, store.id, req.code, req.order_amount, customer_id=holder_id)
+
+
+class ShopDiscountLine(BaseModel):
+    product_id: str
+    amount: int = 0
+
+
+class ShopDiscountPreviewRequest(ClientProofRequest):
+    store_id: str
+    order_amount: int = 0
+    items: Optional[List[ShopDiscountLine]] = None  # lignes du panier (remises par produit / catégorie)
+
+
+@router.post("/shop-discount", summary="Remise boutique applicable à ce client / visiteur")
+def preview_shop_discount(req: ShopDiscountPreviewRequest, db: Session = Depends(get_db)):
+    from app.services.discount_service import best_for
+    from app.services.store_service import StoreService
+    from app.models.customer import Customer
+    store = StoreService.resolve_store(db, slug=req.store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Boutique introuvable")
+    holder = None
+    if req.customer_token:
+        from app.services.customer_service import CustomerService
+        holder = CustomerService.get_by_token(db, req.customer_token, store_id=store.id)
+    from app.services.discount_service import build_lines
+    lines = build_lines(db, store.id, [l.model_dump() for l in req.items]) if req.items else None
+    res = best_for(db, store.id, holder, req.order_amount, lines)
+    if not res:
+        return {"applicable": False}
+    return {"applicable": True, "name": res["name"], "percent": res["percent"], "amount": res["amount"],
+            "scope": res.get("scope", "STORE"), "eligible_amount": res.get("eligible_amount", req.order_amount)}
 
 
 @router.post("", summary="Créer une commande avec personnalisations et géolocalisation")
@@ -184,6 +244,9 @@ def create_order(req: CreateOrderRequest, db: Session = Depends(get_db)):
             delivery_neighborhood=req.delivery_neighborhood or req.delivery.delivery_address,
             coupon_code=req.coupon_code,
             use_tier_discount=bool(req.use_tier_discount),
+            loyalty_item_index=req.loyalty_item_index,
+            loyalty_points=req.loyalty_points,
+            share_code=req.share_code,
         )
         return result
     except Exception as e:
@@ -198,8 +261,26 @@ def list_orders(
     customer_token: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     include_hidden: bool = Query(False),
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
+    # Accès : soit un jeton client valide (ses propres commandes), soit le commerçant propriétaire de la boutique.
+    # Avant : n'importe qui pouvait lister toutes les commandes (noms, téléphones, adresses) d'une boutique.
+    if customer_token or customer_id:
+        from app.models.customer import Customer
+        proven = bool(customer_token) and (
+            __import__("app.services.customer_service", fromlist=["CustomerService"]).CustomerService.get_by_token(db, customer_token) is not None
+            or db.query(Order).filter(Order.customer_token == customer_token).first() is not None
+        )
+        if not proven:
+            raise HTTPException(status_code=401, detail="Session client requise pour consulter ces commandes.")
+    elif store_id:
+        require_store_admin(store_id, authorization, db)
+        from app.models.store import Store
+        from sqlalchemy import or_
+        st = db.query(Store).filter(or_(Store.id == store_id, Store.slug == store_id)).first()
+        if st:
+            store_id = st.id
     return OrderService.list_orders(
         db=db,
         store_id=store_id,
@@ -211,7 +292,18 @@ def list_orders(
 
 
 @router.get("/{order_id}", summary="Détail complet d'une commande")
-def get_order(order_id: str, db: Session = Depends(get_db)):
+def get_order(
+    order_id: str,
+    authorization: Optional[str] = Header(None),
+    x_customer_token: Optional[str] = Header(None, alias="X-Customer-Token"),
+    customer_token: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    # Données personnelles (nom, téléphone, adresse, GPS) : propriétaire de la commande ou vendeur uniquement.
+    from app.services.order_access import verify_order_access
+    from app.routers.auth import extract_token
+    proof = x_customer_token or customer_token or extract_token(authorization)
+    verify_order_access(db, order_id, None, proof, authorization, allow_seller=True)
     res = OrderService.get_order_by_id(db=db, order_id=order_id)
     if not res:
         raise HTTPException(status_code=404, detail="Commande introuvable")
@@ -236,18 +328,35 @@ def reject_order(order_id: str, req: RejectOrderRequest, authorization: Optional
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/{order_id}/cancel", summary="Annuler une commande (client ou vendeur)")
-def cancel_order(order_id: str, req: Optional[CancelOrderRequest] = None, db: Session = Depends(get_db)):
+@router.post("/{order_id}/cancel", summary="Annuler une commande (client propriétaire ou vendeur)")
+def cancel_order(
+    order_id: str,
+    req: Optional[CancelOrderRequest] = None,
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    role = verify_order_access(
+        db, order_id,
+        customer_id=req.customer_id if req else None,
+        customer_token=req.customer_token if req else None,
+        authorization=authorization,
+        allow_seller=True,
+    )
     try:
-        actor = req.actor_name if req else "Client"
-        reason = req.reason if req else "Annulé par le client"
+        requested_actor = (req.actor_name if req else None) or "Client"
+        if role == "seller":
+            actor = "Commerçant" if "client" in requested_actor.lower() else requested_actor
+        else:
+            actor = requested_actor
+        reason = (req.reason if req else None) or "Annulé par le client"
         return OrderService.cancel_order(db=db, order_id=order_id, reason=reason, actor_name=actor)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/{order_id}/archive-client", summary="Archiver une commande dans l'espace client")
-def archive_order_client(order_id: str, db: Session = Depends(get_db)):
+def archive_order_client(order_id: str, req: Optional[ClientProofRequest] = None, db: Session = Depends(get_db)):
+    verify_order_access(db, order_id, req.customer_id if req else None, req.customer_token if req else None)
     try:
         return OrderService.archive_order_client(db=db, order_id=order_id, is_archived=True)
     except Exception as e:
@@ -255,7 +364,8 @@ def archive_order_client(order_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{order_id}/unarchive-client", summary="Désarchiver une commande dans l'espace client")
-def unarchive_order_client(order_id: str, db: Session = Depends(get_db)):
+def unarchive_order_client(order_id: str, req: Optional[ClientProofRequest] = None, db: Session = Depends(get_db)):
+    verify_order_access(db, order_id, req.customer_id if req else None, req.customer_token if req else None)
     try:
         return OrderService.archive_order_client(db=db, order_id=order_id, is_archived=False)
     except Exception as e:
@@ -263,7 +373,8 @@ def unarchive_order_client(order_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{order_id}/hide-client", summary="Masquer définitivement de l'historique client (sans suppression BDD)")
-def hide_order_client(order_id: str, db: Session = Depends(get_db)):
+def hide_order_client(order_id: str, req: Optional[ClientProofRequest] = None, db: Session = Depends(get_db)):
+    verify_order_access(db, order_id, req.customer_id if req else None, req.customer_token if req else None)
     try:
         return OrderService.hide_order_client(db=db, order_id=order_id)
     except Exception as e:

@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class TrackingEvent(Base):
     __tablename__ = "tracking_events"
@@ -16,7 +17,9 @@ class TrackingEvent(Base):
     session_id = Column(String(100), nullable=True)
     ip_hash = Column(String(64), nullable=True)
     user_agent = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    share_code = Column(String(20), nullable=True, index=True)   # lien de publicité produit à l'origine de l'événement
+    visitor_id = Column(String(64), nullable=True)               # visiteur anonyme (dédoublonnage)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class TrafficSource(Base):
@@ -43,4 +46,18 @@ class ShareLink(Base):
     short_url = Column(String(255), nullable=False)
     clicks_count = Column(Integer, default=0)
     conversions_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+
+
+class ProductShareLink(Base):
+    """Lien de publicité d'UN produit sur UN réseau (idempotent : un seul lien par produit et par réseau).
+    Les vues, intentions, commandes et achats sont rattachés au `code` (voir share_ad_service)."""
+    __tablename__ = "product_share_links"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
+    product_id = Column(String(36), ForeignKey("products.id"), nullable=False, index=True)
+    network = Column(String(30), nullable=False)       # whatsapp, facebook, instagram, tiktok, telegram, x, snapchat, sms, email, qr, other
+    code = Column(String(20), unique=True, nullable=False, index=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=utcnow)

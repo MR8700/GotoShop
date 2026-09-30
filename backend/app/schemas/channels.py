@@ -1,7 +1,8 @@
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class ChannelSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     store_id: str
     channel_type: str
@@ -15,9 +16,6 @@ class ChannelSchema(BaseModel):
     is_active: bool
     is_recommended: bool
     display_order: int
-
-    class Config:
-        from_attributes = True
 
 class ChannelUpdateSchema(BaseModel):
     is_active: Optional[bool] = None

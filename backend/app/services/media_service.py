@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.media import Media
+from app.core.clock import utcnow
 
 # Allowed MIME types
 ALLOWED_MIME_TYPES = {
@@ -28,6 +29,40 @@ ALLOWED_MIME_TYPES = {
 }
 
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB
+
+# L'extension stockée est déduite du type validé (jamais du nom fourni par l'utilisateur).
+MIME_TO_EXT = {
+    "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif",
+    "audio/webm": ".webm", "audio/ogg": ".ogg", "audio/mpeg": ".mp3", "audio/mp3": ".mp3",
+    "audio/wav": ".wav", "audio/mp4": ".m4a", "video/mp4": ".mp4", "video/webm": ".webm",
+    "application/pdf": ".pdf",
+}
+
+
+def _magic_ok(mime: str, b: bytes) -> bool:
+    """Vérifie les octets magiques pour les types dont la signature est connue."""
+    h = b[:16]
+    if mime == "image/jpeg":
+        return h.startswith(b"\xff\xd8\xff")
+    if mime == "image/png":
+        return h.startswith(b"\x89PNG\r\n\x1a\n")
+    if mime == "image/gif":
+        return h.startswith((b"GIF87a", b"GIF89a"))
+    if mime == "image/webp":
+        return h[:4] == b"RIFF" and h[8:12] == b"WEBP"
+    if mime == "application/pdf":
+        return b[:1024].lstrip().startswith(b"%PDF")
+    if mime == "audio/wav":
+        return h[:4] == b"RIFF" and h[8:12] == b"WAVE"
+    if mime in ("audio/webm", "video/webm"):
+        return h.startswith(b"\x1a\x45\xdf\xa3")
+    if mime == "audio/ogg":
+        return h.startswith(b"OggS")
+    if mime == "video/mp4" or mime == "audio/mp4":
+        return b[4:8] == b"ftyp"
+    if mime in ("audio/mpeg", "audio/mp3"):
+        return h.startswith(b"ID3") or (len(h) > 1 and h[0] == 0xFF and (h[1] & 0xE0) == 0xE0)
+    return False
 
 class MediaService:
     @staticmethod
@@ -68,11 +103,14 @@ class MediaService:
         if file_size > MAX_FILE_SIZE:
             raise HTTPException(status_code=400, detail=f"Fichier trop lourd ({file_size / (1024*1024):.1f}MB). Maximum autorisé : 25MB.")
 
+        if not _magic_ok(content_type, file_bytes):
+            raise HTTPException(status_code=400, detail="Contenu du fichier incohérent avec son type déclaré.")
+
         # Compute checksum
         checksum = hashlib.sha256(file_bytes).hexdigest()
 
         # Generate unique storage filename
-        file_ext = Path(upload_file.filename).suffix.lower() or ".bin"
+        file_ext = MIME_TO_EXT.get(content_type, ".bin")
         unique_name = f"{uuid.uuid4()}{file_ext}"
         upload_dir = MediaService.get_upload_dir()
         dest_path = upload_dir / unique_name
@@ -94,7 +132,7 @@ class MediaService:
             media_type=media_type,
             checksum=checksum,
             is_secure_access=is_secure_access,
-            created_at=datetime.utcnow()
+            created_at=utcnow()
         )
         db.add(media)
         db.commit()

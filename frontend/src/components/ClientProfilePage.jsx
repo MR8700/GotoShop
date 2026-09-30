@@ -15,10 +15,11 @@ import {
   downloadBlob,
 } from "../utils/cardPdf.js";
 import { WEST_AFRICAN_COUNTRIES } from "../utils/locations";
+import PasskeySecurityPanel from "./PasskeySecurityPanel";
 
 export default function ClientProfilePage({
   customer,
-  store,
+  store: _store,
   onUpdateCustomer,
   onLogoutCustomer,
   onOpenAuth,
@@ -65,20 +66,6 @@ export default function ClientProfilePage({
   const currentCountry =
     WEST_AFRICAN_COUNTRIES.find((c) => c.code === selectedCountryCode) || WEST_AFRICAN_COUNTRIES[0];
 
-  useEffect(() => {
-    if (customer) {
-      loadCard();
-    }
-  }, [customer?.id, customer?.session_token]);
-
-  useEffect(() => {
-    if (customer && profileTab === "historique") {
-      loadLedger();
-    } else if (customer && profileTab === "coupons") {
-      loadCoupons();
-    }
-  }, [profileTab, customer?.id]);
-
   const loadCard = async () => {
     try {
       setCardLoading(true);
@@ -120,6 +107,20 @@ export default function ClientProfilePage({
       setCouponsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (customer) {
+      loadCard();
+    }
+  }, [customer?.id, customer?.session_token]);
+
+  useEffect(() => {
+    if (customer && profileTab === "historique") {
+      loadLedger();
+    } else if (customer && profileTab === "coupons") {
+      loadCoupons();
+    }
+  }, [profileTab, customer?.id]);
 
   const handleDownloadPdf = async () => {
     if (!cardData) return;
@@ -269,7 +270,8 @@ export default function ClientProfilePage({
 
   // Tier info helpers
   const tierName = cardData?.tier_name || "Bronze";
-  const points = cardData?.points || 0;
+  const points = Number(cardData?.points || 0).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+  const fmtPt = (n) => Number(n || 0).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
   const nextTier = cardData?.next_tier;
   const nextProgress = cardData?.next_tier_progress || 0;
 
@@ -326,7 +328,7 @@ export default function ClientProfilePage({
         <div className="flex items-center gap-2 self-end sm:self-center">
           <div className="text-right px-3 py-1.5 rounded-xl bg-surface-container-high/80 border border-white/5">
             <p className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider">Solde Fidélité</p>
-            <p className="text-base font-extrabold text-primary font-mono">{points} <span className="text-xs font-semibold">pts</span></p>
+            <p className="text-base font-extrabold text-primary font-mono">{points} <span className="text-xs font-semibold">pt</span></p>
           </div>
         </div>
       </div>
@@ -495,8 +497,8 @@ export default function ClientProfilePage({
                 </h3>
               </div>
               <div className="text-right">
-                <span className="text-xs text-on-surface-variant">Points cumulés :</span>
-                <span className="text-sm font-extrabold text-primary font-mono ml-1.5">{points} pts</span>
+                <span className="text-xs text-on-surface-variant">Solde utilisable :</span>
+                <span className="text-sm font-extrabold text-primary font-mono ml-1.5">{points} pt</span>
               </div>
             </div>
 
@@ -517,35 +519,35 @@ export default function ClientProfilePage({
                   />
                 </div>
                 <p className="text-[11px] text-on-surface-variant">
-                  Plus que <strong className="text-on-surface">{cardData?.points_to_next || 0} points</strong> pour débloquer les réductions et avantages du palier {nextTier}.
+                  Plus que <strong className="text-on-surface">{fmtPt(cardData?.points_to_next)} pt gagnés</strong> pour atteindre le statut {nextTier}. Dépenser vos points ne fait pas baisser votre statut.
                 </p>
               </div>
             ) : (
               <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-semibold flex items-center gap-2">
                 <Icon name="workspace_premium" className="text-[18px]" />
-                <span>Félicitations ! Vous avez atteint le palier maximal Platine. Remise maximale garantie sur toutes vos commandes !</span>
+                <span>Félicitations ! Vous avez atteint le statut le plus élevé de la boutique.</span>
               </div>
             )}
 
             {/* Tiers privileges overview grid */}
             <div>
-              <p className="text-xs font-bold text-on-surface mb-2.5">Grille des Privilèges de Fidélité</p>
+              <p className="text-xs font-bold text-on-surface mb-2.5">Statuts (selon les points gagnés depuis le début)</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 <div className={`p-2.5 rounded-xl border ${tierName === "Bronze" ? "bg-amber-950/40 border-amber-600/50" : "bg-surface-container-high/40 border-white/5"}`}>
                   <p className="font-bold text-amber-500">Bronze (0 pt)</p>
                   <p className="text-[11px] text-on-surface-variant mt-0.5">Accès catalogue &amp; suivi 24h</p>
                 </div>
                 <div className={`p-2.5 rounded-xl border ${tierName === "Argent" ? "bg-slate-800/60 border-slate-400/50" : "bg-surface-container-high/40 border-white/5"}`}>
-                  <p className="font-bold text-slate-300">Argent (50 pts)</p>
-                  <p className="text-[11px] text-on-surface-variant mt-0.5">-3% sur les commandes</p>
+                  <p className="font-bold text-slate-300">Argent (10 pt)</p>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">Statut Argent</p>
                 </div>
                 <div className={`p-2.5 rounded-xl border ${tierName === "Or" ? "bg-amber-950/50 border-amber-400" : "bg-surface-container-high/40 border-white/5"}`}>
-                  <p className="font-bold text-yellow-400">Or (150 pts)</p>
-                  <p className="text-[11px] text-on-surface-variant mt-0.5">-5% + support prioritaire</p>
+                  <p className="font-bold text-yellow-400">Or (30 pt)</p>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">Support prioritaire</p>
                 </div>
                 <div className={`p-2.5 rounded-xl border ${tierName === "Platine" ? "bg-indigo-950/50 border-sky-400" : "bg-surface-container-high/40 border-white/5"}`}>
-                  <p className="font-bold text-sky-300">Platine (400 pts)</p>
-                  <p className="text-[11px] text-on-surface-variant mt-0.5">-8% + livraisons express</p>
+                  <p className="font-bold text-sky-300">Platine (60 pt)</p>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">Livraisons express</p>
                 </div>
               </div>
             </div>
@@ -606,10 +608,10 @@ export default function ClientProfilePage({
                     </div>
                     <div className="text-right shrink-0">
                       <p className={`font-mono font-bold text-xs ${isEarned ? "text-emerald-400" : "text-rose-400"}`}>
-                        {isEarned ? `+${item.points}` : item.points} pts
+                        {isEarned ? `+${fmtPt(item.points)}` : fmtPt(item.points)} pt
                       </p>
                       <p className="text-[10px] text-on-surface-variant font-mono">
-                        Solde: {item.balance_after}
+                        Solde: {fmtPt(item.balance_after)}
                       </p>
                     </div>
                   </div>
@@ -626,7 +628,7 @@ export default function ClientProfilePage({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-on-surface text-base">Vos Coupons &amp; Codes Promos</h3>
-              <p className="text-xs text-on-surface-variant">Utilisez ces codes lors de vos commandes pour des remises instantanées</p>
+              <p className="text-xs text-on-surface-variant">Saisissez ces codes à la commande. Un coupon ne se cumule pas avec vos points.</p>
             </div>
             <button
               onClick={loadCoupons}
@@ -647,7 +649,7 @@ export default function ClientProfilePage({
             <div className="py-12 text-center text-xs text-on-surface-variant space-y-2 bg-surface-container-high/40 rounded-xl border border-dashed border-white/10">
               <Icon name="local_offer" className="text-[32px] text-on-surface-variant/40 mx-auto" />
               <p>Aucun coupon actif pour le moment.</p>
-              <p className="text-[11px]">Continuez vos achats pour débloquer des bons de réduction exclusifs !</p>
+              <p className="text-[11px]">Vos points, eux, se dépensent directement sur un produit au moment de la commande.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -671,7 +673,8 @@ export default function ClientProfilePage({
 
                   <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
                     <span className="text-on-surface-variant">
-                      {c.min_order_amount > 0 ? `Dès ${c.min_order_amount} F` : "Sans minimum"}
+                      {c.min_order_amount > 0 ? `Dès ${Number(c.min_order_amount).toLocaleString("fr-FR")} F` : "Sans minimum"}
+                      {c.expires_at ? ` · jusqu'au ${new Date(c.expires_at).toLocaleDateString("fr-FR")}` : ""}
                     </span>
                     <button
                       onClick={() => handleCopyCoupon(c.code)}
@@ -800,6 +803,35 @@ export default function ClientProfilePage({
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
+                  E-mail (facultatif)
+                </label>
+                <input
+                  type="email"
+                  placeholder="nom@exemple.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full h-11 px-3 rounded-xl bg-surface-container-high border border-outline-variant/30 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
+                  Canal Préféré
+                </label>
+                <select
+                  value={preferredChannel}
+                  onChange={(e) => setPreferredChannel(e.target.value)}
+                  className="w-full h-11 px-3 rounded-xl bg-surface-container-high border border-outline-variant/30 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                >
+                  <option value="WHATSAPP">WhatsApp</option>
+                  <option value="SMS">SMS Direct</option>
+                  <option value="CALL">Appel Vocal</option>
+                </select>
+              </div>
+            </div>
+
             <div>
               <label className="font-label-sm text-[11px] text-on-surface-variant uppercase font-bold block mb-1">
                 Adresse de Livraison / Quartier &amp; Repère
@@ -886,6 +918,11 @@ export default function ClientProfilePage({
             <span>Déconnexion du compte client</span>
           </button>
         </form>
+      )}
+      {profileTab === "coordonnees" && (
+        <div className="mt-4 bg-surface-container rounded-2xl p-4 sm:p-5 shadow-sm border border-subtle">
+          <PasskeySecurityPanel showToast={showToast} />
+        </div>
       )}
 
       {/* Switch to Owner Portal Card */}

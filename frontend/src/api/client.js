@@ -1,3 +1,4 @@
+import { getVisitorId, getShareRef } from "../utils/shareAttribution";
 import safeStorage from "../utils/safeStorage";
 import dataCache from "../utils/dataCache";
 import {
@@ -28,7 +29,7 @@ const getApiBase = () => {
     }
     return `${window.location.origin}/api`;
   }
-  return "http://localhost:8000/api";
+  return import.meta.env.PROD ? "/api" : "http://localhost:8000/api";
 };
 
 const getMediaBase = () => {
@@ -39,11 +40,22 @@ const getMediaBase = () => {
     }
     return window.location.origin;
   }
-  return "http://localhost:8000";
+  return import.meta.env.PROD ? "" : "http://localhost:8000";
 };
 
 const API_BASE = getApiBase();
 const MEDIA_BASE = getMediaBase();
+
+// Session client = cookie HttpOnly posé par l'API : le navigateur doit l'envoyer (et l'accepter) sur chaque appel à l'API.
+if (typeof window !== "undefined" && window.fetch && !window.__gsFetchPatched) {
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = (input, init = {}) => {
+    const url = typeof input === "string" ? input : (input && input.url) || "";
+    if (url.startsWith(API_BASE) && !init.credentials) init = { ...init, credentials: "include" };
+    return nativeFetch(input, init);
+  };
+  window.__gsFetchPatched = true;
+}
 
 export const detectSubdomainSlug = () => {
   if (typeof window === "undefined" || !window.location) return null;
@@ -102,7 +114,7 @@ export const setActiveStoreSlug = (slug) => {
         const url = new URL(window.location.href);
         url.searchParams.set("store", clean);
         window.history.pushState({}, "", url.toString());
-      } catch (e) {}
+      } catch  {}
     }
   } else {
     safeStorage.removeItem("conversastore_active_slug");
@@ -466,10 +478,13 @@ export async function createOrderIntent(payload) {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const ref = getShareRef();
+    const body = ref && !payload.share_code && String(payload.product_id) === String(ref.productId)
+      ? { ...payload, share_code: ref.code } : payload;
     const res = await fetch(`${API_BASE}/intents`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -507,7 +522,7 @@ export async function fetchPendingFollowups() {
   return dataCache.swr(
     "intents:pending-followup",
     async () => {
-      const res = await fetch(`${API_BASE}/intents/pending-followup`);
+      const res = await fetch(`${API_BASE}/intents/pending-followup`, { headers: ownerJsonHeaders() });
       if (!res.ok) throw new Error("Erreur de chargement des relances");
       return res.json();
     },
@@ -529,7 +544,7 @@ export async function fetchIntentFeed(params = {}) {
   return dataCache.swr(
     cacheKey,
     async () => {
-      const res = await fetch(`${API_BASE}/intents/feed${queryString}`);
+      const res = await fetch(`${API_BASE}/intents/feed${queryString}`, { headers: ownerJsonHeaders() });
       if (!res.ok) throw new Error("Erreur de chargement du flux d'intentions");
       return res.json();
     },
@@ -540,6 +555,7 @@ export async function fetchIntentFeed(params = {}) {
 export async function archiveIntent(intentId) {
   const res = await fetch(`${API_BASE}/intents/${intentId}/archive`, {
     method: "POST",
+    headers: ownerJsonHeaders(),
   });
   if (!res.ok) throw new Error("Erreur lors de l'archivage de l'intention");
   dataCache.invalidate("intents:");
@@ -549,6 +565,7 @@ export async function archiveIntent(intentId) {
 export async function deleteIntent(intentId) {
   const res = await fetch(`${API_BASE}/intents/${intentId}`, {
     method: "DELETE",
+    headers: ownerJsonHeaders(),
   });
   if (!res.ok) throw new Error("Erreur lors de la suppression de l'intention");
   dataCache.invalidate("intents:");
@@ -558,7 +575,7 @@ export async function deleteIntent(intentId) {
 export async function confirmSale(intentId, payload) {
   const res = await fetch(`${API_BASE}/intents/${intentId}/confirm`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Erreur de confirmation de vente");
@@ -637,6 +654,29 @@ export async function resetOwnerCredentials() {
   if (!res.ok) {
     throw new Error(formatErrorMessage(data, "Erreur de réinitialisation"));
   }
+  return data;
+}
+
+// Mot de passe oublié (commerçant) : OTP envoyé par WhatsApp puis nouveau mot de passe.
+export async function requestPasswordReset(identifier) {
+  const res = await fetch(`${API_BASE}/auth/password-reset/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier }),
+  });
+  const data = await safeParseJson(res);
+  if (!res.ok) throw new Error(formatErrorMessage(data, "Impossible d'envoyer le code"));
+  return data; // { success, message, dev_code? (simulateur uniquement) }
+}
+
+export async function confirmPasswordReset({ identifier, code, new_password, confirm_password }) {
+  const res = await fetch(`${API_BASE}/auth/password-reset/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier, code, new_password, confirm_password }),
+  });
+  const data = await safeParseJson(res);
+  if (!res.ok) throw new Error(formatErrorMessage(data, "Réinitialisation impossible"));
   return data;
 }
 
@@ -825,7 +865,7 @@ export async function fetchAuthStatus() {
       return { is_authenticated: false, must_change_password: true, owner_name: null };
     }
     return await safeParseJson(res);
-  } catch (e) {
+  } catch  {
     return { is_authenticated: false, must_change_password: true, owner_name: null };
   }
 }
@@ -848,22 +888,76 @@ const CUSTOMER_TOKEN_KEY = "conversastore_customer_token";
 
 export const getCustomerToken = () => safeStorage.getItem(CUSTOMER_TOKEN_KEY);
 export const setCustomerToken = (t) => safeStorage.setItem(CUSTOMER_TOKEN_KEY, t);
+// Le vrai jeton de session vit dans un cookie HttpOnly, illisible ici. On garde seulement ce marqueur non secret
+// (« utilise mon cookie ») : le serveur le remplace par le cookie. Les jetons invités (guest_…) restent stockés tels quels.
+export const CUSTOMER_COOKIE_MARKER = "__cookie__";
+export const markCustomerSession = (token) => setCustomerToken(token || CUSTOMER_COOKIE_MARKER);
+// Déconnexion : efface le cookie côté serveur (best-effort) puis le marqueur local.
+export const logoutCustomer = () => {
+  const had = getCustomerToken();
+  clearCustomerToken();
+  safeStorage.removeItem("gatoshop_local_customer");
+  if (had) fetch(`${API_BASE}/customer/logout`, { method: "POST", credentials: "include", headers: { Authorization: `Bearer ${had}` } }).catch(() => {});
+};
 export const clearCustomerToken = () => safeStorage.removeItem(CUSTOMER_TOKEN_KEY);
+
+// Preuve de propriété envoyée avec les actions « client » sur une commande (annuler, archiver, masquer…).
+// Le jeton est la vraie preuve ; l'identifiant client n'est qu'un recoupement côté serveur.
+export function buildClientProof(proof = {}) {
+  let localId = null;
+  try {
+    const raw = safeStorage.getItem("gatoshop_local_customer");
+    localId = raw ? JSON.parse(raw)?.id : null;
+  } catch {
+    localId = null;
+  }
+  const rawId = proof.customer_id || localId || null;
+  return {
+    customer_id: rawId && !String(rawId).startsWith("cust-local-") ? rawId : null,
+    customer_token: proof.customer_token || getCustomerToken() || null,
+  };
+}
+
+// Erreur HTTP enrichie du statut, pour distinguer un refus (401/403) d'une panne réseau.
+async function apiError(res, fallbackMessage) {
+  const err = await res.json().catch(() => ({}));
+  const e = new Error(typeof err.detail === "string" ? err.detail : fallbackMessage);
+  e.status = res.status;
+  return e;
+}
+
+// Le serveur exige un code SMS (REQUIRE_LOGIN_OTP) : erreur dédiée, sans repli local.
+function isOtpDetail(status, detail) {
+  return status === 400 && typeof detail === "string" && /code/i.test(detail);
+}
+
+export async function requestCustomerLoginOtp(payload) {
+  const res = await fetch(`${API_BASE}/customer/login/otp/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Store-Slug": getActiveStoreSlug() || "" },
+    body: JSON.stringify(payload),
+  });
+  const data = await safeParseJson(res);
+  if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : `Envoi du code impossible (${res.status})`);
+  return data;
+}
 
 export async function customerQuickRegister(payload) {
   try {
     const res = await fetch(`${API_BASE}/customer/quick-register`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Store-Slug": getActiveStoreSlug() || "" },
       body: JSON.stringify(payload),
     });
     const data = await safeParseJson(res);
     if (!res.ok) {
-      throw new Error(data.detail || `Erreur d'inscription client (${res.status})`);
+      const e = new Error(data.detail || `Erreur d'inscription client (${res.status})`);
+      if (isOtpDetail(res.status, data.detail)) e.otpRequired = true;
+      throw e;
     }
     const token = data.access_token || data.token;
-    if (token) {
-      setCustomerToken(token);
+    if (token || data.customer) {
+      markCustomerSession(token);
     }
     if (data.customer) {
       safeStorage.setItem("gatoshop_local_customer", JSON.stringify(data.customer));
@@ -874,6 +968,7 @@ export async function customerQuickRegister(payload) {
     dispatchStateEvent("gotoshop:stats_updated", data.customer);
     return { ...data, access_token: token, token };
   } catch (err) {
+    if (err.otpRequired) throw err;
     // If backend is offline or 404 on Vercel, activate seamless local guest customer mode
     console.warn("API unavailable or failed, fallback to local registration:", err.message);
     const localCust = {
@@ -906,16 +1001,18 @@ export async function customerQuickLogin(payload) {
   try {
     const res = await fetch(`${API_BASE}/customer/quick-login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Store-Slug": getActiveStoreSlug() || "" },
       body: JSON.stringify(payload),
     });
     const data = await safeParseJson(res);
     if (!res.ok) {
-      throw new Error(data.detail || `Numéro non reconnu (${res.status})`);
+      const e = new Error(data.detail || `Numéro non reconnu (${res.status})`);
+      if (isOtpDetail(res.status, data.detail)) e.otpRequired = true;
+      throw e;
     }
     const token = data.access_token || data.token;
-    if (token) {
-      setCustomerToken(token);
+    if (token || data.customer) {
+      markCustomerSession(token);
     }
     if (data.customer) {
       safeStorage.setItem("gatoshop_local_customer", JSON.stringify(data.customer));
@@ -926,6 +1023,7 @@ export async function customerQuickLogin(payload) {
     dispatchStateEvent("gotoshop:stats_updated", data.customer);
     return { ...data, access_token: token, token };
   } catch (err) {
+    if (err.otpRequired) throw err;
     // Fallback: Check local saved profile
     const rawCust = safeStorage.getItem("gatoshop_local_customer");
     if (rawCust) {
@@ -982,7 +1080,7 @@ export async function fetchCustomerProfile() {
     }
     const raw = safeStorage.getItem("gatoshop_local_customer");
     return raw ? JSON.parse(raw) : null;
-  } catch (e) {
+  } catch  {
     const raw = safeStorage.getItem("gatoshop_local_customer");
     return raw ? JSON.parse(raw) : null;
   }
@@ -1120,16 +1218,44 @@ export async function validateCustomerCoupon(code, orderAmount = 0) {
   return res.json();
 }
 
-export async function checkOrderCoupon(storeId, code, orderAmount = 0) {
+export async function checkOrderCoupon(storeId, code, orderAmount = 0, proof = {}) {
   const res = await fetch(`${API_BASE}/orders/check-coupon`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ store_id: storeId, code, order_amount: orderAmount }),
+    body: JSON.stringify({ store_id: storeId, code, order_amount: orderAmount, ...buildClientProof(proof) }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Erreur de validation du coupon");
   }
+  return res.json();
+}
+
+// ----------------------------------------------------------------------------
+// Client loyalty : solde, échéances et rachat de points contre un bon d'achat
+// ----------------------------------------------------------------------------
+export async function fetchLoyaltySummary() {
+  const token = getCustomerToken();
+  if (!token) return null;
+  const res = await fetch(`${API_BASE}/customer/loyalty/summary`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function redeemLoyaltyPoints(points) {
+  const token = getCustomerToken();
+  if (!token) throw new Error("Connectez-vous pour utiliser vos points.");
+  const res = await fetch(`${API_BASE}/customer/loyalty/redeem`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ points }),
+  });
+  if (!res.ok) {
+    throw await apiError(res, "Impossible d'échanger vos points");
+  }
+  dataCache.invalidate("customer:stats:");
   return res.json();
 }
 
@@ -1181,17 +1307,152 @@ export async function deleteLoyaltyTier(storeId, tierId) {
 }
 
 // ----------------------------------------------------------------------------
-// Client Satisfaction & Cancellation Actions (Guest or Logged In)
+// Merchant Delivery Cities & Fees API
 // ----------------------------------------------------------------------------
-export async function recordClientOrderAction(intentIdOrRef, action, reason = null, rating = 5) {
-  const res = await fetch(`${API_BASE}/intents/${intentIdOrRef}/client-action`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, reason, rating }),
+export async function fetchDeliveryCities(storeId) {
+  const res = await fetch(`${API_BASE}/store/${storeId}/delivery-cities`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function saveDeliveryCity(storeId, city) {
+  const isEdit = !!city.id;
+  const res = await fetch(`${API_BASE}/store/${storeId}/delivery-cities${isEdit ? `/${city.id}` : ""}`, {
+    method: isEdit ? "PUT" : "POST",
+    headers: ownerJsonHeaders(),
+    body: JSON.stringify({
+      name: city.name, delivery_fee: city.delivery_fee, is_default: !!city.is_default,
+      latitude: city.latitude ?? null, longitude: city.longitude ?? null, radius_km: city.radius_km ?? null,
+    }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Erreur lors de l'enregistrement de l'action");
+    throw new Error(typeof err.detail === "string" ? err.detail : "Erreur d'enregistrement de la ville");
+  }
+  return res.json();
+}
+
+export async function checkDeliveryLocation(storeId, { city, latitude, longitude }) {
+  try {
+    const res = await fetch(`${API_BASE}/store/${storeId}/delivery-check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ city, latitude, longitude }),
+    });
+    return res.ok ? res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteDeliveryCity(storeId, cityId) {
+  const res = await fetch(`${API_BASE}/store/${storeId}/delivery-cities/${cityId}`, {
+    method: "DELETE",
+    headers: ownerJsonHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(typeof err.detail === "string" ? err.detail : "Erreur de suppression de la ville");
+  }
+  return res.json();
+}
+
+// ----------------------------------------------------------------------------
+// Lieux de retrait / livraison définis par le commerçant
+// ----------------------------------------------------------------------------
+export async function fetchDeliverySpots(storeId, { all = false } = {}) {
+  try {
+    const res = await fetch(`${API_BASE}/store/${storeId}/delivery-spots${all ? "?all=true" : ""}`, {
+      headers: all ? ownerJsonHeaders() : undefined,
+    });
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function saveDeliverySpot(storeId, spot) {
+  const isEdit = !!spot.id;
+  const { id, ...body } = spot;
+  const res = await fetch(`${API_BASE}/store/${storeId}/delivery-spots${isEdit ? `/${id}` : ""}`, {
+    method: isEdit ? "PUT" : "POST",
+    headers: ownerJsonHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(typeof err.detail === "string" ? err.detail : "Erreur d'enregistrement du lieu");
+  }
+  return res.json();
+}
+
+export async function deleteDeliverySpot(storeId, spotId) {
+  const res = await fetch(`${API_BASE}/store/${storeId}/delivery-spots/${spotId}`, {
+    method: "DELETE",
+    headers: ownerJsonHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(typeof err.detail === "string" ? err.detail : "Erreur de suppression du lieu");
+  }
+  return res.json();
+}
+
+// ----------------------------------------------------------------------------
+// Remises boutique (audience : tous / clients / visiteurs / clients choisis)
+// ----------------------------------------------------------------------------
+async function discountRulesCall(storeId, method, path, body) {
+  const res = await fetch(`${API_BASE}/store/${storeId}/discount-rules${path}`, {
+    method,
+    headers: ownerJsonHeaders(),
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(typeof err.detail === "string" ? err.detail : "Erreur sur la remise boutique");
+  }
+  return res.json();
+}
+export const fetchDiscountRules = (storeId) => discountRulesCall(storeId, "GET", "");
+export const saveDiscountRule = (storeId, rule) =>
+  discountRulesCall(storeId, rule.id ? "PUT" : "POST", rule.id ? `/${rule.id}` : "", {
+    name: rule.name,
+    percent: Number(rule.percent),
+    audience: rule.audience,
+    customer_ids: rule.audience === "SELECTED" ? rule.customer_ids : null,
+    scope: rule.scope || "STORE",
+    product_ids: rule.scope === "PRODUCT" ? rule.product_ids || [] : null,
+    category_ids: rule.scope === "CATEGORY" ? rule.category_ids || [] : null,
+    min_order_amount: Number(rule.min_order_amount) || 0,
+    starts_at: rule.starts_at || null,
+    ends_at: rule.ends_at || null,
+    is_active: rule.is_active !== false,
+  });
+export const deleteDiscountRule = (storeId, ruleId) => discountRulesCall(storeId, "DELETE", `/${ruleId}`);
+
+// items : lignes du panier [{ product_id, amount }] — nécessaires pour les remises par produit / catégorie.
+export async function previewShopDiscount(storeId, orderAmount = 0, proof = {}, items = null) {
+  const res = await fetch(`${API_BASE}/orders/shop-discount`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ store_id: storeId, order_amount: orderAmount, ...(items ? { items } : {}), ...buildClientProof(proof) }),
+  });
+  if (!res.ok) return { applicable: false };
+  return res.json();
+}
+
+// ----------------------------------------------------------------------------
+// Client Satisfaction & Cancellation Actions (Guest or Logged In)
+// ----------------------------------------------------------------------------
+export async function recordClientOrderAction(intentIdOrRef, action, reason = null, rating = 5, proof = {}) {
+  const res = await fetch(`${API_BASE}/intents/${intentIdOrRef}/client-action`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, reason, rating, ...buildClientProof(proof) }),
+  });
+  if (!res.ok) {
+    throw await apiError(res, "Erreur lors de l'enregistrement de l'action");
   }
   return res.json();
 }
@@ -1199,7 +1460,7 @@ export async function recordClientOrderAction(intentIdOrRef, action, reason = nu
 export async function resolveDiscrepancy(intentId, resolution, notes = null) {
   const res = await fetch(`${API_BASE}/intents/${intentId}/resolve-discrepancy`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: ownerJsonHeaders(),
     body: JSON.stringify({ resolution, notes }),
   });
   if (!res.ok) {
@@ -1211,7 +1472,7 @@ export async function resolveDiscrepancy(intentId, resolution, notes = null) {
 }
 
 export async function fetchOrderByReference(referenceCode) {
-  const res = await fetch(`${API_BASE}/intents/by-reference/${encodeURIComponent(referenceCode)}`);
+  const res = await fetch(`${API_BASE}/intents/by-reference/${encodeURIComponent(referenceCode)}`, { headers: chatAuthHeaders() });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Commande introuvable");
@@ -1223,7 +1484,7 @@ export async function fetchBatchOrders(intentIds) {
   if (!intentIds || intentIds.length === 0) return [];
   const res = await fetch(`${API_BASE}/intents/batch-lookup`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: chatAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ intent_ids: intentIds }),
   });
   if (!res.ok) return [];
@@ -1251,7 +1512,7 @@ export async function fetchDiscrepancies() {
   return dataCache.swr(
     "intents:discrepancies",
     async () => {
-      const res = await fetch(`${API_BASE}/intents/discrepancies`);
+      const res = await fetch(`${API_BASE}/intents/discrepancies`, { headers: ownerJsonHeaders() });
       if (!res.ok) return [];
       return res.json();
     },
@@ -1531,6 +1792,18 @@ export async function updateSuperAdminStoreStatus(storeId, payload) {
   return res.json();
 }
 
+// Super-admin : mot de passe temporaire pour UN commerçant (affiché une seule fois) + message / lien WhatsApp prêts à envoyer.
+export async function superAdminResetOwnerCredentials(ownerId) {
+  const token = getSuperAdminToken();
+  const res = await fetch(`${API_BASE}/super-admin/owners/${ownerId}/reset-credentials`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await safeParseJson(res);
+  if (!res.ok) throw new Error(formatErrorMessage(data, "Réinitialisation impossible"));
+  return data; // { email, temporary_password, message_to_copy, whatsapp_link }
+}
+
 export async function verifySuperAdminStore(storeId, isVerified = true) {
   const token = getSuperAdminToken();
   const res = await fetch(`${API_BASE}/super-admin/stores/${storeId}/verify`, {
@@ -1662,7 +1935,7 @@ export async function submitSubscriptionRequest(payload) {
   try {
     const existing = JSON.parse(safeStorage.getItem("gotoshop_local_subscription_submissions") || "[]");
     safeStorage.setItem("gotoshop_local_subscription_submissions", JSON.stringify([localSubmission, ...existing]));
-  } catch (err) {}
+  } catch  {}
 
   return localSubmission;
 }
@@ -1827,9 +2100,31 @@ export async function fetchSuperAdminAuditLogs(limit = 50) {
 // CONVERSATIONAL COMMERCE & REAL-TIME CHAT API
 // ============================================================================
 
+// Proof of identity for chat endpoints: merchant/customer bearer token, plus the
+// guest token remembered for this browser (guests have no account).
+const GUEST_CHAT_KEY = "conversastore_guest_chat_token";
+export function rememberGuestChatToken(token) {
+  if (token) safeStorage.setItem(GUEST_CHAT_KEY, token);
+}
+function chatAuthHeaders(extra = {}) {
+  const bearer = getAuthToken() || getCustomerToken();
+  const guest = safeStorage.getItem(GUEST_CHAT_KEY) || getCustomerToken();
+  return {
+    ...extra,
+    ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+    ...(guest ? { "X-Customer-Token": guest } : {}),
+  };
+}
+
 export function getChatWebSocketUrl(conversationId, params = {}) {
   let wsBase = API_BASE.replace(/^http/, "ws");
-  const query = new URLSearchParams(params).toString();
+  const bearer = getAuthToken() || getCustomerToken();
+  const guest = safeStorage.getItem(GUEST_CHAT_KEY) || getCustomerToken();
+  const query = new URLSearchParams({
+    ...params,
+    ...(bearer ? { token: bearer } : {}),
+    ...(guest ? { guest } : {}),
+  }).toString();
   return `${wsBase}/ws/chat/${conversationId}${query ? "?" + query : ""}`;
 }
 
@@ -1841,15 +2136,16 @@ export async function fetchConversations({ store_id, customer_id, customer_token
   if (context_filter) query.set("context_filter", context_filter);
   if (search) query.set("search", search);
 
-  const res = await fetch(`${API_BASE}/conversations?${query.toString()}`);
+  const res = await fetch(`${API_BASE}/conversations?${query.toString()}`, { headers: chatAuthHeaders() });
   if (!res.ok) return [];
   return res.json();
 }
 
 export async function createOrGetConversation(payload) {
+  if (payload && payload.customer_token && !payload.customer_id) rememberGuestChatToken(payload.customer_token);
   const res = await fetch(`${API_BASE}/conversations`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: chatAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -1860,13 +2156,13 @@ export async function createOrGetConversation(payload) {
 }
 
 export async function fetchConversationDetail(conversationId) {
-  const res = await fetch(`${API_BASE}/conversations/${conversationId}`);
+  const res = await fetch(`${API_BASE}/conversations/${conversationId}`, { headers: chatAuthHeaders() });
   if (!res.ok) throw new Error("Conversation introuvable");
   return res.json();
 }
 
 export async function fetchConversationMessages(conversationId, limit = 100, offset = 0) {
-  const res = await fetch(`${API_BASE}/conversations/${conversationId}/messages?limit=${limit}&offset=${offset}`);
+  const res = await fetch(`${API_BASE}/conversations/${conversationId}/messages?limit=${limit}&offset=${offset}`, { headers: chatAuthHeaders() });
   if (!res.ok) return [];
   return res.json();
 }
@@ -1874,7 +2170,7 @@ export async function fetchConversationMessages(conversationId, limit = 100, off
 export async function sendChatMessage(conversationId, messageData) {
   const res = await fetch(`${API_BASE}/conversations/${conversationId}/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: chatAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(messageData),
   });
   if (!res.ok) {
@@ -1887,6 +2183,7 @@ export async function sendChatMessage(conversationId, messageData) {
 export async function uploadChatMedia(conversationId, formData) {
   const res = await fetch(`${API_BASE}/conversations/${conversationId}/media`, {
     method: "POST",
+    headers: chatAuthHeaders(),
     body: formData,
   });
   if (!res.ok) {
@@ -1900,10 +2197,10 @@ export async function markConversationRead(conversationId, userType = "CUSTOMER"
   try {
     await fetch(`${API_BASE}/conversations/${conversationId}/read`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: chatAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ user_type: userType, user_id: userId }),
     });
-  } catch (e) {}
+  } catch  {}
 }
 
 // ============================================================================
@@ -1911,10 +2208,14 @@ export async function markConversationRead(conversationId, userType = "CUSTOMER"
 // ============================================================================
 
 export async function createConversationalOrder(orderData) {
+  // Publicité produit : la commande est rattachée au dernier lien cliqué si elle contient le produit promu.
+  const ref = getShareRef();
+  const hasAdProduct = ref && (orderData?.items || []).some((it) => String(it.product_id) === String(ref.productId));
+  const body = hasAdProduct && !orderData.share_code ? { ...orderData, share_code: ref.code } : orderData;
   const res = await fetch(`${API_BASE}/orders`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(orderData),
+    body: JSON.stringify(body),
   });
   const data = await safeParseJson(res);
   if (!res.ok) {
@@ -1943,7 +2244,10 @@ export async function fetchConversationalOrders({ store_id, customer_id, custome
   return dataCache.swr(
     cacheKey,
     async () => {
-      const res = await fetch(`${API_BASE}/orders?${queryString}`);
+      const ownerToken = store_id && !customer_token ? getAuthToken() : null;
+      const res = await fetch(`${API_BASE}/orders?${queryString}`, {
+        headers: ownerToken ? { Authorization: `Bearer ${ownerToken}` } : {},
+      });
       if (!res.ok) return [];
       return res.json();
     },
@@ -1951,8 +2255,15 @@ export async function fetchConversationalOrders({ store_id, customer_id, custome
   );
 }
 
-export async function fetchOrderDetail(orderId) {
-  const res = await fetch(`${API_BASE}/orders/${orderId}`);
+export async function fetchOrderDetail(orderId, proof = {}) {
+  const owner = getAuthToken();
+  const { customer_token } = buildClientProof(proof);
+  const res = await fetch(`${API_BASE}/orders/${orderId}`, {
+    headers: {
+      ...(owner ? { Authorization: `Bearer ${owner}` } : {}),
+      ...(customer_token ? { "X-Customer-Token": customer_token } : {}),
+    },
+  });
   if (!res.ok) throw new Error("Commande introuvable");
   return res.json();
 }
@@ -1997,15 +2308,14 @@ export async function rejectOrder(orderId, reason = "Indisponible", sellerName =
   return data;
 }
 
-export async function cancelConversationalOrder(orderId, reason = "Annulé par le client", actorName = "Client") {
+export async function cancelConversationalOrder(orderId, reason = "Annulé par le client", actorName = "Client", proof = {}) {
   const res = await fetch(`${API_BASE}/orders/${orderId}/cancel`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ reason, actor_name: actorName }),
+    body: JSON.stringify({ reason, actor_name: actorName, ...buildClientProof(proof) }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Erreur lors de l'annulation de la commande");
+    throw await apiError(res, "Erreur lors de l'annulation de la commande");
   }
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
@@ -2017,42 +2327,42 @@ export async function cancelConversationalOrder(orderId, reason = "Annulé par l
   return data;
 }
 
-export async function archiveClientOrder(orderId) {
+export async function archiveClientOrder(orderId, proof = {}) {
   const res = await fetch(`${API_BASE}/orders/${orderId}/archive-client`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildClientProof(proof)),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Erreur lors de l'archivage de la commande");
+    throw await apiError(res, "Erreur lors de l'archivage de la commande");
   }
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
   return res.json();
 }
 
-export async function unarchiveClientOrder(orderId) {
+export async function unarchiveClientOrder(orderId, proof = {}) {
   const res = await fetch(`${API_BASE}/orders/${orderId}/unarchive-client`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildClientProof(proof)),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Erreur lors du désarchivage de la commande");
+    throw await apiError(res, "Erreur lors du désarchivage de la commande");
   }
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
   return res.json();
 }
 
-export async function hideClientOrder(orderId) {
+export async function hideClientOrder(orderId, proof = {}) {
   const res = await fetch(`${API_BASE}/orders/${orderId}/hide-client`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildClientProof(proof)),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Erreur lors du masquage de la commande");
+    throw await apiError(res, "Erreur lors du masquage de la commande");
   }
   dataCache.invalidate("orders:");
   dataCache.invalidate("customer:orders:");
@@ -2225,7 +2535,7 @@ export async function updateOrderStatus(orderId, status, notes = null, actorName
 export async function startCallSession({ conversation_id, caller_type = "CUSTOMER", caller_name, call_type = "AUDIO", caller_id = null }) {
   const res = await fetch(`${API_BASE}/calls`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: chatAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ conversation_id, caller_type, caller_name, call_type, caller_id }),
   });
   if (!res.ok) {
@@ -2236,7 +2546,7 @@ export async function startCallSession({ conversation_id, caller_type = "CUSTOME
 }
 
 export async function answerCallSession(callId) {
-  const res = await fetch(`${API_BASE}/calls/${callId}/answer`, { method: "POST" });
+  const res = await fetch(`${API_BASE}/calls/${callId}/answer`, { method: "POST", headers: chatAuthHeaders() });
   if (!res.ok) throw new Error("Erreur acceptation appel");
   return res.json();
 }
@@ -2244,7 +2554,7 @@ export async function answerCallSession(callId) {
 export async function rejectCallSession(callId, reason = "DECLINED") {
   const res = await fetch(`${API_BASE}/calls/${callId}/reject`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: chatAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ reason }),
   });
   if (!res.ok) throw new Error("Erreur refus appel");
@@ -2252,7 +2562,7 @@ export async function rejectCallSession(callId, reason = "DECLINED") {
 }
 
 export async function endCallSession(callId) {
-  const res = await fetch(`${API_BASE}/calls/${callId}/end`, { method: "POST" });
+  const res = await fetch(`${API_BASE}/calls/${callId}/end`, { method: "POST", headers: chatAuthHeaders() });
   if (!res.ok) throw new Error("Erreur fin d'appel");
   return res.json();
 }
@@ -2263,7 +2573,7 @@ export async function fetchCallHistory({ conversation_id, store_id, limit = 50 }
   if (store_id) query.set("store_id", store_id);
   query.set("limit", limit);
 
-  const res = await fetch(`${API_BASE}/calls/history?${query.toString()}`);
+  const res = await fetch(`${API_BASE}/calls/history?${query.toString()}`, { headers: chatAuthHeaders() });
   if (!res.ok) return [];
   return res.json();
 }
@@ -2271,6 +2581,15 @@ export async function fetchCallHistory({ conversation_id, store_id, limit = 50 }
 // ============================================================================
 // CENTRALIZED NOTIFICATIONS & DECISION SUPPORT API
 // ============================================================================
+
+// Bearer header for notification endpoints: customer token for CUSTOMER
+// recipients, otherwise the merchant token (falling back to the customer one).
+function notifAuthHeaders(recipientType = null) {
+  const owner = getAuthToken();
+  const customer = getCustomerToken();
+  const token = recipientType === "CUSTOMER" ? (customer || owner) : (owner || customer);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export async function fetchNotifications(options = {}) {
   const opts = typeof options === "object" && options !== null ? options : {};
@@ -2295,7 +2614,7 @@ export async function fetchNotifications(options = {}) {
         if (category) query.set("category", category);
         query.set("limit", limit);
 
-        const res = await fetch(`${API_BASE}/notifications?${query.toString()}`);
+        const res = await fetch(`${API_BASE}/notifications?${query.toString()}`, { headers: notifAuthHeaders(recipient_type) });
         if (!res.ok) return { unread_count: 0, discrepancies_count: 0, notifications: [] };
         const data = await res.json();
         return {
@@ -2303,7 +2622,7 @@ export async function fetchNotifications(options = {}) {
           discrepancies_count: data.discrepancies_count || 0,
           notifications: data.notifications || [],
         };
-      } catch (e) {
+      } catch  {
         return { unread_count: 0, discrepancies_count: 0, notifications: [] };
       }
     },
@@ -2313,10 +2632,10 @@ export async function fetchNotifications(options = {}) {
 
 export async function markNotificationRead(notificationId) {
   try {
-    const res = await fetch(`${API_BASE}/notifications/${notificationId}/read`, { method: "POST" });
+    const res = await fetch(`${API_BASE}/notifications/${notificationId}/read`, { method: "POST", headers: notifAuthHeaders() });
     dataCache.invalidate("notifications:");
     return res.ok;
-  } catch (e) {
+  } catch  {
     return false;
   }
 }
@@ -2328,21 +2647,21 @@ export async function markAllNotificationsRead({ recipient_type = null, recipien
     if (recipient_id) query.set("recipient_id", recipient_id);
     if (store_id) query.set("store_id", store_id);
 
-    const res = await fetch(`${API_BASE}/notifications/read-all?${query.toString()}`, { method: "POST" });
+    const res = await fetch(`${API_BASE}/notifications/read-all?${query.toString()}`, { method: "POST", headers: notifAuthHeaders(recipient_type) });
     dataCache.invalidate("notifications:");
     if (!res.ok) return { success: false, count: 0 };
     return await res.json();
-  } catch (e) {
+  } catch  {
     return { success: false, count: 0 };
   }
 }
 
 export async function deleteNotification(notificationId) {
   try {
-    const res = await fetch(`${API_BASE}/notifications/${notificationId}`, { method: "DELETE" });
+    const res = await fetch(`${API_BASE}/notifications/${notificationId}`, { method: "DELETE", headers: notifAuthHeaders() });
     dataCache.invalidate("notifications:");
     return res.ok;
-  } catch (e) {
+  } catch  {
     return false;
   }
 }
@@ -2352,7 +2671,7 @@ export async function fetchDecisionInsights(storeId) {
     const res = await fetch(`${API_BASE}/notifications/decision-insights/${storeId}`);
     if (!res.ok) return { insights: [] };
     return await res.json();
-  } catch (e) {
+  } catch  {
     return { insights: [] };
   }
 }
@@ -2407,7 +2726,7 @@ export async function fetchSubscriptionStatus(storeId, customerId = null) {
     const res = await fetch(`${API_BASE}/stores/${storeId}/subscription-status?${query.toString()}`, { headers });
     if (!res.ok) return { is_subscribed: false, followers_count: 0 };
     return await res.json();
-  } catch (e) {
+  } catch  {
     return { is_subscribed: false, followers_count: 0 };
   }
 }
@@ -2425,7 +2744,7 @@ export async function fetchMyStores(customerId = null, guestToken = null) {
     const res = await fetch(`${API_BASE}/customer/my-stores?${query.toString()}`, { headers });
     if (!res.ok) return { subscribed_stores: [], recent_stores: [] };
     return await res.json();
-  } catch (e) {
+  } catch  {
     return { subscribed_stores: [], recent_stores: [] };
   }
 }
@@ -2448,7 +2767,7 @@ export async function fetchStoreAnnouncements(storeId) {
     const res = await fetch(`${API_BASE}/stores/${storeId}/announcements`);
     if (!res.ok) return [];
     return await res.json();
-  } catch (e) {
+  } catch  {
     return [];
   }
 }
@@ -2473,7 +2792,7 @@ export async function trackQrScan(storeId, customerId = null, guestToken = null)
     if (guestToken) query.set("guest_token", guestToken);
 
     await fetch(`${API_BASE}/stores/${storeId}/qr/scan?${query.toString()}`, { method: "POST" });
-  } catch (e) {
+  } catch  {
     // Non-blocking
   }
 }
@@ -2513,3 +2832,67 @@ export async function setStoreOpen(storeId, isOpen) {
   dataCache.invalidate("store:");
   return data;
 }
+
+
+// ----------------------------------------------------------------------------
+// Publicité de produit : liens de partage tracés (un par produit et par réseau)
+// ----------------------------------------------------------------------------
+const absoluteApiBase = () => (API_BASE.startsWith("http") ? API_BASE : `${window.location.origin}${API_BASE}`);
+
+/** Lien à partager : page d'aperçu (image + titre + prix pour WhatsApp, Facebook…) puis redirection vers la boutique. */
+export const shareLinkUrl = (code) => `${absoluteApiBase()}/analytics/share-page/${code}`;
+
+export async function createProductShareLink(storeId, productId, network) {
+  const res = await fetch(`${API_BASE}/analytics/${encodeURIComponent(storeId)}/share-links`, {
+    method: "POST",
+    headers: ownerJsonHeaders(),
+    body: JSON.stringify({ product_id: productId, network }),
+  });
+  const data = await safeParseJson(res);
+  if (!res.ok) throw new Error(formatErrorMessage(data, "Impossible de créer le lien de partage"));
+  return data;
+}
+
+export async function fetchShareStats(storeId, { productId = null, days = null } = {}) {
+  const q = new URLSearchParams();
+  if (productId) q.set("product_id", productId);
+  if (days) q.set("days", String(days));
+  const res = await fetch(`${API_BASE}/analytics/${encodeURIComponent(storeId)}/share-stats${q.toString() ? `?${q}` : ""}`, {
+    headers: ownerJsonHeaders(),
+  });
+  const data = await safeParseJson(res);
+  if (!res.ok) throw new Error(formatErrorMessage(data, "Impossible de charger les résultats de la publicité"));
+  return data;
+}
+
+export async function resolveShareLink(code) {
+  try {
+    const res = await fetch(`${API_BASE}/analytics/share-link/${encodeURIComponent(code)}`);
+    return res.ok ? await res.json() : null;
+  } catch  {
+    return null;
+  }
+}
+
+/** Clic / vue / intention venant d'un lien de publicité. Silencieux : ne bloque jamais l'achat. */
+export async function sendShareEvent(code, event) {
+  if (!code) return;
+  try {
+    await fetch(`${API_BASE}/analytics/share-event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, event, visitor_id: getVisitorId() }),
+      keepalive: true,
+    });
+  } catch  {
+    /* le suivi ne doit jamais gêner le client */
+  }
+}
+
+/** Intention : le client agit sur le produit promu (commander / ajouter au panier). */
+export function trackShareIntent(productId) {
+  const ref = getShareRef();
+  if (ref && productId != null && String(ref.productId) === String(productId)) sendShareEvent(ref.code, "INTENT");
+}
+
+export { API_BASE };

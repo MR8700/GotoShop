@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class MerchantWallet(Base):
     __tablename__ = "merchant_wallets"
@@ -16,8 +17,8 @@ class MerchantWallet(Base):
     currency = Column(String(10), default="XOF")
     payout_phone = Column(String(50), nullable=True)
     payout_operator = Column(String(50), default="ORANGE") # ORANGE, MOOV, WAVE, LIGDICASH, BANK
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     store = relationship("Store")
     transactions = relationship("WalletTransaction", back_populates="wallet", cascade="all, delete-orphan")
@@ -38,7 +39,7 @@ class WalletTransaction(Base):
     balance_after = Column(Integer, default=0)
     reference = Column(String(100), unique=True, index=True, default=lambda: f"WTX-{uuid.uuid4().hex[:10].upper()}")
     note = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
 
     wallet = relationship("MerchantWallet", back_populates="transactions")
     store = relationship("Store")

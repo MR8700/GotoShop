@@ -45,7 +45,7 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
       {
         key: "special",
         label: "Au moins 1 Caractère spécial (!@#$%...)",
-        passed: /[!@#$%^&*(),.?":{}|<>\-_+=\[\]\\/;~`]/.test(p),
+        passed: /[!@#$%^&*(),.?":{}|<>\-_+=[\]\\/;~`]/.test(p),
       },
       {
         key: "no_repeat",
@@ -88,8 +88,22 @@ export default function ChangePasswordModal({ isMandatory = true, onClose, onSuc
     }
   };
 
+  React.useEffect(() => {
+    if (isMandatory || !onClose) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isMandatory, onClose]);
+
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-3 bg-black/85 backdrop-blur-md overflow-y-auto">
+    <div
+      onClick={(e) => {
+        if (!isMandatory && onClose && e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-[90] flex items-center justify-center p-3 bg-black/85 backdrop-blur-md overflow-y-auto"
+    >
       <div className="bg-surface-container-high rounded-2xl p-5 max-w-md w-full shadow-2xl border border-primary/20 my-auto max-h-[95vh] overflow-y-auto">
         {/* Header with Security Badge */}
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">

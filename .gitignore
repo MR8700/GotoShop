@@ -80,3 +80,9 @@ pnpm-debug.log*
 *.swo
 .DS_Store
 Thumbs.db
+
+# Données et identifiants locaux (ne jamais versionner)
+backend/*.db
+backend/*.bak
+TEST_CREDENTIALS_LOCAL.md
+.python-version

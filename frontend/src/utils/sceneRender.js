@@ -91,7 +91,7 @@ export function sceneToSvg(nodes, wMm, hMm, { idPrefix = "s", background = null,
           close = "</g>";
         }
         const op = n.op !== undefined && n.op < 1 ? ` opacity="${n.op}"` : "";
-        return `${open}<image href="${n.asset.dataUrl}" x="${n3(n.x)}" y="${n3(n.y)}" width="${n3(n.w)}" height="${n3(n.h)}" preserveAspectRatio="xMidYMid slice"${op}${clip}/>${close}`;
+        return `${open}<image href="${/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(n.asset.dataUrl || "") ? n.asset.dataUrl : ""}" x="${n3(n.x)}" y="${n3(n.y)}" width="${n3(n.w)}" height="${n3(n.h)}" preserveAspectRatio="xMidYMid slice"${op}${clip}/>${close}`;
       }
       case "link":
         return ""; // handled by the HTML layer on screen, by annotations in PDF

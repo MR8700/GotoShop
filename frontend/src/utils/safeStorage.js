@@ -12,7 +12,7 @@ export const safeStorage = {
         const val = window.localStorage.getItem(key);
         if (val !== null) return val;
       }
-    } catch (e) {
+    } catch  {
       // Storage access blocked or restricted
     }
     return memoryStore[key] !== undefined ? memoryStore[key] : null;
@@ -25,7 +25,7 @@ export const safeStorage = {
       if (typeof window !== "undefined" && window.localStorage) {
         window.localStorage.setItem(key, stringValue);
       }
-    } catch (e) {
+    } catch  {
       // QuotaExceededError or SecurityError in private mode
     }
   },
@@ -36,7 +36,7 @@ export const safeStorage = {
       if (typeof window !== "undefined" && window.localStorage) {
         window.localStorage.removeItem(key);
       }
-    } catch (e) {}
+    } catch  {}
   },
 
   clear: () => {
@@ -47,7 +47,7 @@ export const safeStorage = {
       if (typeof window !== "undefined" && window.localStorage) {
         window.localStorage.clear();
       }
-    } catch (e) {}
+    } catch  {}
   },
 };
 

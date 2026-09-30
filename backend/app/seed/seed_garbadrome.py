@@ -1,5 +1,6 @@
 import uuid
 import json
+from app.core.security import hash_session_token
 from datetime import datetime, timedelta
 from app.database import SessionLocal, Base, engine
 from app.core.security import hash_password
@@ -10,6 +11,7 @@ from app.models import (
     Conversation, ConversationParticipant, ChatMessage, MessageAttachment,
     CallSession, AuditLog
 )
+from app.core.clock import utcnow
 
 def seed_garbadrome_kossodo(db):
     # 1. Owner Moussa Traoré
@@ -314,7 +316,7 @@ def seed_garbadrome_kossodo(db):
                 delivery_address="Cité universitaire de Kossodo, Pavillon B, Chambre 14, près de la porte principale",
                 gps_coordinates="12.4172, -1.4889",
                 gps_location_url="https://maps.google.com/?q=12.4172,-1.4889",
-                session_token="token_richard_kossodo_2026"
+                session_token=hash_session_token("token_richard_kossodo_2026")
             )
             db.add(richard)
             db.flush()
@@ -328,7 +330,7 @@ def seed_garbadrome_kossodo(db):
                 order_number="KSD-1045",
                 store_id=store.id,
                 customer_id=richard.id,
-                customer_token=richard.session_token,
+                customer_token=None,
                 customer_name="Richard",
                 customer_phone="+22676001045",
                 customer_email="richard@etudiant-kossodo.bf",
@@ -339,7 +341,7 @@ def seed_garbadrome_kossodo(db):
                 total_amount=2500,
                 currency="FCFA",
                 notes="Livrer rapidement si possible avant le début du cours de 14h.",
-                created_at=datetime.utcnow() - timedelta(minutes=25)
+                created_at=utcnow() - timedelta(minutes=25)
             )
             db.add(order_ksd)
             db.flush()
@@ -385,7 +387,7 @@ def seed_garbadrome_kossodo(db):
                 latitude=12.4172,
                 longitude=-1.4889,
                 location_accuracy=5.2,
-                location_captured_at=datetime.utcnow() - timedelta(minutes=25),
+                location_captured_at=utcnow() - timedelta(minutes=25),
                 delivery_notes="Appeler dès l'arrivée au portail du Pavillon B.",
                 delivery_status="PREPARING"
             )
@@ -402,7 +404,7 @@ def seed_garbadrome_kossodo(db):
                 status="PAYMENT_CONFIRMED",
                 transaction_reference="OM-BF-892401",
                 confirmed_by="Moussa Traoré",
-                confirmed_at=datetime.utcnow() - timedelta(minutes=15)
+                confirmed_at=utcnow() - timedelta(minutes=15)
             )
             db.add(payment)
             db.flush()
@@ -419,7 +421,7 @@ def seed_garbadrome_kossodo(db):
                 customer_note="Transfert Orange Money de 2 500 FCFA effectué avec succès.",
                 status="VERIFIED",
                 verified_by="Moussa Traoré",
-                verified_at=datetime.utcnow() - timedelta(minutes=15)
+                verified_at=utcnow() - timedelta(minutes=15)
             )
             db.add(proof)
 
@@ -431,9 +433,9 @@ def seed_garbadrome_kossodo(db):
                 context_type="ORDER",
                 title="Commande #KSD-1045",
                 customer_id=richard.id,
-                customer_token=richard.session_token,
+                customer_token=None,
                 customer_name="Richard",
-                last_message_at=datetime.utcnow() - timedelta(minutes=10),
+                last_message_at=utcnow() - timedelta(minutes=10),
                 last_message_preview="👨‍🍳 Commande en cours de préparation en cuisine !"
             )
             db.add(conv_order)
@@ -446,7 +448,7 @@ def seed_garbadrome_kossodo(db):
                 user_type="CUSTOMER",
                 user_id=richard.id,
                 display_name="Richard",
-                last_read_at=datetime.utcnow()
+                last_read_at=utcnow()
             ))
             db.add(ConversationParticipant(
                 id=str(uuid.uuid4()),
@@ -455,7 +457,7 @@ def seed_garbadrome_kossodo(db):
                 user_id=owner.id,
                 display_name="Garbadrome Kossodo",
                 avatar_url=store.avatar_url,
-                last_read_at=datetime.utcnow()
+                last_read_at=utcnow()
             ))
 
             # Messages sequence in conversation #KSD-1045
@@ -480,7 +482,7 @@ def seed_garbadrome_kossodo(db):
                     "latitude": 12.4172,
                     "longitude": -1.4889
                 }),
-                created_at=datetime.utcnow() - timedelta(minutes=24)
+                created_at=utcnow() - timedelta(minutes=24)
             )
 
             # Msg 2: Seller Accepted
@@ -492,7 +494,7 @@ def seed_garbadrome_kossodo(db):
                 message_type="SYSTEM",
                 content="✅ Le vendeur a accepté votre commande. Vous pouvez maintenant effectuer le paiement et envoyer la preuve dans cette conversation.",
                 metadata_json=json.dumps({"status": "ACCEPTED"}),
-                created_at=datetime.utcnow() - timedelta(minutes=22)
+                created_at=utcnow() - timedelta(minutes=22)
             )
 
             # Msg 3: Customer Chat
@@ -503,7 +505,7 @@ def seed_garbadrome_kossodo(db):
                 sender_name="Richard",
                 message_type="TEXT",
                 content="Bonjour chef ! J'ai bien précisé beaucoup d'oignons et poisson bien croustillant. Je vous envoie la capture Orange Money tout de suite.",
-                created_at=datetime.utcnow() - timedelta(minutes=20)
+                created_at=utcnow() - timedelta(minutes=20)
             )
 
             # Msg 4: Payment proof
@@ -523,7 +525,7 @@ def seed_garbadrome_kossodo(db):
                     "currency": "FCFA",
                     "status": "VERIFIED"
                 }),
-                created_at=datetime.utcnow() - timedelta(minutes=18)
+                created_at=utcnow() - timedelta(minutes=18)
             )
 
             # Msg 5: Payment confirmed
@@ -535,7 +537,7 @@ def seed_garbadrome_kossodo(db):
                 message_type="SYSTEM",
                 content="🎉 Paiement confirmé par le commerçant ! Votre commande est validée et passe en préparation.",
                 metadata_json=json.dumps({"payment_status": "PAYMENT_CONFIRMED", "status": "PAID"}),
-                created_at=datetime.utcnow() - timedelta(minutes=15)
+                created_at=utcnow() - timedelta(minutes=15)
             )
 
             # Msg 6: Seller Chat Message
@@ -546,7 +548,7 @@ def seed_garbadrome_kossodo(db):
                 sender_name="Moussa Traoré",
                 message_type="TEXT",
                 content="Reçu 5/5 Richard ! Le thon est déjà sur le feu pour être bien croustillant avec double portion d'oignons. Le livreur arrive dans 10 min au Pavillon B.",
-                created_at=datetime.utcnow() - timedelta(minutes=12)
+                created_at=utcnow() - timedelta(minutes=12)
             )
 
             # Msg 7: Status PREPARING
@@ -558,7 +560,7 @@ def seed_garbadrome_kossodo(db):
                 message_type="SYSTEM",
                 content="👨‍🍳 Commande en cours de préparation en cuisine !",
                 metadata_json=json.dumps({"status": "PREPARING"}),
-                created_at=datetime.utcnow() - timedelta(minutes=10)
+                created_at=utcnow() - timedelta(minutes=10)
             )
 
             db.add_all([m1, m2, m3, m4, m5, m6, m7])
@@ -571,9 +573,9 @@ def seed_garbadrome_kossodo(db):
                 context_type="GENERAL_STORE",
                 title="Discussion avec Garbadrome Kossodo",
                 customer_id=richard.id,
-                customer_token=richard.session_token,
+                customer_token=None,
                 customer_name="Richard",
-                last_message_at=datetime.utcnow() - timedelta(hours=2),
+                last_message_at=utcnow() - timedelta(hours=2),
                 last_message_preview="Oui bien sûr ! Nous servons en continu jusqu'à 22h à Kossodo."
             )
             db.add(conv_general)
@@ -602,7 +604,7 @@ def seed_garbadrome_kossodo(db):
                 sender_name="Richard",
                 message_type="TEXT",
                 content="Bonjour Moussa, vous êtes ouverts aujourd'hui ? Il reste du poisson thon pour midi ?",
-                created_at=datetime.utcnow() - timedelta(hours=2, minutes=5)
+                created_at=utcnow() - timedelta(hours=2, minutes=5)
             )
             mg2 = ChatMessage(
                 id=str(uuid.uuid4()),
@@ -611,7 +613,7 @@ def seed_garbadrome_kossodo(db):
                 sender_name="Moussa Traoré",
                 message_type="TEXT",
                 content="Salut Richard ! Oui bien sûr ! Nous venons de recevoir du thon frais ce matin et nous servons en continu jusqu'à 22h à Kossodo.",
-                created_at=datetime.utcnow() - timedelta(hours=2)
+                created_at=utcnow() - timedelta(hours=2)
             )
             db.add_all([mg1, mg2])
 
@@ -628,9 +630,9 @@ def seed_garbadrome_kossodo(db):
                 callee_name="Garbadrome Kossodo",
                 call_type="AUDIO",
                 status="ENDED",
-                started_at=datetime.utcnow() - timedelta(days=1, hours=3),
-                answered_at=datetime.utcnow() - timedelta(days=1, hours=3) + timedelta(seconds=5),
-                ended_at=datetime.utcnow() - timedelta(days=1, hours=3) + timedelta(minutes=2, seconds=15),
+                started_at=utcnow() - timedelta(days=1, hours=3),
+                answered_at=utcnow() - timedelta(days=1, hours=3) + timedelta(seconds=5),
+                ended_at=utcnow() - timedelta(days=1, hours=3) + timedelta(minutes=2, seconds=15),
                 duration_seconds=135
             )
             call2 = CallSession(
@@ -645,9 +647,9 @@ def seed_garbadrome_kossodo(db):
                 callee_name="Garbadrome Kossodo",
                 call_type="VIDEO",
                 status="ENDED",
-                started_at=datetime.utcnow() - timedelta(hours=5),
-                answered_at=datetime.utcnow() - timedelta(hours=5) + timedelta(seconds=4),
-                ended_at=datetime.utcnow() - timedelta(hours=5) + timedelta(minutes=4, seconds=42),
+                started_at=utcnow() - timedelta(hours=5),
+                answered_at=utcnow() - timedelta(hours=5) + timedelta(seconds=4),
+                ended_at=utcnow() - timedelta(hours=5) + timedelta(minutes=4, seconds=42),
                 duration_seconds=282
             )
             db.add_all([call1, call2])

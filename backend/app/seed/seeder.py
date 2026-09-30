@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import uuid
 import secrets
+from app.core.security import hash_session_token
 from app.database import SessionLocal, Base, engine
 from app.core.security import hash_password
 from app.models import (
@@ -12,6 +13,7 @@ from app.models import (
 from app.models.customer import Customer
 from app.models.super_admin import SuperAdmin
 from app.models.store import LoyaltyTier
+from app.core.clock import utcnow
 
 def seed_database():
     Base.metadata.create_all(bind=engine)
@@ -34,7 +36,7 @@ def seed_database():
                     full_name="Super Administrateur GotoShop",
                     password_hash=pwd_hash,
                     password_salt=salt,
-                    created_at=datetime.utcnow()
+                    created_at=utcnow()
                 )
                 db.add(sa)
             else:
@@ -795,7 +797,7 @@ def seed_database():
                     gps_coordinates=c_data["gps_coordinates"],
                     gps_location_url=c_data["gps_location_url"],
                     preferred_channel="WHATSAPP",
-                    session_token="token_" + secrets.token_hex(16)
+                    session_token=hash_session_token("token_" + secrets.token_hex(16))
                 )
         db.commit()
 

@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Text, event
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class Owner(Base):
     __tablename__ = "owners"
@@ -19,7 +20,7 @@ class Owner(Base):
     failed_login_attempts = Column(Integer, default=0)
     locked_until = Column(DateTime, nullable=True)
     last_login_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     stores = relationship("Store", back_populates="owner", cascade="all, delete-orphan")
 
@@ -88,8 +89,8 @@ class Store(Base):
     contact_whatsapp = Column(String(30), nullable=True)
     contact_email = Column(String(100), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     owner = relationship("Owner", back_populates="stores")
     categories = relationship("Category", back_populates="store", cascade="all, delete-orphan")
@@ -98,6 +99,7 @@ class Store(Base):
     order_intents = relationship("OrderIntent", back_populates="store", cascade="all, delete-orphan")
     trust_badges = relationship("TrustBadge", back_populates="store", cascade="all, delete-orphan")
     delivery_cities = relationship("DeliveryCity", back_populates="store", cascade="all, delete-orphan")
+    delivery_spots = relationship("DeliverySpot", back_populates="store", cascade="all, delete-orphan")
     loyalty_tiers = relationship("LoyaltyTier", back_populates="store", cascade="all, delete-orphan", order_by="LoyaltyTier.min_points")
     subscriptions = relationship("StoreSubscription", back_populates="store", cascade="all, delete-orphan")
     announcements = relationship("StoreAnnouncement", back_populates="store", cascade="all, delete-orphan")
@@ -125,7 +127,50 @@ class DeliveryCity(Base):
     display_label = Column(String(100), nullable=False)
     is_default = Column(Boolean, default=False)
     display_order = Column(Integer, default=0)
+    # Tarif de livraison (FCFA) fixé par la boutique. NULL = non configuré (repli borné, voir order_service).
+    delivery_fee = Column(Integer, nullable=True)
+    # Centre GPS de la zone et rayon de couverture : servent à vérifier la position du client à la commande.
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    radius_km = Column(Float, nullable=True)
     store = relationship("Store", back_populates="delivery_cities")
+
+
+@event.listens_for(DeliveryCity, "before_insert")
+def _delivery_city_defaults(mapper, connection, target):
+    """Toute zone créée (API, inscription, seeders) reçoit un tarif explicite et, si connu, son GPS."""
+    from app.services.geo_service import DEFAULT_DELIVERY_FEE, suggest_gps
+    if target.delivery_fee is None:
+        target.delivery_fee = DEFAULT_DELIVERY_FEE
+    if target.latitude is None or target.longitude is None:
+        ref = suggest_gps(target.name)
+        if ref:
+            target.latitude, target.longitude = ref["latitude"], ref["longitude"]
+            if target.radius_km is None:
+                target.radius_km = ref["radius_km"]
+
+
+class DeliverySpot(Base):
+    """Lieu défini par le commerçant : point de retrait (PICKUP) ou point de livraison / rendez-vous (DELIVERY)."""
+    __tablename__ = "delivery_spots"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
+    kind = Column(String(20), default="PICKUP", nullable=False)  # PICKUP | DELIVERY
+    name = Column(String(120), nullable=False)
+    city = Column(String(100), nullable=True)
+    address = Column(Text, nullable=True)
+    description = Column(Text, nullable=True)
+    hours = Column(String(300), nullable=True)      # horaires libres (ex: "Lun-Sam 9h-18h")
+    image_urls = Column(Text, nullable=True)        # JSON : liste d'URLs
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    delivery_fee = Column(Integer, nullable=True)   # NULL = tarif de la ville ; retrait = toujours 0
+    is_active = Column(Boolean, default=True)
+    display_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=utcnow)
+
+    store = relationship("Store", back_populates="delivery_spots")
 
 
 class LoyaltyTier(Base):
@@ -141,9 +186,32 @@ class LoyaltyTier(Base):
     discount_percent = Column(Integer, default=0) # e.g. 0, 5, 10
     is_active = Column(Boolean, default=True)
     display_order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     store = relationship("Store", back_populates="loyalty_tiers")
+
+
+class StoreDiscountRule(Base):
+    """Remise automatique définie par le commerçant.
+    audience : ALL (tous), CLIENTS (comptes clients), VISITORS (visiteurs sans compte), SELECTED (clients choisis).
+    scope : STORE (toute la commande), PRODUCT (produits choisis), CATEGORY (catégories choisies).
+    Une remise PRODUCT / CATEGORY ne porte que sur les lignes concernées, et seulement pour le public (audience) choisi."""
+    __tablename__ = "store_discount_rules"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    percent = Column(Integer, nullable=False)
+    audience = Column(String(20), nullable=False, default="ALL")
+    customer_ids = Column(Text, nullable=True)  # JSON : liste d'identifiants clients (audience SELECTED)
+    scope = Column(String(20), nullable=False, default="STORE", server_default="STORE")
+    product_ids = Column(Text, nullable=True)   # JSON : identifiants produits (scope PRODUCT)
+    category_ids = Column(Text, nullable=True)  # JSON : identifiants catégories (scope CATEGORY)
+    min_order_amount = Column(Integer, default=0)
+    starts_at = Column(DateTime, nullable=True)
+    ends_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class StoreSubscription(Base):
@@ -159,10 +227,10 @@ class StoreSubscription(Base):
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, index=True)
     status = Column(String(30), default="ACTIVE") # ACTIVE, PAUSED, UNSUBSCRIBED, BLOCKED
     notification_preferences = Column(Text, nullable=True) # JSON: news, promos, arrivals
-    subscribed_at = Column(DateTime, default=datetime.utcnow)
+    subscribed_at = Column(DateTime, default=utcnow)
     unsubscribed_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     store = relationship("Store", back_populates="subscriptions")
     customer = relationship("Customer")
@@ -180,7 +248,7 @@ class StoreAccessHistory(Base):
     customer_id = Column(String(36), nullable=True, index=True)
     guest_token = Column(String(128), nullable=True, index=True)
     interaction_type = Column(String(50), default="VISIT") # VISIT, ORDER, CHAT, QR_SCAN
-    last_interacted_at = Column(DateTime, default=datetime.utcnow, index=True)
+    last_interacted_at = Column(DateTime, default=utcnow, index=True)
 
     store = relationship("Store")
 
@@ -197,7 +265,7 @@ class StoreAnnouncement(Base):
     content = Column(Text, nullable=False)
     announcement_type = Column(String(50), default="NEWS") # NEWS, PROMO, EVENT, SCHEDULE
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     store = relationship("Store", back_populates="announcements")
 

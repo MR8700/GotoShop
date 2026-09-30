@@ -1,15 +1,22 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class CustomerQuickRegisterRequest(BaseModel):
     name: str
     phone: str
     city: Optional[str] = "Abidjan"
     store_id: Optional[str] = None
+    otp_code: Optional[str] = None
 
 class CustomerQuickLoginRequest(BaseModel):
     phone: str
+    store_id: Optional[str] = None
+    otp_code: Optional[str] = None
+
+class CustomerLoginOtpRequest(BaseModel):
+    phone: str
+    store_id: Optional[str] = None
 
 class CustomerProfileUpdateRequest(BaseModel):
     name: Optional[str] = None
@@ -24,6 +31,7 @@ class CustomerProfileUpdateRequest(BaseModel):
     avatar_data: Optional[str] = None # Base64 encoded image
 
 class CustomerResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     store_id: str
     name: str
@@ -38,11 +46,8 @@ class CustomerResponse(BaseModel):
     notes: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 class CustomerAuthResponse(BaseModel):
-    access_token: str
+    access_token: Optional[str] = None  # None quand la session vit uniquement dans le cookie HttpOnly
     token_type: str = "bearer"
     customer: CustomerResponse
     message: str
@@ -55,6 +60,9 @@ class CustomerOrderItem(BaseModel):
     quantity: int
     selected_color: Optional[str] = None
     delivery_city: Optional[str] = None
+    fulfillment_type: Optional[str] = None
+    spot_name: Optional[str] = None
+    spot_hours: Optional[str] = None
     total_amount: int
     currency: str = "FCFA"
     status: str
@@ -81,7 +89,7 @@ class CustomerStatsResponse(BaseModel):
     satisfied_orders: int = 0
     cancelled_orders: int = 0
     total_spent: int
-    loyalty_points: int
+    loyalty_points: float
     loyalty_tier: str # "Bronze", "Silver", "Gold VIP"
     next_tier: Optional[str] = None
     next_tier_progress: int = 0 # Percentage 0-100
@@ -94,6 +102,7 @@ class CustomerStatsResponse(BaseModel):
     all_tiers: List[dict] = []
 
 class MerchantClientItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     phone: str
@@ -104,7 +113,7 @@ class MerchantClientItem(BaseModel):
     avatar_url: Optional[str] = None
     is_blocked: bool = False
     moderation_notes: Optional[str] = None
-    bonus_points: int = 0
+    bonus_points: float = 0
     custom_discount_percent: int = 0
     custom_perk_note: Optional[str] = None
     total_orders_count: int = 0
@@ -112,14 +121,11 @@ class MerchantClientItem(BaseModel):
     cancelled_count: int = 0
     total_spent: int = 0
     currency: str = "FCFA"
-    loyalty_points: int = 0
+    loyalty_points: float = 0
     loyalty_tier: str = "Membre"
     average_satisfaction: Optional[float] = None
     last_interaction_at: Optional[datetime] = None
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 class MerchantClientDetail(MerchantClientItem):
     orders: List[CustomerOrderItem] = []
@@ -129,7 +135,7 @@ class ModerateClientRequest(BaseModel):
     moderation_notes: Optional[str] = None
 
 class GrantClientPerkRequest(BaseModel):
-    bonus_points: Optional[int] = 0
+    bonus_points: Optional[float] = 0
     custom_discount_percent: Optional[int] = 0
     custom_perk_note: Optional[str] = None
 

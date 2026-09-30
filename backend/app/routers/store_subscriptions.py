@@ -12,6 +12,7 @@ from app.models.customer import Customer
 from app.services.store_service import StoreService
 from app.services.notification_engine import NotificationEngine
 from app.routers.auth import require_store_admin
+from app.core.clock import utcnow
 
 router = APIRouter(tags=["Store Subscriptions & Mes Boutiques"])
 
@@ -41,7 +42,8 @@ def _get_customer_from_request(
 
     if authorization:
         token = authorization.replace("Bearer ", "").strip()
-        cust = db.query(Customer).filter(Customer.session_token == token).first()
+        from app.services.customer_service import CustomerService
+        cust = CustomerService.get_by_token(db, token)
         if cust:
             return cust
     return None
@@ -71,14 +73,14 @@ def subscribe_to_store(
     if sub:
         sub.status = "ACTIVE"
         sub.unsubscribed_at = None
-        sub.updated_at = datetime.utcnow()
+        sub.updated_at = utcnow()
     else:
         sub = StoreSubscription(
             id=str(uuid.uuid4()),
             store_id=store.id,
             customer_id=customer.id,
             status="ACTIVE",
-            subscribed_at=datetime.utcnow()
+            subscribed_at=utcnow()
         )
         db.add(sub)
 
@@ -95,7 +97,7 @@ def subscribe_to_store(
         store_id=store.id,
         customer_id=customer.id,
         interaction_type="SUBSCRIBE",
-        last_interacted_at=datetime.utcnow()
+        last_interacted_at=utcnow()
     )
     db.add(history)
 
@@ -139,8 +141,8 @@ def unsubscribe_from_store(
 
     if sub:
         sub.status = "UNSUBSCRIBED"
-        sub.unsubscribed_at = datetime.utcnow()
-        sub.updated_at = datetime.utcnow()
+        sub.unsubscribed_at = utcnow()
+        sub.updated_at = utcnow()
 
     # Recalculate followers count
     active_count = db.query(StoreSubscription).filter(
@@ -223,7 +225,7 @@ def get_my_stores(
                 })
 
     # Recent interactions with TTL (30 days)
-    ttl_threshold = datetime.utcnow() - timedelta(days=STORE_RECENT_INTERACTION_TTL_DAYS)
+    ttl_threshold = utcnow() - timedelta(days=STORE_RECENT_INTERACTION_TTL_DAYS)
     recent_query = db.query(StoreAccessHistory).filter(
         StoreAccessHistory.last_interacted_at >= ttl_threshold
     )
@@ -287,7 +289,7 @@ def create_announcement(
         content=req.content,
         announcement_type=req.announcement_type or "NEWS",
         is_active=True,
-        created_at=datetime.utcnow()
+        created_at=utcnow()
     )
     db.add(ann)
     db.commit()

@@ -15,7 +15,7 @@ export function ThemeProvider({ children }) {
       if (saved === "dark" || saved === "light") {
         return saved;
       }
-    } catch (e) {}
+    } catch  {}
     return "light"; // Default theme is Light Mode
   });
 
@@ -43,7 +43,7 @@ export function ThemeProvider({ children }) {
     setThemeState(newTheme);
     try {
       safeStorage.setItem("gotoshop_theme", newTheme);
-    } catch (e) {}
+    } catch  {}
     applyTheme(newTheme);
   };
 

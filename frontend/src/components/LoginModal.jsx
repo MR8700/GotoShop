@@ -1,6 +1,6 @@
 import Icon from "./Icon";
 import React, { useState } from "react";
-import { loginOwner } from "../api/client";
+import { loginOwner, requestPasswordReset, confirmPasswordReset } from "../api/client";
 
 export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegisterStore, showToast }) {
   const [identifier, setIdentifier] = useState("");
@@ -8,8 +8,74 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  // Mot de passe oublié : "login" -> "request" (saisie du compte) -> "confirm" (code WhatsApp + nouveau mot de passe)
+  const [mode, setMode] = useState("login");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const backToLogin = () => {
+    setMode("login");
+    setOtp("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setErrorMessage("");
+    setInfoMessage("");
+  };
+
+  const handleRequestReset = async (e) => {
+    e.preventDefault();
+    setErrorMessage("");
+    setIsLoading(true);
+    try {
+      const data = await requestPasswordReset(identifier.trim());
+      setInfoMessage(data.message || "Un code vient d'être envoyé sur WhatsApp.");
+      if (data.dev_code) setOtp(data.dev_code); // simulateur uniquement, jamais en production
+      setMode("confirm");
+    } catch (err) {
+      setErrorMessage(err.message || "Envoi impossible");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmReset = async (e) => {
+    e.preventDefault();
+    setErrorMessage("");
+    if (newPassword !== confirmPassword) {
+      setErrorMessage("Le mot de passe et sa confirmation ne correspondent pas.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const data = await confirmPasswordReset({
+        identifier: identifier.trim(),
+        code: otp.trim(),
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      });
+      if (showToast) showToast(data.message || "Mot de passe mis à jour.");
+      setPassword("");
+      backToLogin();
+      setInfoMessage("Mot de passe mis à jour. Connectez-vous avec le nouveau.");
+    } catch (err) {
+      setErrorMessage(err.message || "Réinitialisation impossible");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -65,6 +131,81 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
           </div>
         )}
 
+        {infoMessage && (
+          <div className="mb-3.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs">
+            {infoMessage}
+          </div>
+        )}
+
+        {mode === "request" && (
+          <form onSubmit={handleRequestReset} className="space-y-3.5">
+            <p className="text-xs text-on-surface-variant">
+              Saisissez l'e-mail ou le téléphone de votre compte : un code à 6 chiffres vous sera envoyé sur WhatsApp.
+            </p>
+            <input
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="E-mail ou téléphone"
+              className="w-full h-11 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface text-sm focus:outline-none focus:border-primary"
+              required
+            />
+            <button type="submit" disabled={isLoading || !identifier}
+              className="w-full h-11 rounded-xl bg-primary text-white text-xs font-semibold disabled:opacity-50 cursor-pointer">
+              {isLoading ? "Envoi..." : "Envoyer le code WhatsApp"}
+            </button>
+            <button type="button" onClick={backToLogin} className="w-full text-xs text-on-surface-variant underline cursor-pointer">
+              Retour à la connexion
+            </button>
+          </form>
+        )}
+
+        {mode === "confirm" && (
+          <form onSubmit={handleConfirmReset} className="space-y-3.5">
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+              placeholder="Code à 6 chiffres"
+              className="w-full h-11 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface text-sm font-mono tracking-widest focus:outline-none focus:border-primary"
+              required
+            />
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Nouveau mot de passe"
+              className="w-full h-11 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface text-sm focus:outline-none focus:border-primary"
+              required
+            />
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirmer le mot de passe"
+              className="w-full h-11 px-3 rounded-xl bg-surface-secondary border border-subtle text-on-surface text-sm focus:outline-none focus:border-primary"
+              required
+            />
+            <p className="text-[11px] text-on-surface-variant">
+              Au moins 8 caractères avec majuscule, minuscule, chiffre et caractère spécial, sans caractères répétés côte à côte.
+            </p>
+            <button type="submit" disabled={isLoading || otp.length !== 6 || !newPassword}
+              className="w-full h-11 rounded-xl bg-primary text-white text-xs font-semibold disabled:opacity-50 cursor-pointer">
+              {isLoading ? "Validation..." : "Changer mon mot de passe"}
+            </button>
+            <button type="button" onClick={() => { setErrorMessage(""); setMode("request"); }}
+              className="w-full text-xs text-on-surface-variant underline cursor-pointer">
+              Renvoyer un code
+            </button>
+          </form>
+        )}
+
+        {mode === "login" && (
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
             <label className="text-[11px] text-on-surface-variant uppercase font-semibold block mb-1">
@@ -115,7 +256,15 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
             <Icon name="login" className="text-[18px]" />
             <span>{isLoading ? "Connexion en cours..." : "Accéder à ma Boutique"}</span>
           </button>
+          <button
+            type="button"
+            onClick={() => { setErrorMessage(""); setInfoMessage(""); setMode("request"); }}
+            className="w-full text-xs text-primary hover:underline cursor-pointer"
+          >
+            Mot de passe oublié ?
+          </button>
         </form>
+        )}
 
 
 

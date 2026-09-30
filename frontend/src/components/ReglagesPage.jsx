@@ -11,6 +11,9 @@ import {
   fetchStoreSubscriptionStatus,
 } from "../api/client";
 import SubscriptionModal from "./SubscriptionModal";
+import DeliveryCitiesSection from "./DeliveryCitiesSection";
+import DeliverySpotsSection from "./DeliverySpotsSection";
+import DiscountRulesSection from "./DiscountRulesSection";
 
 const THEME_PRESETS = [
   { id: "KINETIC_AMBER", label: "Kinetic Amber (Défaut)", primary: "#ec761e", secondary: "#4edea3" },
@@ -210,7 +213,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
       setChannelList(newList);
       if (onChannelsUpdated) onChannelsUpdated(newList);
       showToast(`Canal ${ch.display_title} : ${newStatus ? "Activé" : "Désactivé"}`);
-    } catch (e) {
+    } catch  {
       showToast("Erreur de mise à jour du canal");
     }
   };
@@ -338,11 +341,11 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
       setEditingTier("new");
       setTierForm({
         name: "",
-        min_points: 100,
+        min_points: 10,
         badge_label: "",
         perk_title: "",
         perk_description: "",
-        discount_percent: 5,
+        discount_percent: 0,
         is_active: true,
       });
     }
@@ -359,7 +362,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
         badge_label: tierForm.badge_label.trim() || null,
         perk_title: tierForm.perk_title.trim() || null,
         perk_description: tierForm.perk_description.trim() || null,
-        discount_percent: parseInt(tierForm.discount_percent) || 0,
+        discount_percent: 0,
         is_active: tierForm.is_active,
       };
 
@@ -886,41 +889,18 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
           </label>
         </div>
 
-        {/* Spend per point rule */}
+        {/* Règle de gain v3 */}
         <div className="p-3 rounded-xl bg-surface-container-high/60 border border-white/5 space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="font-label-sm text-xs text-on-surface font-bold">
-              Règle d'acquisition : Dépense pour 1 point
-            </label>
-            <span className="text-[11px] text-secondary font-semibold">1 pt cumulé</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <input
-                type="number"
-                min="100"
-                step="100"
-                value={loyaltySpendPerPoint}
-                onChange={(e) => setLoyaltySpendPerPoint(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg bg-surface-container border border-outline-variant/30 text-on-surface font-headline-sm text-sm"
-              />
-              <span className="absolute right-3 top-2.5 text-xs text-on-surface-variant font-bold">
-                {currency}
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSaveLoyaltyConfig}
-              disabled={isSavingLoyaltyConfig}
-              className="h-10 px-4 rounded-lg bg-secondary/15 hover:bg-secondary/25 text-secondary font-label-sm text-xs font-bold transition-all shrink-0"
-            >
-              {isSavingLoyaltyConfig ? "Sauvegarde..." : "Valider le ratio"}
-            </button>
-          </div>
+          <label className="font-label-sm text-xs text-on-surface font-bold block">
+            Règle de gain : points par paiement validé
+          </label>
           <p className="text-[11px] text-on-surface-variant">
-            Exemple : Avec 1 000 {currency}, un achat de 25 000 {currency} crédite automatiquement 25 points au client dès confirmation.
+            Chaque commande livrée et payée rapporte <b>0,5 pt</b>, puis <b>+0,1 pt de gain tous les 3 paiements</b> du client (0,6 au 3e, 1,0 au 15e...).
+            Le gain ne dépend plus du montant : une commande compte à partir de 1 000 {currency}, un paiement par client et par jour.
+          </p>
+          <p className="text-[11px] text-on-surface-variant">
+            <b>1 point = 1 % de remise</b> sur un seul produit choisi par le client à la commande (une unité, maximum 20 pt par utilisation).
+            Non cumulable avec un coupon. Les points dépensés sont rendus si la commande est annulée ou rejetée.
           </p>
         </div>
 
@@ -984,9 +964,6 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
                         <p className="font-bold text-primary flex items-center gap-1">
                           <Icon name="redeem" className="text-[14px]" />
                           {tier.perk_title || "Avantage exclusif"}
-                          {tier.discount_percent > 0 && (
-                            <span className="text-secondary font-mono">(-{tier.discount_percent}%)</span>
-                          )}
                         </p>
                         {tier.perk_description && (
                           <p className="text-[11px] text-on-surface-variant leading-tight mt-0.5">
@@ -1021,6 +998,13 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
           )}
         </div>
       </section>
+
+      {/* Remises boutique par audience */}
+      <DiscountRulesSection store={store} currency={currency} showToast={showToast} />
+
+      {/* Delivery zones & fees */}
+      <DeliveryCitiesSection store={store} currency={currency} showToast={showToast} />
+      <DeliverySpotsSection store={store} currency={currency} showToast={showToast} />
 
       {/* Social Channels Configuration */}
       <section className="bg-surface-container rounded-xl p-space-md shadow-md space-y-3">
@@ -1341,7 +1325,7 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="font-label-sm text-xs text-on-surface-variant uppercase font-bold block mb-1">
-                    Points requis
+                    Points gagnés requis
                   </label>
                   <input
                     type="number"
@@ -1353,19 +1337,9 @@ export default function ReglagesPage({ store, channels, onStoreUpdated, onChanne
                   />
                 </div>
 
-                <div>
-                  <label className="font-label-sm text-xs text-on-surface-variant uppercase font-bold block mb-1">
-                    Remise directe (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={tierForm.discount_percent}
-                    onChange={(e) => setTierForm({ ...tierForm, discount_percent: e.target.value })}
-                    className="w-full h-11 px-3 rounded-lg bg-surface-container border border-outline-variant/30 text-on-surface font-body-md"
-                  />
-                </div>
+                <p className="text-[11px] text-on-surface-variant self-end pb-1">
+                  Statut honorifique : la remise se fait désormais avec les points du client sur un produit.
+                </p>
               </div>
 
               <div>

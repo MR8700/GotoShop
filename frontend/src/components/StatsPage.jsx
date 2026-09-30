@@ -10,6 +10,7 @@ import {
   dataCache,
 } from "../api/client";
 import ProductManageModal from "./ProductManageModal";
+import ProductAdsSection from "./ProductAdsSection";
 import ShareSocialModal from "./ShareSocialModal";
 
 export default function StatsPage({ store, products, onNavigateToCatalog, onProductUpdated, onProductDeleted, showToast }) {
@@ -62,6 +63,15 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
     loadStats(period);
   }, [period]);
 
+  useEffect(() => {
+    if (!selectedClientDetail) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setSelectedClientDetail(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedClientDetail]);
+
   const loadStats = async (p) => {
     try {
       if (!analytics) setLoading(true);
@@ -102,6 +112,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
         custom_perk_note: perkNote,
       });
       showToast(res.message || "Avantages enregistrés !");
+      setPerkBonusPoints(0);
       loadClients(clientSearch);
       const updatedDetail = await fetchMerchantClientDetail(selectedClientDetail.id);
       setSelectedClientDetail(updatedDetail);
@@ -541,6 +552,8 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
           Générer un lien tracké Réseau Social / QR
         </button>
       </section>
+
+      <ProductAdsSection store={store} />
       </>
       ) : (
         /* CRM Clients & Loyalty View */
@@ -723,7 +736,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[10px] text-on-surface-variant uppercase tracking-wider">Fidélité</span>
-                          <span className="font-bold text-xs text-amber-400">★ {client.loyalty_points} pts</span>
+                          <span className="font-bold text-xs text-amber-400">★ {Number(client.loyalty_points || 0).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} pt</span>
                         </div>
                       </div>
 
@@ -735,30 +748,30 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                         </div>
                       )}
                       {client.custom_perk_note && (
-                        <div className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-semibold flex items-center gap-1.5">
+                        <div className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px] font-semibold flex items-center gap-1.5">
                           <Icon name="card_giftcard" className="text-[14px]" />
                           <span>Avantage accordé : {client.custom_perk_note}</span>
                         </div>
                       )}
                       {client.moderation_notes && (
-                        <div className="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] flex items-center gap-1.5">
+                        <div className="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-[11px] flex items-center gap-1.5">
                           <Icon name="info" className="text-[14px]" />
                           <span>Note interne : {client.moderation_notes}</span>
                         </div>
                       )}
 
                       {/* Action buttons */}
-                      <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                      <div className="flex items-center justify-between pt-1 border-t border-outline-variant/20">
                         <div className="flex items-center gap-1.5">
                           {/* Direct WhatsApp Contact */}
                           {client.phone && (
                             <a
                               href={`https://wa.me/${client.phone.replace(/\D/g, "")}?text=${encodeURIComponent(
-                                `Bonjour ${client.name}, c'est Awa de la boutique Awa Chic & Tech.`
+                                `Bonjour ${client.name}, c'est ${store?.owner_name ? `${store.owner_name} de ` : ""}la boutique ${store?.name || "GotoShop"}.`
                               )}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 text-[11px] font-bold flex items-center gap-1 transition-all"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 text-[11px] font-bold flex items-center gap-1 transition-all"
                               title="Contacter sur WhatsApp"
                             >
                               <Icon name="chat" className="text-[13px]" />
@@ -811,10 +824,15 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
 
       {/* Client Detail & Management Modal */}
       {selectedClientDetail && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="rounded-2xl bg-surface-container-high border border-white/10 p-5 max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl animate-fadeIn overflow-y-auto">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedClientDetail(null);
+          }}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div className="rounded-2xl bg-surface-container-high border border-outline-variant/30 p-5 max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl animate-fadeIn overflow-y-auto">
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+            <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-base">
                   {selectedClientDetail.name ? selectedClientDetail.name.charAt(0).toUpperCase() : "C"}
@@ -854,7 +872,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                 <div className="flex flex-col">
                   <span className="text-[10px] text-on-surface-variant uppercase tracking-wider">Solde Points</span>
                   <span className="font-bold text-sm text-amber-400">
-                    ★ {selectedClientDetail.loyalty_points} pts
+                    ★ {Number(selectedClientDetail.loyalty_points || 0).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} pt
                   </span>
                 </div>
               </div>
@@ -873,7 +891,7 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-semibold text-on-surface">Ajouter des points bonus fidélité :</label>
                   <div className="flex items-center gap-2">
-                    {[25, 50, 100].map((pts) => (
+                    {[0.5, 1, 2, 5].map((pts) => (
                       <button
                         key={pts}
                         type="button"
@@ -884,11 +902,12 @@ export default function StatsPage({ store, products, onNavigateToCatalog, onProd
                             : "bg-surface-container-high text-on-surface-variant hover:text-on-surface"
                         }`}
                       >
-                        +{pts} pts
+                        +{String(pts).replace(".", ",")} pt
                       </button>
                     ))}
                     <input
                       type="number"
+                      step="0.1"
                       value={perkBonusPoints}
                       onChange={(e) => setPerkBonusPoints(Number(e.target.value))}
                       className="w-20 h-9 px-2 rounded-lg bg-surface-container-high text-on-surface text-center font-bold text-xs border border-white/5"

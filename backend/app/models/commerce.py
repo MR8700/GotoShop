@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.core.clock import utcnow
 
 class OrderIntent(Base):
     __tablename__ = "order_intents"
@@ -18,6 +19,7 @@ class OrderIntent(Base):
     customer_name = Column(String(100), nullable=True) # e.g. "Amadou K."
     customer_phone = Column(String(50), nullable=True) # e.g. "+225 07 48 ••"
     customer_source = Column(String(100), default="DIRECT") # TIKTOK, INSTAGRAM, FACEBOOK, WHATSAPP, QR
+    share_code = Column(String(20), nullable=True, index=True)  # lien de publicité produit à l'origine de l'intention
     customer_location_url = Column(String(500), nullable=True) # https://maps.google.com/?q=5.3599,3.9920
     customer_coordinates = Column(String(100), nullable=True) # "5.3599, -3.9920"
     
@@ -49,9 +51,9 @@ class OrderIntent(Base):
     coherence_status = Column(String(50), default="HARMONIZED_PENDING", index=True)
     coherence_notes = Column(String(255), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
     redirected_at = Column(DateTime, nullable=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     store = relationship("Store", back_populates="order_intents")
     product = relationship("Product", back_populates="order_intents")
@@ -70,6 +72,6 @@ class SaleConfirmation(Base):
     reason = Column(String(255), nullable=True) # e.g. "Report", "Désistement client", "Prix"
     amount_paid = Column(Integer, nullable=True)
     confirmed_by = Column(String(100), default="OWNER")
-    confirmed_at = Column(DateTime, default=datetime.utcnow)
+    confirmed_at = Column(DateTime, default=utcnow)
 
     order_intent = relationship("OrderIntent", back_populates="sale_confirmation")

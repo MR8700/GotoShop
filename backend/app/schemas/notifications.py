@@ -1,8 +1,9 @@
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class NotificationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     store_id: str
     order_intent_id: Optional[str] = None
@@ -13,9 +14,6 @@ class NotificationResponse(BaseModel):
     is_read: bool
     action_type: Optional[str] = None
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 class NotificationListResponse(BaseModel):
     unread_count: int

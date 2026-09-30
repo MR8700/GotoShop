@@ -222,7 +222,7 @@ def list_all_clients(
             "name": c.name,
             "phone": c.phone,
             "loyalty_card_no": c.loyalty_card_no,
-            "bonus_points": c.bonus_points or 0,
+            "bonus_points": (c.bonus_points or 0) / 10.0,
             "is_blocked": bool(c.is_blocked),
             "created_at": c.created_at.isoformat() if c.created_at else None,
         }
@@ -267,3 +267,22 @@ def get_platform_audit_logs(
         }
         for l in logs
     ]
+
+
+@router.post("/owners/{owner_id}/reset-credentials")
+def reset_owner_credentials(owner_id: str, admin=Depends(get_current_super_admin), db: Session = Depends(get_db)):
+    """Génère un mot de passe temporaire pour UN commerçant (changement obligatoire à la connexion) et prépare
+    le message à copier/envoyer (lien WhatsApp inclus). Le mot de passe n'est affiché qu'une fois."""
+    from app.models.store import Owner
+    from app.services.auth_service import AuthService
+    from app.services.password_reset_service import whatsapp_link
+    owner = db.query(Owner).filter(Owner.id == owner_id).first()
+    if not owner:
+        raise HTTPException(status_code=404, detail="Commerçant introuvable.")
+    temp = AuthService.reset_to_default_credentials(db, owner)
+    owner.session_token = None
+    db.commit()
+    msg = (f"GotoShop - vos identifiants ont été réinitialisés.\nE-mail : {owner.email}\n"
+           f"Mot de passe temporaire : {temp}\nVous devrez le changer à la première connexion.")
+    return {"success": True, "email": owner.email, "temporary_password": temp,
+            "message_to_copy": msg, "whatsapp_link": whatsapp_link(owner.phone_number, msg)}
