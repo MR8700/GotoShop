@@ -178,9 +178,9 @@ export function getBusinessContext(store) {
     },
     getOrderCtaLabel: (isCustomizable = false) => {
       if (isCustomizable) {
-        return `Personnaliser & ${terms.action_order_direct}`;
+        return "Personnaliser & Commander";
       }
-      return `${terms.action_order_direct} (Chat)`;
+      return "Commander";
     },
     getDiscoverLabel: () => {
       return `Découvrir ${storeName}`;

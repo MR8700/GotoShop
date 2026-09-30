@@ -38,6 +38,7 @@ def get_current_customer(
     db: Session = Depends(get_db)
 ):
     token = extract_token(authorization)
+    token = CustomerService.effective_token(token)
     if not token:
         raise HTTPException(status_code=401, detail="Session client requise. Veuillez vous identifier.")
     customer = CustomerService.get_by_token(db, token)
@@ -68,12 +69,16 @@ def quick_register(req: CustomerQuickRegisterRequest, x_store_slug: Optional[str
                    db: Session = Depends(get_db), _rl=Depends(rate_limit("quick-register", 10, 60))):
     _bind_store(req, x_store_slug, db)
     try:
+        from app.models.store import Store
         customer, token = CustomerService.quick_register(db, req)
+        store = db.query(Store).filter(Store.id == customer.store_id).first()
+        store_name = store.name if store else "GotoShop"
+        welcome_msg = f"Bienvenue chez {store_name} !" if store else f"Bienvenue {customer.name} sur GotoShop !"
         return CustomerAuthResponse(
             access_token=CustomerService.expose(token),
             token_type="bearer",
             customer=CustomerResponse.model_validate(customer),
-            message="Bienvenue chez Awa Chic & Tech !"
+            message=welcome_msg
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -118,16 +123,61 @@ def get_my_orders(
 @router.get("/loyalty-card", summary="Ma carte de fidélité (données d'impression)")
 def get_my_loyalty_card(
     request: Request,
+    store_id: Optional[str] = Query(None),
     customer = Depends(get_current_customer),
     db: Session = Depends(get_db)
 ):
     from app.models.store import Store
     from app.services import card_service
-    store = db.query(Store).filter(Store.id == customer.store_id).first()
+    target_store_id = store_id or customer.store_id
+    store = db.query(Store).filter((Store.id == target_store_id) | (Store.slug == target_store_id)).first()
+    if not store:
+        store = db.query(Store).filter(Store.id == customer.store_id).first()
     if not store:
         raise HTTPException(status_code=404, detail="Boutique introuvable")
-    stats = CustomerService.get_customer_stats(db, customer)
-    return card_service.build_card_payload(db, customer, store, stats, card_service.public_origin(request))
+    c_store = db.query(Customer).filter(Customer.store_id == store.id, Customer.phone == customer.phone).first() or customer
+    stats = CustomerService.get_customer_stats(db, c_store)
+    return card_service.build_card_payload(db, c_store, store, stats, card_service.public_origin(request))
+
+@router.get("/loyalty-cards", summary="Toutes mes cartes de fidélité par boutique")
+def get_my_loyalty_cards(
+    request: Request,
+    customer = Depends(get_current_customer),
+    db: Session = Depends(get_db)
+):
+    from app.models.store import Store
+    from app.models.order import Order
+    from app.services import card_service
+
+    visited_store_ids = set()
+    if customer.store_id:
+        visited_store_ids.add(customer.store_id)
+
+    other_custs = db.query(Customer).filter(Customer.phone == customer.phone).all()
+    for c in other_custs:
+        if c.store_id:
+            visited_store_ids.add(c.store_id)
+
+    order_stores = db.query(Order.store_id).filter(
+        (Order.customer_phone == customer.phone) | (Order.customer_id == customer.id)
+    ).distinct().all()
+    for (sid,) in order_stores:
+        if sid:
+            visited_store_ids.add(sid)
+
+    cards = []
+    origin = card_service.public_origin(request)
+    for sid in visited_store_ids:
+        store = db.query(Store).filter(Store.id == sid).first()
+        if not store:
+            continue
+        c_store = db.query(Customer).filter(Customer.store_id == sid, Customer.phone == customer.phone).first() or customer
+        stats = CustomerService.get_customer_stats(db, c_store)
+        payload = card_service.build_card_payload(db, c_store, store, stats, origin)
+        cards.append(payload)
+
+    cards.sort(key=lambda x: (x.get("store", {}).get("id") == customer.store_id, x.get("points", 0)), reverse=True)
+    return cards
 
 
 @router.get("/merchant/clients/{customer_id}/loyalty-card", summary="Carte de fidélité d'un client (commerçant)")

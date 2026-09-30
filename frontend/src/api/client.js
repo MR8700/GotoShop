@@ -1145,15 +1145,38 @@ export function invalidateCustomerStats() {
   dispatchStateEvent("gotoshop:stats_updated");
 }
 
-export async function fetchCustomerLoyaltyCard() {
+export async function fetchCustomerLoyaltyCard(storeId = null) {
   const token = getCustomerToken();
-  if (!token) return null;
-  const res = await fetch(`${API_BASE}/customer/loyalty-card`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const headers = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (storeId) headers["X-Store-Slug"] = storeId;
+  const url = storeId
+    ? `${API_BASE}/customer/loyalty-card?store_id=${encodeURIComponent(storeId)}`
+    : `${API_BASE}/customer/loyalty-card`;
+  const res = await fetch(url, {
+    headers,
+    credentials: "include",
   });
   if (!res.ok) {
+    if (res.status === 404 || res.status === 401) return null;
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Impossible de charger la carte de fidélité");
+  }
+  return res.json();
+}
+
+export async function fetchCustomerLoyaltyCards() {
+  const token = getCustomerToken();
+  const headers = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/customer/loyalty-cards`, {
+    headers,
+    credentials: "include",
+  });
+  if (!res.ok) {
+    if (res.status === 404 || res.status === 401) return [];
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Impossible de charger vos cartes de fidélité");
   }
   return res.json();
 }
@@ -2212,9 +2235,13 @@ export async function createConversationalOrder(orderData) {
   const ref = getShareRef();
   const hasAdProduct = ref && (orderData?.items || []).some((it) => String(it.product_id) === String(ref.productId));
   const body = hasAdProduct && !orderData.share_code ? { ...orderData, share_code: ref.code } : orderData;
+  const token = getCustomerToken();
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/orders`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
+    credentials: "include",
     body: JSON.stringify(body),
   });
   const data = await safeParseJson(res);

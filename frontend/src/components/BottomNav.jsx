@@ -1,12 +1,24 @@
 import Icon from "./Icon";
 import React from "react";
 
-export default function BottomNav({ activeTab, onSelectTab, pendingCount = 0, mode = "client", clientOrdersCount = 0, unreadChatCount = 0 }) {
+export default function BottomNav({
+  activeTab,
+  onSelectTab,
+  pendingCount = 0,
+  mode = "client",
+  clientOrdersCount = 0,
+  unreadChatCount = 0,
+  isExplorer = false,
+}) {
   const isClient = mode === "client";
 
   const tabs = isClient
     ? [
-        { id: "boutique", label: "Vitrine", icon: "storefront" },
+        {
+          id: "boutique",
+          label: isExplorer ? "Boutiques" : "Vitrine",
+          icon: isExplorer ? "travel_explore" : "storefront",
+        },
         { id: "commandes", label: "Commandes", icon: "receipt_long", badge: clientOrdersCount },
         { id: "chat", label: "Chat", icon: "forum", badge: unreadChatCount },
         { id: "stats", label: "Avantages", icon: "stars" },

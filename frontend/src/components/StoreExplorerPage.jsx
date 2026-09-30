@@ -838,7 +838,7 @@ export default function StoreExplorerPage({
         <aside
           role="complementary"
           aria-label="Reprendre votre visite"
-          className="fixed bottom-6 right-4 sm:right-6 z-50 max-w-sm w-[calc(100%-2rem)] sm:w-auto bg-surface/95 backdrop-blur-md border-2 border-primary/30 hover:border-primary/60 rounded-2xl shadow-elevated p-3 sm:p-3.5 flex items-center gap-3 animate-fade-in transition-all duration-300"
+          className="fixed bottom-20 right-4 sm:right-6 z-40 max-w-sm w-[calc(100%-2rem)] sm:w-auto bg-surface/95 backdrop-blur-md border-2 border-primary/30 hover:border-primary/60 rounded-2xl shadow-elevated p-3 sm:p-3.5 flex items-center gap-3 animate-fade-in transition-all duration-300"
         >
           {/* Avatar with subtle live indicator */}
           <div className="relative shrink-0">
@@ -893,7 +893,7 @@ export default function StoreExplorerPage({
         </aside>
       )}
 
-      <div className="relative z-10 bg-surface flow-root">
+      <div className="relative z-10 bg-surface flow-root pb-24">
         <Footer onOpenSuperAdmin={onOpenSuperAdmin} />
       </div>
     </div>

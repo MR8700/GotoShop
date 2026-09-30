@@ -876,6 +876,7 @@ export default function App() {
       return;
     }
     setViewMode("explorer");
+    setActiveTab("boutique");
     try {
       const url = new URL(window.location);
       url.searchParams.delete("store");
@@ -943,7 +944,7 @@ export default function App() {
 
   // If viewMode is "explorer", show the Store Explorer Page after splash screen
   // Strictly prevent authenticated merchants from being redirected to the public gallery
-  if (!showSplash && viewMode === "explorer" && !authStatus?.is_authenticated) {
+  if (!showSplash && viewMode === "explorer" && !authStatus?.is_authenticated && activeTab === "boutique") {
     return (
       <div className="bg-surface font-body-md text-on-surface flex flex-col min-h-screen antialiased selection:bg-primary-container selection:text-on-primary-container">
         <StoreExplorerPage
@@ -965,18 +966,10 @@ export default function App() {
           }}
           onLogoutMerchant={handleLogout}
           onNavigateToOrders={() => {
-            const targetSlug = lastVisitedStore?.slug || publicStores[0]?.slug;
-            if (targetSlug) {
-              handleSwitchStore(targetSlug, false);
-            }
-            setActiveTab("commandes");
+            handleSelectTab("commandes");
           }}
           onNavigateToProfile={() => {
-            const targetSlug = lastVisitedStore?.slug || publicStores[0]?.slug;
-            if (targetSlug) {
-              handleSwitchStore(targetSlug, false);
-            }
-            setActiveTab("reglages");
+            handleSelectTab("reglages");
           }}
           onGoToMerchantDashboard={() => {
             const mySlug =
@@ -991,6 +984,17 @@ export default function App() {
               setIsLoginOpen(true);
             }
           }}
+        />
+
+        {/* Universal Fixed Bottom Nav in Explorer Mode */}
+        <BottomNav
+          activeTab={activeTab}
+          onSelectTab={handleSelectTab}
+          mode={effectiveAppMode}
+          pendingCount={0}
+          clientOrdersCount={clientOrdersCount}
+          unreadChatCount={unreadChatCount}
+          isExplorer={true}
         />
 
         {/* Customer Login / Register Modal */}
@@ -1186,10 +1190,17 @@ export default function App() {
           ) : (
             <ClientCommandesPage
               customer={customer}
+              store={store}
               onOpenAuth={() => setIsCustomerAuthOpen(true)}
-              onNavigateToShop={() => handleSelectTab("boutique")}
+              onNavigateToShop={() => {
+                if (viewMode === "explorer" || !store) {
+                  setViewMode("explorer");
+                }
+                handleSelectTab("boutique");
+              }}
               showToast={showToast}
               onOpenChat={handleOpenChat}
+              onSelectStore={handleSelectStoreFromExplorer}
             />
           )
         )}
@@ -1222,8 +1233,14 @@ export default function App() {
           ) : (
             <ClientStatsPage
               customer={customer}
+              store={store}
               onOpenAuth={() => setIsCustomerAuthOpen(true)}
-              onNavigateToShop={() => handleSelectTab("boutique")}
+              onNavigateToShop={() => {
+                if (viewMode === "explorer" || !store) {
+                  setViewMode("explorer");
+                }
+                handleSelectTab("boutique");
+              }}
               showToast={showToast}
             />
           )
@@ -1269,6 +1286,12 @@ export default function App() {
               onOpenAuth={() => setIsCustomerAuthOpen(true)}
               onOpenOwnerLogin={() => setIsLoginOpen(true)}
               onOpenVerify={(cardNo, code) => setVerifyCardTarget({ cardNo, code })}
+              onNavigateToShop={() => {
+                if (viewMode === "explorer" || !store) {
+                  setViewMode("explorer");
+                }
+                handleSelectTab("boutique");
+              }}
               showToast={showToast}
             />
           )
@@ -1302,6 +1325,7 @@ export default function App() {
           pendingCount={3}
           clientOrdersCount={clientOrdersCount}
           unreadChatCount={unreadChatCount}
+          isExplorer={viewMode === "explorer" || !store}
         />
       )}
 

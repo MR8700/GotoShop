@@ -233,23 +233,48 @@ export default function ConversationalOrderModal({
     setIsLocating(true);
     showToast?.("Recherche de votre position GPS exacte...");
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(parseFloat(pos.coords.latitude.toFixed(5)));
-        setLongitude(parseFloat(pos.coords.longitude.toFixed(5)));
-        setLocationAccuracy(parseFloat(pos.coords.accuracy.toFixed(1)));
-        setGpsCaptured(true);
-        setIsLocating(false);
-        showToast?.("Position GPS exacte capturée avec succès !");
-      },
-      (err) => {
-        setIsLocating(false);
-        let msg = "Impossible d'obtenir la position GPS";
-        if (err.code === 1) msg = "Veuillez autoriser l'accès GPS sur votre appareil";
-        showToast?.(msg);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          try {
+            const rawLat = pos?.coords?.latitude;
+            const rawLng = pos?.coords?.longitude;
+            const rawAcc = pos?.coords?.accuracy;
+            if (rawLat != null && rawLng != null && !isNaN(rawLat) && !isNaN(rawLng)) {
+              setLatitude(parseFloat(Number(rawLat).toFixed(5)));
+              setLongitude(parseFloat(Number(rawLng).toFixed(5)));
+              setLocationAccuracy(rawAcc != null && !isNaN(rawAcc) ? parseFloat(Number(rawAcc).toFixed(1)) : 5);
+              setGpsCaptured(true);
+              setIsLocating(false);
+              showToast?.("Position GPS exacte capturée avec succès !");
+            } else {
+              setIsLocating(false);
+              showToast?.("Position imprécise. Veuillez réessayer.");
+            }
+          } catch (e) {
+            console.error("GPS processing error:", e);
+            setIsLocating(false);
+          }
+        },
+        (err) => {
+          setIsLocating(false);
+          let msg = "Impossible d'obtenir la position GPS";
+          if (err?.code === 1) {
+            msg = "Localisation bloquée. Autorisez l'accès GPS dans les paramètres du navigateur ou cliquez sur le cadenas 🔒.";
+          } else if (err?.code === 2) {
+            msg = "Signal GPS indisponible. Activez le GPS de votre appareil.";
+          } else if (err?.code === 3) {
+            msg = "Délai GPS dépassé. Veuillez réessayer.";
+          }
+          showToast?.(msg);
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    } catch (e) {
+      console.error("Geolocation launch error:", e);
+      setIsLocating(false);
+      showToast?.("Erreur lors de l'activation de la géolocalisation");
+    }
   };
 
   const executeOrderSubmission = async (activeCustomer = null, activeToken = null) => {
@@ -436,10 +461,10 @@ export default function ConversationalOrderModal({
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn"
     >
-      <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col bg-surface border-2 border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden text-foreground">
+      <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col bg-surface border-2 border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden text-on-surface">
         
         {/* Header */}
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-surface-elevated/60">
+        <div className="px-5 py-4 border-b border-subtle flex items-center justify-between bg-surface-elevated/60">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               <Icon name={ctx.icon} />
@@ -448,7 +473,7 @@ export default function ConversationalOrderModal({
               <h3 className="font-bold text-base leading-tight">
                 {ctx.getOrderModalTitle(step)}
               </h3>
-              <p className="text-xs text-foreground-muted">
+              <p className="text-xs text-on-surface-variant">
                 {ctx.storeName} • {ctx.storeLocation}
               </p>
             </div>
@@ -456,7 +481,7 @@ export default function ConversationalOrderModal({
           <button
             onClick={onClose}
             aria-label="Fermer"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-foreground-muted hover:bg-surface-elevated hover:text-foreground transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-elevated hover:text-on-surface transition-colors cursor-pointer"
           >
             <Icon name="close" className="text-xl" />
           </button>
@@ -484,7 +509,7 @@ export default function ConversationalOrderModal({
           {step === "EDIT" ? (
             <>
               {/* Product summary card */}
-              <div className="p-3.5 bg-surface-elevated/50 rounded-xl border border-border flex items-center justify-between gap-3">
+              <div className="p-3.5 bg-surface-elevated/50 rounded-xl border border-subtle flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -504,10 +529,10 @@ export default function ConversationalOrderModal({
               </div>
 
               {/* Polymorphic Quantity & Measurement Selector */}
-              <div className="p-3.5 bg-surface-elevated/40 rounded-xl border border-border space-y-2.5">
+              <div className="p-3.5 bg-surface-elevated/40 rounded-xl border border-subtle space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <label className="block text-xs font-bold text-foreground">
+                    <label className="block text-xs font-bold text-on-surface">
                       Quantité / Mesure :
                     </label>
                     <span className="text-xs font-semibold text-primary">
@@ -520,7 +545,7 @@ export default function ConversationalOrderModal({
                     <button
                       type="button"
                       onClick={() => handleStepQuantity(-1)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-elevated active:scale-95 text-base font-bold text-foreground transition-all"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-elevated active:scale-95 text-base font-bold text-on-surface transition-all"
                       title={`Diminuer de ${salesConfig.quantityStep}`}
                     >
                       -
@@ -535,12 +560,12 @@ export default function ConversationalOrderModal({
                         const val = parseFloat(e.target.value);
                         if (!isNaN(val)) setQuantity(val);
                       }}
-                      className="w-16 text-center font-bold text-sm bg-transparent focus:outline-none text-foreground"
+                      className="w-16 text-center font-bold text-sm bg-transparent focus:outline-none text-on-surface"
                     />
                     <button
                       type="button"
                       onClick={() => handleStepQuantity(1)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-elevated active:scale-95 text-base font-bold text-foreground transition-all"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-elevated active:scale-95 text-base font-bold text-on-surface transition-all"
                       title={`Augmenter de ${salesConfig.quantityStep}`}
                     >
                       +
@@ -552,7 +577,7 @@ export default function ConversationalOrderModal({
                 {salesConfig.quickChips && salesConfig.quickChips.length > 1 && (
                   <div className="pt-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] text-foreground-muted mr-0.5">Choix rapide :</span>
+                      <span className="text-[11px] text-on-surface-variant mr-0.5">Choix rapide :</span>
                       {salesConfig.quickChips.map((chipVal) => (
                         <button
                           key={chipVal}
@@ -561,7 +586,7 @@ export default function ConversationalOrderModal({
                           className={`px-2 py-0.5 rounded-lg text-xs font-semibold transition-all ${
                             quantity === chipVal
                               ? "bg-primary text-white shadow-xs"
-                              : "bg-surface border border-border text-foreground hover:bg-surface-elevated"
+                              : "bg-surface border border-subtle text-on-surface hover:bg-surface-elevated"
                           }`}
                         >
                           {formatSalesQuantity(chipVal, salesConfig.unitLabel, salesConfig.precision)}
@@ -573,27 +598,27 @@ export default function ConversationalOrderModal({
 
                 {/* Custom dimensions if allowed */}
                 {salesConfig.allowCustomMeasurements && (
-                  <div className="pt-2 border-t border-border grid grid-cols-2 gap-2">
+                  <div className="pt-2 border-t border-subtle grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[11px] font-medium text-foreground-muted mb-0.5">Largeur (mètres) :</label>
+                      <label className="block text-[11px] font-medium text-on-surface-variant mb-0.5">Largeur (mètres) :</label>
                       <input
                         type="number"
                         step="0.05"
                         placeholder="Ex: 2.50"
                         value={customWidth}
                         onChange={(e) => setCustomWidth(e.target.value)}
-                        className="w-full text-xs p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                        className="w-full text-xs p-2 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-medium text-foreground-muted mb-0.5">Hauteur / Longueur (m) :</label>
+                      <label className="block text-[11px] font-medium text-on-surface-variant mb-0.5">Hauteur / Longueur (m) :</label>
                       <input
                         type="number"
                         step="0.05"
                         placeholder="Ex: 2.20"
                         value={customHeight}
                         onChange={(e) => setCustomHeight(e.target.value)}
-                        className="w-full text-xs p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                        className="w-full text-xs p-2 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none"
                       />
                     </div>
                   </div>
@@ -603,7 +628,7 @@ export default function ConversationalOrderModal({
               {/* Product Variants Selection (if present) */}
               {product?.variants && product.variants.length > 0 && (
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-foreground">
+                  <label className="block text-xs font-semibold text-on-surface">
                     Modèle / Finition :
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -615,11 +640,11 @@ export default function ConversationalOrderModal({
                         className={`p-2.5 rounded-xl border text-left transition-all ${
                           selectedVariant?.id === v.id
                             ? "border-primary bg-primary/5 text-primary font-bold shadow-sm"
-                            : "border-border bg-surface hover:bg-surface-elevated text-foreground"
+                            : "border-subtle bg-surface hover:bg-surface-elevated text-on-surface"
                         }`}
                       >
                         <div className="text-xs truncate">{v.name}</div>
-                        <div className="text-[11px] text-foreground-muted">
+                        <div className="text-[11px] text-on-surface-variant">
                           {(v.price_override || product.price).toLocaleString()} {store?.currency || "FCFA"}
                         </div>
                       </button>
@@ -638,7 +663,7 @@ export default function ConversationalOrderModal({
 
                   {/* Free text prompt */}
                   <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                    <label className="block text-xs font-semibold text-on-surface mb-1.5">
                       {product.customization_prompt || ctx.terms.customization_default_prompt} :
                     </label>
                     <textarea
@@ -652,7 +677,7 @@ export default function ConversationalOrderModal({
                           ? "Ex: Tour de taille 84cm, longueur pantalon 102cm, broderie dorée..."
                           : "Ex: Précisez votre couleur préférée ou toute demande spécifique..."
                       }
-                      className="w-full text-xs p-3 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none transition-colors"
+                      className="w-full text-xs p-3 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none transition-colors"
                     />
                   </div>
 
@@ -660,11 +685,11 @@ export default function ConversationalOrderModal({
                   {ctx.domain === "FOOD" && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div>
-                        <span className="font-semibold block mb-1 text-foreground-muted">🌶 Piment :</span>
+                        <span className="font-semibold block mb-1 text-on-surface-variant">🌶 Piment :</span>
                         <select
                           value={spiceLevel}
                           onChange={(e) => setSpiceLevel(e.target.value)}
-                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                          className="w-full p-2 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none text-xs"
                         >
                           <option value="Sans piment">Sans piment</option>
                           <option value="Peu de piment">Peu de piment (Doux)</option>
@@ -674,11 +699,11 @@ export default function ConversationalOrderModal({
                       </div>
 
                       <div>
-                        <span className="font-semibold block mb-1 text-foreground-muted">🧅 Oignons / Condiments :</span>
+                        <span className="font-semibold block mb-1 text-on-surface-variant">🧅 Oignons / Condiments :</span>
                         <select
                           value={onionsChoice}
                           onChange={(e) => setOnionsChoice(e.target.value)}
-                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                          className="w-full p-2 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none text-xs"
                         >
                           <option value="Sans oignon">Sans oignon</option>
                           <option value="Oignons normaux">Normal</option>
@@ -687,11 +712,11 @@ export default function ConversationalOrderModal({
                       </div>
 
                       <div>
-                        <span className="font-semibold block mb-1 text-foreground-muted">🔥 Cuisson :</span>
+                        <span className="font-semibold block mb-1 text-on-surface-variant">🔥 Cuisson :</span>
                         <select
                           value={cookingChoice}
                           onChange={(e) => setCookingChoice(e.target.value)}
-                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                          className="w-full p-2 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none text-xs"
                         >
                           <option value="Tendre et moelleux">Tendre & Moelleux</option>
                           <option value="Bien grillé et croustillant">Bien grillé & croustillant</option>
@@ -699,11 +724,11 @@ export default function ConversationalOrderModal({
                       </div>
 
                       <div>
-                        <span className="font-semibold block mb-1 text-foreground-muted">🍚 Accompagnement :</span>
+                        <span className="font-semibold block mb-1 text-on-surface-variant">🍚 Accompagnement :</span>
                         <select
                           value={portionsChoice}
                           onChange={(e) => setPortionsChoice(e.target.value)}
-                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                          className="w-full p-2 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none text-xs"
                         >
                           <option value="1 portion standard">1 portion standard</option>
                           <option value="2 portions">2 portions</option>
@@ -717,11 +742,11 @@ export default function ConversationalOrderModal({
                   {ctx.domain === "FASHION" && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div>
-                        <span className="font-semibold block mb-1 text-foreground-muted">📏 Taille & Mensurations :</span>
+                        <span className="font-semibold block mb-1 text-on-surface-variant">📏 Taille & Mensurations :</span>
                         <select
                           value={sizeMeasure}
                           onChange={(e) => setSizeMeasure(e.target.value)}
-                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                          className="w-full p-2 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none text-xs"
                         >
                           <option value="Standard M / L">Standard M / L</option>
                           <option value="Taille S (Ajustée)">Taille S (Ajustée)</option>
@@ -731,11 +756,11 @@ export default function ConversationalOrderModal({
                       </div>
 
                       <div>
-                        <span className="font-semibold block mb-1 text-foreground-muted">✂️ Finitions :</span>
+                        <span className="font-semibold block mb-1 text-on-surface-variant">✂️ Finitions :</span>
                         <select
                           value={finishingChoice}
                           onChange={(e) => setFinishingChoice(e.target.value)}
-                          className="w-full p-2 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none text-xs"
+                          className="w-full p-2 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none text-xs"
                         >
                           <option value="Ourlet soigné standard">Ourlet soigné standard</option>
                           <option value="Broderie artisanale fine">Broderie artisanale fine</option>
@@ -750,7 +775,7 @@ export default function ConversationalOrderModal({
               {/* Lieux de retrait / livraison du commerçant */}
               {spots.length > 0 && (
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-foreground">
+                  <label className="block text-xs font-semibold text-on-surface">
                     Retrait ou point de livraison du commerçant :
                   </label>
                   <div className="space-y-2">
@@ -759,19 +784,19 @@ export default function ConversationalOrderModal({
                       const imgs = s.images || [];
                       const shown = imgs[spotImg[s.id] || 0];
                       return (
-                        <div key={s.id} className={`rounded-xl border p-2.5 transition-all ${on ? "border-primary bg-primary/10" : "border-border bg-surface-elevated"}`}>
+                        <div key={s.id} className={`rounded-xl border p-2.5 transition-all ${on ? "border-primary bg-primary/10" : "border-subtle bg-surface-elevated"}`}>
                           <div className="flex gap-2.5">
                             {shown && <img src={shown} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" />}
                             <div className="min-w-0 flex-1 text-xs">
-                              <p className="font-bold text-foreground">
+                              <p className="font-bold text-on-surface">
                                 {s.name}
                                 <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary">
                                   {s.kind === "PICKUP" ? "Retrait gratuit" : `Livraison • ${s.delivery_fee == null ? "tarif zone" : `${Number(s.delivery_fee).toLocaleString()} ${store?.currency || "FCFA"}`}`}
                                 </span>
                               </p>
-                              {(s.city || s.address) && <p className="text-foreground-muted">{[s.city, s.address].filter(Boolean).join(" • ")}</p>}
-                              {s.hours && <p className="text-foreground-muted">🕒 {s.hours}</p>}
-                              {s.description && <p className="text-foreground-muted">{s.description}</p>}
+                              {(s.city || s.address) && <p className="text-on-surface-variant">{[s.city, s.address].filter(Boolean).join(" • ")}</p>}
+                              {s.hours && <p className="text-on-surface-variant">🕒 {s.hours}</p>}
+                              {s.description && <p className="text-on-surface-variant">{s.description}</p>}
                             </div>
                           </div>
                           {imgs.length > 1 && (
@@ -783,33 +808,33 @@ export default function ConversationalOrderModal({
                             </div>
                           )}
                           <button type="button" onClick={() => setSpotId(on ? null : s.id)}
-                            className={`mt-2 w-full py-2 rounded-lg text-xs font-bold ${on ? "bg-primary text-white" : "bg-surface border border-border text-foreground"}`}>
+                            className={`mt-2 w-full py-2 rounded-lg text-xs font-bold ${on ? "bg-primary text-white" : "bg-surface border border-subtle text-on-surface"}`}>
                             {on ? "✓ Lieu choisi — Annuler" : s.kind === "PICKUP" ? "Retirer ma commande ici" : "Rejoindre la livraison ici"}
                           </button>
                         </div>
                       );
                     })}
                   </div>
-                  {!selectedSpot && <p className="text-[11px] text-foreground-muted">Ou choisissez la livraison à domicile ci-dessous.</p>}
+                  {!selectedSpot && <p className="text-[11px] text-on-surface-variant">Ou choisissez la livraison à domicile ci-dessous.</p>}
                 </div>
               )}
 
               {/* Delivery Mode & Location Section */}
               {!selectedSpot && (
               <div className="space-y-3">
-                <label className="block text-xs font-semibold text-foreground">
+                <label className="block text-xs font-semibold text-on-surface">
                   Mode de localisation & livraison :
                 </label>
 
                 {/* Delivery Mode Selector */}
-                <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-elevated rounded-xl border border-border text-xs">
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-elevated rounded-xl border border-subtle text-xs">
                   <button
                     type="button"
                     onClick={() => setDeliveryMode("EXACT_GPS")}
                     className={`py-2 px-1 rounded-lg text-center font-medium transition-all ${
                       deliveryMode === "EXACT_GPS"
                         ? "bg-primary text-white shadow-sm"
-                        : "text-foreground-muted hover:text-foreground"
+                        : "text-on-surface-variant hover:text-on-surface"
                     }`}
                   >
                     GPS Direct
@@ -820,7 +845,7 @@ export default function ConversationalOrderModal({
                     className={`py-2 px-1 rounded-lg text-center font-medium transition-all ${
                       deliveryMode === "ADDRESS_DESCRIPTION"
                         ? "bg-primary text-white shadow-sm"
-                        : "text-foreground-muted hover:text-foreground"
+                        : "text-on-surface-variant hover:text-on-surface"
                     }`}
                   >
                     Adresse décrite
@@ -831,7 +856,7 @@ export default function ConversationalOrderModal({
                     className={`py-2 px-1 rounded-lg text-center font-medium transition-all ${
                       deliveryMode === "GPS_AND_DESCRIPTION"
                         ? "bg-primary text-white shadow-sm"
-                        : "text-foreground-muted hover:text-foreground"
+                        : "text-on-surface-variant hover:text-on-surface"
                     }`}
                   >
                     GPS + Adresse ⭐
@@ -840,13 +865,13 @@ export default function ConversationalOrderModal({
 
                 {/* GPS Capture sub-card */}
                 {(deliveryMode === "EXACT_GPS" || deliveryMode === "GPS_AND_DESCRIPTION") && (
-                  <div className="p-3 bg-surface-elevated/40 rounded-xl border border-border flex items-center justify-between gap-3">
+                  <div className="p-3 bg-surface-elevated/40 rounded-xl border border-subtle flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-semibold text-foreground flex items-center gap-1">
+                      <div className="text-xs font-semibold text-on-surface flex items-center gap-1">
                         <Icon name="my_location" className="text-sm text-primary" />
                         <span>Coordonnées GPS exactes</span>
                       </div>
-                      <p className="text-[11px] text-foreground-muted truncate">
+                      <p className="text-[11px] text-on-surface-variant truncate">
                         {gpsCaptured ? `📍 ${latitude}, ${longitude} (Précision: ${locationAccuracy ? locationAccuracy + "m" : "5m"})` : "Aucune position GPS capturée"}
                       </p>
                     </div>
@@ -866,26 +891,26 @@ export default function ConversationalOrderModal({
                 {locCheck && (locCheck.status === "MISMATCH" || locCheck.status === "OUT_OF_ZONE") && (
                   <div className="p-3 rounded-xl border border-red-400/40 bg-red-500/10 text-xs space-y-2" role="alert">
                     <p className="font-bold text-red-300">⚠️ Position et ville de livraison incohérentes</p>
-                    <p className="text-foreground">{locCheck.message}</p>
+                    <p className="text-on-surface">{locCheck.message}</p>
                     {locCheck.nearest && (
                       <button type="button" onClick={() => setDeliveryCity(locCheck.nearest.name)}
                         className="w-full py-2 rounded-lg bg-primary text-white font-bold">
                         Passer à « {locCheck.nearest.display_label || locCheck.nearest.name} » ({locCheck.nearest.distance_km} km)
                       </button>
                     )}
-                    <label className="flex items-start gap-2 text-foreground-muted">
+                    <label className="flex items-start gap-2 text-on-surface-variant">
                       <input type="checkbox" checked={locAck} onChange={(e) => setLocAck(e.target.checked)} className="mt-0.5" />
                       <span>Je confirme cette adresse malgré l'écart (le commerçant sera alerté).</span>
                     </label>
                   </div>
                 )}
                 {locCheck?.status === "UNVERIFIABLE" && (
-                  <p className="text-[11px] text-foreground-muted">La zone choisie n'a pas de GPS : votre position ne peut pas être vérifiée.</p>
+                  <p className="text-[11px] text-on-surface-variant">La zone choisie n'a pas de GPS : votre position ne peut pas être vérifiée.</p>
                 )}
 
                 {(deliveryMode === "ADDRESS_DESCRIPTION" || deliveryMode === "GPS_AND_DESCRIPTION") && (
                   <div>
-                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                    <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
                       Repère et description d'accès (Bâtiment, porte, carrefour) :
                     </label>
                     <textarea
@@ -893,7 +918,7 @@ export default function ConversationalOrderModal({
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
                       placeholder="Ex: Porte bleue à côté de la pharmacie, 1er étage..."
-                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none"
                     />
                   </div>
                 )}
@@ -901,8 +926,8 @@ export default function ConversationalOrderModal({
               )}
 
               {/* CUSTOMER 5 MANDATORY FIELDS (Checkout Onboarding) */}
-              <div className="p-4 bg-surface-elevated/40 rounded-xl border border-border space-y-3">
-                <div className="flex items-center gap-2 text-foreground font-bold text-xs pb-1 border-b border-border">
+              <div className="p-4 bg-surface-elevated/40 rounded-xl border border-subtle space-y-3">
+                <div className="flex items-center gap-2 text-on-surface font-bold text-xs pb-1 border-b border-subtle">
                   <Icon name="person" className="text-primary text-base" />
                   <span>Vos coordonnées de commande & livraison</span>
                 </div>
@@ -910,14 +935,14 @@ export default function ConversationalOrderModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* 1. Nom & Prénom */}
                   <div>
-                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                    <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
                       1. Nom & Prénom <span className="text-primary">*</span>
                     </label>
                     <input
                       type="text"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none"
                       placeholder="Ex: Ousmane Ouédraogo"
                       required
                     />
@@ -925,14 +950,14 @@ export default function ConversationalOrderModal({
 
                   {/* 2. Pays */}
                   <div>
-                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                    <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
                       2. Pays
                     </label>
                     <input
                       type="text"
                       value={customerCountry}
                       onChange={(e) => setCustomerCountry(e.target.value)}
-                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none"
                       placeholder="Ex: Burkina Faso, Côte d'Ivoire..."
                     />
                   </div>
@@ -941,14 +966,14 @@ export default function ConversationalOrderModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* 3. Téléphone / WhatsApp */}
                   <div>
-                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                    <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
                       3. Téléphone (WhatsApp direct) <span className="text-primary">*</span>
                     </label>
                     <input
                       type="tel"
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none"
                       placeholder="Ex: +226 70 00 00 00"
                       required
                     />
@@ -956,7 +981,7 @@ export default function ConversationalOrderModal({
 
                   {/* 4. Ville Principale */}
                   <div>
-                    <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                    <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
                       4. Ville Principale
                     </label>
                     <input
@@ -966,7 +991,7 @@ export default function ConversationalOrderModal({
                         setCustomerCity(e.target.value);
                         setDeliveryCity(e.target.value);
                       }}
-                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                      className="w-full text-xs p-2.5 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none"
                       placeholder="Ex: Ouagadougou, Bobo-Dioulasso, Abidjan..."
                       list="store-delivery-cities"
                     />
@@ -978,21 +1003,21 @@ export default function ConversationalOrderModal({
 
                 {/* 5. Quartier / Repère de livraison */}
                 <div>
-                  <label className="block text-[11px] font-medium text-foreground-muted mb-1">
+                  <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
                     5. Quartier / Repère de livraison précis
                   </label>
                   <input
                     type="text"
                     value={deliveryNeighborhood}
                     onChange={(e) => setDeliveryNeighborhood(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-lg bg-surface border border-border focus:border-primary focus:outline-none"
+                    className="w-full text-xs p-2.5 rounded-lg bg-surface border border-subtle focus:border-primary focus:outline-none"
                     placeholder="Ex: Secteur 12, pharmacie en face, portail vert"
                   />
                 </div>
 
                 {/* Seamless Account Creation Checkbox */}
                 {!customer && (
-                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-primary/5 border border-primary/20 text-xs text-foreground cursor-pointer hover:bg-primary/10 transition-colors">
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-primary/5 border border-primary/20 text-xs text-on-surface cursor-pointer hover:bg-primary/10 transition-colors">
                     <input
                       type="checkbox"
                       checked={registerAccount}
@@ -1008,27 +1033,27 @@ export default function ConversationalOrderModal({
 
               {/* Points fidélité : 1 pt = 1 % sur ce produit */}
               {isLoggedIn && loyaltySummary && maxTenths > 0 && (
-                <div className="p-3 bg-surface-elevated/50 rounded-xl border border-border space-y-2">
+                <div className="p-3 bg-surface-elevated/50 rounded-xl border border-subtle space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-foreground flex items-center gap-1.5">
+                    <span className="font-semibold text-on-surface flex items-center gap-1.5">
                       <Icon name="redeem" className="text-[15px] text-primary" />
                       <span>Utiliser mes points sur ce produit</span>
                     </span>
-                    <span className="text-[11px] text-foreground-muted">Solde : {fmtPt(Math.round(loyaltySummary.balance * 10))} pt</span>
+                    <span className="text-[11px] text-on-surface-variant">Solde : {fmtPt(Math.round(loyaltySummary.balance * 10))} pt</span>
                   </div>
                   {appliedCoupon ? (
-                    <p className="text-[11px] text-foreground-muted">Retirez le coupon pour utiliser vos points : les deux ne se cumulent pas.</p>
+                    <p className="text-[11px] text-on-surface-variant">Retirez le coupon pour utiliser vos points : les deux ne se cumulent pas.</p>
                   ) : (
                     <>
                       <div className="flex items-center gap-2">
                         <button type="button" onClick={() => setLoyaltyTenths((t) => Math.max(0, t - 1))} disabled={loyaltyTenths <= 0}
-                          className="w-9 h-9 rounded-lg border border-border font-bold text-foreground disabled:opacity-40 cursor-pointer">−</button>
+                          className="w-9 h-9 rounded-lg border border-subtle font-bold text-on-surface disabled:opacity-40 cursor-pointer">−</button>
                         <div className="flex-1 text-center">
-                          <span className="text-base font-bold text-foreground tabular-nums">{fmtPt(loyaltyTenths)} pt</span>
-                          <span className="block text-[10px] text-foreground-muted">= {fmtPt(loyaltyTenths)} % du prix du produit</span>
+                          <span className="text-base font-bold text-on-surface tabular-nums">{fmtPt(loyaltyTenths)} pt</span>
+                          <span className="block text-[10px] text-on-surface-variant">= {fmtPt(loyaltyTenths)} % du prix du produit</span>
                         </div>
                         <button type="button" onClick={() => setLoyaltyTenths((t) => Math.min(maxTenths, t + 1))} disabled={loyaltyTenths >= maxTenths}
-                          className="w-9 h-9 rounded-lg border border-border font-bold text-foreground disabled:opacity-40 cursor-pointer">+</button>
+                          className="w-9 h-9 rounded-lg border border-subtle font-bold text-on-surface disabled:opacity-40 cursor-pointer">+</button>
                         <button type="button" onClick={() => setLoyaltyTenths(maxTenths)}
                           className="px-2.5 h-9 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[11px] font-bold cursor-pointer">Max</button>
                       </div>
@@ -1043,7 +1068,7 @@ export default function ConversationalOrderModal({
                       {loyaltyTenths > 0 && pointsDiscount <= 0 && (
                         <p className="text-[11px] text-rose-400">Ces points n'apportent aucune remise sur ce produit.</p>
                       )}
-                      <p className="text-[10px] text-foreground-muted">Maximum {fmtPt(maxTenths)} pt par utilisation. Les points sont rendus si la commande est annulée ou rejetée.</p>
+                      <p className="text-[10px] text-on-surface-variant">Maximum {fmtPt(maxTenths)} pt par utilisation. Les points sont rendus si la commande est annulée ou rejetée.</p>
                     </>
                   )}
                 </div>
@@ -1051,21 +1076,21 @@ export default function ConversationalOrderModal({
 
               {/* Remise boutique automatique */}
               {shopDiscount?.applicable && shopDiscountAmount > 0 && (
-                <div className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2 ${useShopDiscount ? "bg-emerald-500/10 border-emerald-500/30" : "bg-surface-elevated/50 border-border opacity-70"}`}>
-                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                <div className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2 ${useShopDiscount ? "bg-emerald-500/10 border-emerald-500/30" : "bg-surface-elevated/50 border-subtle opacity-70"}`}>
+                  <span className="font-semibold text-on-surface flex items-center gap-1.5">
                     <Icon name="sell" className="text-[15px] text-emerald-400" />
                     <span>{shopDiscount.name} : -{shopDiscount.percent}%</span>
                   </span>
-                  <span className={useShopDiscount ? "font-bold text-emerald-400" : "text-foreground-muted"}>
+                  <span className={useShopDiscount ? "font-bold text-emerald-400" : "text-on-surface-variant"}>
                     {useShopDiscount ? `-${shopDiscountAmount.toLocaleString()} ${store?.currency || "FCFA"}` : "Votre coupon est plus avantageux"}
                   </span>
                 </div>
               )}
 
               {/* Promo Code / Coupon Section */}
-              <div className="p-3 bg-surface-elevated/50 rounded-xl border border-border space-y-2">
+              <div className="p-3 bg-surface-elevated/50 rounded-xl border border-subtle space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <span className="font-semibold text-on-surface flex items-center gap-1.5">
                     <Icon name="local_offer" className="text-[15px] text-primary" />
                     <span>Code Promo / Réduction</span>
                   </span>
@@ -1082,7 +1107,7 @@ export default function ConversationalOrderModal({
                       <Icon name="confirmation_number" className="text-[16px] text-emerald-400" />
                       <div>
                         <p className="font-bold text-emerald-400">{appliedCoupon.code}</p>
-                        <p className="text-[10px] text-foreground-muted">{appliedCoupon.title}</p>
+                        <p className="text-[10px] text-on-surface-variant">{appliedCoupon.title}</p>
                       </div>
                     </div>
                     <button
@@ -1091,7 +1116,7 @@ export default function ConversationalOrderModal({
                         setAppliedCoupon(null);
                         setCouponCode("");
                       }}
-                      className="text-[11px] text-foreground-muted hover:text-rose-400 underline cursor-pointer"
+                      className="text-[11px] text-on-surface-variant hover:text-rose-400 underline cursor-pointer"
                     >
                       Retirer
                     </button>
@@ -1106,7 +1131,7 @@ export default function ConversationalOrderModal({
                         setCouponCode(e.target.value.toUpperCase());
                         setCouponError("");
                       }}
-                      className="flex-1 h-9 px-3 rounded-lg bg-surface border border-border text-xs uppercase font-mono tracking-wider focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="flex-1 h-9 px-3 rounded-lg bg-surface border border-subtle text-xs uppercase font-mono tracking-wider focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                     <button
                       type="button"
@@ -1124,7 +1149,7 @@ export default function ConversationalOrderModal({
                 )}
                 {!appliedCoupon && myCoupons.length > 0 && (
                   <div className="space-y-1">
-                    <p className="text-[10px] uppercase font-semibold text-foreground-muted">Mes bons disponibles</p>
+                    <p className="text-[10px] uppercase font-semibold text-on-surface-variant">Mes bons disponibles</p>
                     <div className="flex flex-wrap gap-1.5">
                       {myCoupons.map((c) => (
                         <button
@@ -1141,18 +1166,18 @@ export default function ConversationalOrderModal({
                   </div>
                 )}
                 {loyaltyTenths > 0 && !appliedCoupon && (
-                  <p className="text-[10px] text-foreground-muted">Vous utilisez vos points : remettez-les à 0 pour appliquer un coupon (les deux ne se cumulent pas).</p>
+                  <p className="text-[10px] text-on-surface-variant">Vous utilisez vos points : remettez-les à 0 pour appliquer un coupon (les deux ne se cumulent pas).</p>
                 )}
                 {couponError && <p className="text-[11px] text-rose-400">{couponError}</p>}
               </div>
 
               {/* Order Breakdown / Totals */}
-              <div className="p-3.5 bg-surface-elevated/70 rounded-xl border border-border space-y-1.5 text-xs">
-                <div className="flex justify-between text-foreground-muted">
+              <div className="p-3.5 bg-surface-elevated/70 rounded-xl border border-subtle space-y-1.5 text-xs">
+                <div className="flex justify-between text-on-surface-variant">
                   <span className="truncate pr-2">
                     {product?.name} ({formatSalesQuantity(quantity, salesConfig.unitLabel, salesConfig.precision)})
                   </span>
-                  <span className="font-semibold text-foreground whitespace-nowrap">{subtotal.toLocaleString()} {store?.currency || "FCFA"}</span>
+                  <span className="font-semibold text-on-surface whitespace-nowrap">{subtotal.toLocaleString()} {store?.currency || "FCFA"}</span>
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-emerald-400 font-semibold">
@@ -1165,11 +1190,11 @@ export default function ConversationalOrderModal({
                     <span>-{discountAmount.toLocaleString()} {store?.currency || "FCFA"}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-foreground-muted">
+                <div className="flex justify-between text-on-surface-variant">
                   <span>{selectedSpot ? (selectedSpot.kind === "PICKUP" ? "Retrait sur place" : `Livraison — ${selectedSpot.name}`) : `Frais de livraison (${deliveryCity})`}</span>
-                  <span className="font-semibold text-foreground">{deliveryFee.toLocaleString()} {store?.currency || "FCFA"}</span>
+                  <span className="font-semibold text-on-surface">{deliveryFee.toLocaleString()} {store?.currency || "FCFA"}</span>
                 </div>
-                <div className="border-t border-border pt-1.5 flex justify-between font-bold text-sm text-foreground">
+                <div className="border-t border-subtle pt-1.5 flex justify-between font-bold text-sm text-on-surface">
                   <span>Total à payer</span>
                   <span className="text-primary">{totalAmount.toLocaleString()} {store?.currency || "FCFA"}</span>
                 </div>
@@ -1184,7 +1209,7 @@ export default function ConversationalOrderModal({
 
               <div>
                 <h4 className="text-lg font-bold">Commande #{createdOrder?.order_number} créée !</h4>
-                <p className="text-xs text-foreground-muted max-w-sm mx-auto mt-1">
+                <p className="text-xs text-on-surface-variant max-w-sm mx-auto mt-1">
                   Votre commande a été transmise en direct à <strong>{ctx.storeName}</strong>.
                 </p>
               </div>
@@ -1196,20 +1221,20 @@ export default function ConversationalOrderModal({
                   <span className="text-amber-500 font-semibold">En attente d'acceptation</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-foreground-muted">Total :</span>
+                  <span className="text-on-surface-variant">Total :</span>
                   <span className="font-bold text-primary">{createdOrder?.total_amount?.toLocaleString()} {createdOrder?.currency}</span>
                 </div>
                 {createdOrder?.items && createdOrder.items.length > 0 && (
-                  <div className="text-foreground-muted border-t border-slate-200 dark:border-slate-700/60 pt-1.5">
+                  <div className="text-on-surface-variant border-t border-slate-200 dark:border-slate-700/60 pt-1.5">
                     <span>Détails : </span>
-                    <span className="text-foreground font-medium">
+                    <span className="text-on-surface font-medium">
                       {createdOrder.items.map((it) => `${it.product_name} • ${formatSalesQuantity(it.quantity, it.unit_label)}`).join(", ")}
                     </span>
                   </div>
                 )}
-                <div className="text-foreground-muted">
+                <div className="text-on-surface-variant">
                   <span>Livraison : </span>
-                  <span className="text-foreground font-medium">{createdOrder?.delivery?.delivery_address}</span>
+                  <span className="text-on-surface font-medium">{createdOrder?.delivery?.delivery_address}</span>
                 </div>
               </div>
 
@@ -1227,7 +1252,7 @@ export default function ConversationalOrderModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-2.5 px-4 text-xs font-semibold rounded-xl border border-border hover:bg-surface-elevated transition-colors"
+                className="flex-1 py-2.5 px-4 text-xs font-semibold rounded-xl border border-subtle hover:bg-surface-elevated transition-colors"
               >
                 Annuler
               </button>
@@ -1246,7 +1271,7 @@ export default function ConversationalOrderModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 px-4 text-xs font-semibold rounded-xl border border-border hover:bg-surface-elevated text-foreground transition-colors cursor-pointer"
+                className="flex-1 py-3 px-4 text-xs font-semibold rounded-xl border border-subtle hover:bg-surface-elevated text-on-surface transition-colors cursor-pointer"
               >
                 Fermer
               </button>

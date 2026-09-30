@@ -21,10 +21,12 @@ import MobileMoneyPaymentModal from "./MobileMoneyPaymentModal";
 
 export default function ClientCommandesPage({
   customer,
+  store,
   onOpenAuth,
   onNavigateToShop,
   showToast,
   onOpenChat,
+  onSelectStore,
 }) {
   const [orders, setOrders] = useState(() => {
     const local = getLocalGuestOrders();
@@ -202,10 +204,48 @@ export default function ClientCommandesPage({
       o.is_sold === true ||
       o.status === "SOLD");
 
+  // Store filtering
+  const [selectedStoreFilter, setSelectedStoreFilter] = useState("ALL");
+
+  useEffect(() => {
+    if (store?.slug) {
+      setSelectedStoreFilter(store.slug);
+    }
+  }, [store?.slug]);
+
+  const storeFilters = React.useMemo(() => {
+    const map = new Map();
+    orders.forEach((o) => {
+      const sSlug = o.store_slug || (o.store_name ? o.store_name.toLowerCase().replace(/\s+/g, "-") : null);
+      const sName = o.store_name;
+      if (sSlug && sName) {
+        if (!map.has(sSlug)) {
+          map.set(sSlug, { slug: sSlug, name: sName, count: 0 });
+        }
+        map.get(sSlug).count += 1;
+      }
+    });
+    if (store?.slug && !map.has(store.slug)) {
+      map.set(store.slug, { slug: store.slug, name: store.name, count: 0 });
+    }
+    return Array.from(map.values());
+  }, [orders, store]);
+
   // Client soft-lifecycle: exclude hidden orders, partition active vs archived
   const visibleOrders = orders.filter((o) => !o.is_client_hidden);
-  const activeOrders = visibleOrders.filter((o) => !o.is_client_archived);
+  const allActiveOrders = visibleOrders.filter((o) => !o.is_client_archived);
   const archivedOrders = visibleOrders.filter((o) => !!o.is_client_archived);
+
+  // Filter by boutique if a store filter is active
+  const activeOrders = React.useMemo(() => {
+    if (selectedStoreFilter === "ALL") return allActiveOrders;
+    return allActiveOrders.filter(
+      (o) =>
+        o.store_slug === selectedStoreFilter ||
+        (o.store_name && o.store_name.toLowerCase().replace(/\s+/g, "-") === selectedStoreFilter) ||
+        (store && store.slug === selectedStoreFilter && (o.store_name === store.name || o.store_slug === store.slug))
+    );
+  }, [allActiveOrders, selectedStoreFilter, store]);
 
   // Counts for tabs
   const pendingOrders = activeOrders.filter(isOrderPending);
@@ -234,15 +274,29 @@ export default function ClientCommandesPage({
 
   const filteredOrders = getFilteredOrders();
 
-  // Perks / Bonus points calculation (5% of paid/delivered orders or customer points)
+  // Perks / Loyalty points calculation (GotoShop v3: 1 pt / 1 000 FCFA or customer points)
   const calculateTotalBonusPoints = () => {
-    if (customer?.bonus_points) return customer.bonus_points;
-    const eligibleAmount = activeOrders
+    if (customer?.loyalty_points !== undefined && customer?.loyalty_points !== null) {
+      return Math.round(customer.loyalty_points);
+    }
+    if (customer?.bonus_points !== undefined && customer?.bonus_points !== null) {
+      return Math.round(customer.bonus_points);
+    }
+    const eligibleAmount = allActiveOrders
       .filter((o) => isOrderPaid(o) || isOrderDelivered(o))
       .reduce((sum, o) => sum + (o.total_amount || 0), 0);
-    return Math.round(eligibleAmount * 0.05);
+    const ptsPer1000 = store?.points_per_1000_fcfa || 1;
+    return Math.round((eligibleAmount / 1000) * ptsPer1000);
   };
   const totalBonusPoints = calculateTotalBonusPoints();
+
+  const getTierInfo = (pts) => {
+    if (pts >= 400) return { name: "Platine", discount: "-8%", nextPts: null, color: "text-purple-400 bg-purple-500/20 border-purple-500/40" };
+    if (pts >= 150) return { name: "Or", discount: "-5%", nextPts: 400, color: "text-amber-400 bg-amber-500/20 border-amber-500/40" };
+    if (pts >= 50) return { name: "Argent", discount: "-3%", nextPts: 150, color: "text-slate-300 bg-slate-500/20 border-slate-400/40" };
+    return { name: "Bronze", discount: "0%", nextPts: 50, color: "text-amber-700 dark:text-amber-500 bg-amber-800/20 border-amber-700/40" };
+  };
+  const tierInfo = getTierInfo(totalBonusPoints);
 
   const handleOpenSatisfyModal = (order) => {
     setActionOrder(order);
@@ -501,7 +555,7 @@ export default function ClientCommandesPage({
               <h3 className="font-headline-sm text-sm font-bold text-on-surface">
                 {orders.length > 0
                   ? `⭐ ${orders.length} commande(s) enregistrée(s)`
-                  : "Débloquez vos privilèges Awa Club"}
+                  : store?.name ? `Débloquez vos privilèges Club ${store.name}` : "Débloquez vos privilèges Club GotoShop"}
               </h3>
               <p className="text-xs text-on-surface-variant mt-0.5 leading-relaxed">
                 Inscrivez-vous (Nom + WhatsApp) pour retrouver vos commandes sur tous vos appareils et cumuler vos points fidélité.
@@ -515,6 +569,56 @@ export default function ClientCommandesPage({
             <Icon name="bolt" className="text-[18px]" />
             <span>Activer mon compte fidélité</span>
           </button>
+        </div>
+      )}
+
+      {/* Multi-Store Filter Bar */}
+      {storeFilters.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          <button
+            type="button"
+            onClick={() => setSelectedStoreFilter("ALL")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer border ${
+              selectedStoreFilter === "ALL"
+                ? "bg-primary text-white border-primary shadow-xs font-bold"
+                : "bg-surface-secondary text-on-surface-variant hover:text-on-surface border-subtle"
+            }`}
+          >
+            <Icon name="storefront" className="text-[15px]" />
+            <span>Toutes mes boutiques</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+              selectedStoreFilter === "ALL" ? "bg-white/20 text-white" : "bg-black/10 dark:bg-white/10"
+            }`}>
+              {allActiveOrders.length}
+            </span>
+          </button>
+
+          {storeFilters.map((sf) => {
+            const isSelected = selectedStoreFilter === sf.slug;
+            const isCurrent = store && store.slug === sf.slug;
+            return (
+              <button
+                key={sf.slug}
+                type="button"
+                onClick={() => setSelectedStoreFilter(sf.slug)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer border ${
+                  isSelected
+                    ? "bg-primary text-white border-primary shadow-xs font-bold"
+                    : "bg-surface-secondary text-on-surface-variant hover:text-on-surface border-subtle"
+                }`}
+              >
+                <Icon name="store" className="text-[15px]" />
+                <span>{isCurrent ? `Cette boutique : ${sf.name}` : sf.name}</span>
+                {sf.count > 0 && (
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isSelected ? "bg-white/20 text-white" : "bg-black/10 dark:bg-white/10"
+                  }`}>
+                    {sf.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -532,7 +636,7 @@ export default function ClientCommandesPage({
           <Icon name="receipt_long" className="text-[16px]" />
           <span>Toutes</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 font-mono">
-            {orders.length}
+            {activeOrders.length}
           </span>
         </button>
 
@@ -656,12 +760,14 @@ export default function ClientCommandesPage({
                   <Icon name="military_tech" className="text-[28px]" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-on-surface">Club Privilège GotoShop</h3>
-                  <p className="text-xs text-on-surface-variant">Programme de fidélité &amp; Cashback</p>
+                  <h3 className="font-bold text-base text-on-surface">
+                    {store?.name ? `Club Privilège ${store.name}` : "Club Privilège GotoShop"}
+                  </h3>
+                  <p className="text-xs text-on-surface-variant">Programme de fidélité &amp; Remises permanentes</p>
                 </div>
               </div>
-              <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold border border-amber-500/30">
-                Membre Actif
+              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${tierInfo.color}`}>
+                Niveau {tierInfo.name}
               </span>
             </div>
 
@@ -671,17 +777,27 @@ export default function ClientCommandesPage({
                 <p className="text-2xl font-bold text-amber-500 tabular-nums mt-0.5">
                   {totalBonusPoints.toLocaleString("fr-FR")} <span className="text-xs font-medium">pts</span>
                 </p>
+                <span className="text-[10px] text-on-surface-variant font-medium mt-1 inline-block">
+                  {tierInfo.nextPts
+                    ? `Encore ${tierInfo.nextPts - totalBonusPoints} pts pour palier supérieur`
+                    : "Palier maximal Platine atteint"}
+                </span>
               </div>
               <div className="p-3.5 rounded-xl bg-surface/80 border border-subtle shadow-xs">
-                <p className="text-[11px] text-on-surface-variant font-bold uppercase">Cashback Disponible</p>
+                <p className="text-[11px] text-on-surface-variant font-bold uppercase">Remise Permanente</p>
                 <p className="text-2xl font-bold text-emerald-500 tabular-nums mt-0.5">
-                  {totalBonusPoints.toLocaleString("fr-FR")} <span className="text-xs font-medium">FCFA</span>
+                  {tierInfo.discount} <span className="text-xs font-medium">sur vos achats</span>
                 </p>
+                <span className="text-[10px] text-on-surface-variant font-medium mt-1 inline-block">
+                  {tierInfo.name === "Platine"
+                    ? "Remise maximale garantie"
+                    : `Palier ${tierInfo.name === "Bronze" ? "Argent (-3%)" : tierInfo.name === "Argent" ? "Or (-5%)" : "Platine (-8%)"}`}
+                </span>
               </div>
             </div>
 
             <p className="text-xs text-on-surface-variant leading-relaxed">
-              💡 <strong>Comment ça marche ?</strong> Chaque commande soldée vous rapporte automatiquement <strong>5% de son montant en points fidélité</strong>. Utilisez vos points pour obtenir des réductions immédiates lors de vos prochains achats.
+              💡 <strong>Règle du Club GotoShop :</strong> Chaque commande livrée vous rapporte <strong>1 point par tranche de 1 000 FCFA</strong>. Cumulez vos points pour débloquer des remises exclusives et des livraisons prioritaires.
             </p>
           </div>
 
@@ -690,7 +806,11 @@ export default function ClientCommandesPage({
             <div className="p-4 rounded-xl bg-surface-container border border-subtle space-y-1.5 shadow-xs">
               <div className="flex items-center gap-2 text-primary font-bold text-xs">
                 <Icon name="electric_moped" className="text-[18px]" />
-                <span>Livraison Prioritaire Kossodo</span>
+                <span>
+                  {store?.delivery_city
+                    ? `Livraison Prioritaire ${store.delivery_city.split("(")[0].trim()}`
+                    : "Livraison Express Prioritaire"}
+                </span>
               </div>
               <p className="text-[11px] text-on-surface-variant leading-relaxed">
                 Vos commandes sont traitées en priorité par les livreurs express partenaires pour un délai garanti de 45 min à 2h.

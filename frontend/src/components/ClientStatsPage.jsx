@@ -1,10 +1,16 @@
 import Icon from "./Icon";
 import React, { useState, useEffect } from "react";
-import { fetchCustomerStats, dataCache, getCustomerToken, fetchLoyaltySummary } from "../api/client";
+import {
+  fetchCustomerStats,
+  dataCache,
+  getCustomerToken,
+  fetchLoyaltySummary,
+  fetchCustomerLoyaltyCards,
+} from "../api/client";
 
 const fmtPts = (n) => Number(n || 0).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
 
-export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop, showToast }) {
+export default function ClientStatsPage({ customer, store, onOpenAuth, onNavigateToShop, showToast }) {
   const [stats, setStats] = useState(() => {
     const token = customer?.session_token || getCustomerToken();
     return token ? dataCache.get(`customer:stats:${token}`) || null : null;
@@ -16,6 +22,8 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
   });
 
   const [summary, setSummary] = useState(null);
+  const [loyaltyCards, setLoyaltyCards] = useState([]);
+  const [selectedCardIndex, setSelectedCardIndex] = useState(0);
 
   const loadSummary = async () => {
     try {
@@ -23,6 +31,25 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
       if (data) setSummary(data);
     } catch {
       /* le bloc de rachat reste simplement masqué */
+    }
+  };
+
+  const loadCards = async () => {
+    try {
+      const cards = await fetchCustomerLoyaltyCards();
+      if (Array.isArray(cards) && cards.length > 0) {
+        setLoyaltyCards(cards);
+        if (store?.id) {
+          const matchIdx = cards.findIndex(
+            (c) => c.store_id === store.id || (store.slug && c.store_slug === store.slug)
+          );
+          if (matchIdx !== -1) {
+            setSelectedCardIndex(matchIdx);
+          }
+        }
+      }
+    } catch {
+      /* fallback silently */
     }
   };
 
@@ -48,6 +75,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
     if (customer) {
       loadStats(false);
       loadSummary();
+      loadCards();
     } else {
       setLoading(false);
     }
@@ -56,6 +84,7 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
       if (customer) {
         loadStats(true);
         loadSummary();
+        loadCards();
       }
     };
 
@@ -72,6 +101,18 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
     };
   }, [customer]);
 
+  const activeCard = loyaltyCards[selectedCardIndex] || null;
+  const clubName = activeCard?.store_name
+    ? `Club Privilège ${activeCard.store_name}`
+    : store?.name
+    ? `Club Privilège ${store.name}`
+    : "Club Privilège GotoShop";
+
+  const cardPoints = activeCard?.points ?? stats?.loyalty_points ?? 0;
+  const cardTier =
+    activeCard?.tier_name ||
+    (cardPoints >= 400 ? "Platine" : cardPoints >= 150 ? "Or" : cardPoints >= 50 ? "Argent" : "Bronze");
+
   if (!customer) {
     return (
       <div className="flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto space-y-5 pt-12 pb-32">
@@ -80,15 +121,15 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
         </div>
         <div className="space-y-2">
           <h2 className="font-headline-sm text-headline-sm text-on-surface">
-            Rejoignez le Club Privilège Awa
+            Rejoignez le {clubName}
           </h2>
           <p className="font-body-md text-on-surface-variant text-sm leading-relaxed">
-            Merci pour votre fidélité ! ✨ Cumulez des points à chaque commande confirmée, profitez de remises flash exclusives et d'un traitement prioritaire.
+            Merci pour votre fidélité ! ✨ Cumulez des points à chaque commande confirmée, profitez de remises directes exclusives et d'un traitement prioritaire.
           </p>
         </div>
         <button
           onClick={onOpenAuth}
-          className="w-full h-12 rounded-xl bg-primary-container text-on-primary-container font-label-lg font-bold shadow-md hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2"
+          className="w-full h-12 rounded-xl bg-primary-container text-on-primary-container font-label-lg font-bold shadow-md hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <Icon name="flash_on" className="text-[20px]" />
           <span>Activer mes Avantages (3s)</span>
@@ -98,58 +139,110 @@ export default function ClientStatsPage({ customer, onOpenAuth, onNavigateToShop
   }
 
   return (
-    <div className="flex flex-col w-full gap-6 max-w-2xl sm:max-w-3xl mx-auto pb-32">
+    <div className="flex flex-col w-full gap-5 sm:gap-6 max-w-2xl sm:max-w-3xl mx-auto pb-32">
       {/* Header */}
       <div className="flex items-center justify-between px-space-xs pt-1">
         <div>
           <h2 className="font-headline-sm text-headline-sm text-on-surface">Mes Avantages & Fidélité</h2>
-          <p className="text-xs text-on-surface-variant">Espace Privilège Membre</p>
+          <p className="text-xs text-on-surface-variant">{clubName} • Espace Privilège Membre</p>
         </div>
       </div>
 
-      {/* Digital Loyalty Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-surface-container border border-primary/25 p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Icon name="workspace_premium" className="text-[24px] text-primary" />
-            <span className="font-headline-sm text-xs font-bold uppercase tracking-widest text-on-surface">
-              Awa Club Privilège
+      {/* Multi-Store Cards Selector */}
+      {loyaltyCards.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {loyaltyCards.map((c, idx) => {
+            const isSelected = selectedCardIndex === idx;
+            return (
+              <button
+                key={c.card_number || idx}
+                type="button"
+                onClick={() => setSelectedCardIndex(idx)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer border ${
+                  isSelected
+                    ? "bg-amber-500 text-white border-amber-600 shadow-xs font-bold"
+                    : "bg-surface-secondary text-on-surface-variant hover:text-on-surface border-subtle"
+                }`}
+              >
+                <Icon name="badge" className="text-[15px]" />
+                <span>{c.store_name || `Boutique #${idx + 1}`}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isSelected ? "bg-white/20 text-white" : "bg-black/10 dark:bg-white/10"
+                  }`}
+                >
+                  {c.points || 0} pts
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Realistic 3D-styled Digital Loyalty Card */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 border border-amber-500/30 p-6 shadow-2xl space-y-4 text-white">
+        {/* Hologram & Sheen overlays */}
+        <div className="absolute -right-16 -top-16 w-48 h-48 rounded-full bg-gradient-to-br from-amber-400/20 via-primary/10 to-transparent blur-2xl pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
+
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-400/20 border border-amber-400/40 text-amber-300 flex items-center justify-center shadow-xs">
+              <Icon name="workspace_premium" className="text-[20px]" />
+            </div>
+            <span className="font-bold text-xs uppercase tracking-widest text-amber-200">
+              {clubName}
             </span>
           </div>
-          <span className="text-xs font-mono font-bold text-on-surface-variant">
-            ID: {customer.id.slice(0, 8).toUpperCase()}
+          <span className="text-[11px] font-mono font-bold text-slate-300 px-2 py-0.5 rounded-md bg-white/10 border border-white/15">
+            ID: {activeCard?.card_number || (customer.id ? customer.id.slice(0, 8).toUpperCase() : "GOTO-CARD")}
           </span>
         </div>
 
-        <div className="pt-2">
-          <p className="text-xs text-on-surface-variant font-medium">Titulaire de la carte</p>
-          <h3 className="font-headline-sm text-xl font-bold text-on-surface">{customer.name}</h3>
+        {/* EMV Gold Chip Visual */}
+        <div className="relative z-10 flex items-center gap-3 pt-1">
+          <div className="w-11 h-8 rounded-md bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-600 border border-amber-300 shadow-sm relative overflow-hidden flex items-center justify-center">
+            <div className="w-full h-[1px] bg-amber-800/40 absolute top-2.5" />
+            <div className="w-full h-[1px] bg-amber-800/40 absolute bottom-2.5" />
+            <div className="h-full w-[1px] bg-amber-800/40 absolute left-3.5" />
+            <div className="h-full w-[1px] bg-amber-800/40 absolute right-3.5" />
+            <div className="w-3.5 h-3 rounded-xs border border-amber-800/40" />
+          </div>
+          <Icon name="contactless" className="text-slate-400 text-[20px]" />
         </div>
 
-        <div className="flex items-end justify-between pt-1">
+        <div className="relative z-10 pt-1">
+          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Titulaire de la carte</p>
+          <h3 className="font-bold text-lg text-white tracking-wide">{customer.name}</h3>
+        </div>
+
+        <div className="relative z-10 flex items-end justify-between pt-1">
           <div>
-            <p className="text-[11px] text-on-surface-variant uppercase font-semibold">Solde Points</p>
-            <p className="text-2xl font-bold text-on-surface tabular-nums">
-              {fmtPts(stats?.loyalty_points)} <span className="text-xs font-normal text-secondary">pts</span>
+            <p className="text-[10px] text-amber-300/80 uppercase font-semibold">Solde Points</p>
+            <p className="text-2xl font-black text-amber-400 tabular-nums">
+              {fmtPts(cardPoints)} <span className="text-xs font-semibold text-amber-200/80">pts</span>
             </p>
+            <span className="text-[10px] text-slate-300 font-medium">
+              Palier : <strong className="text-amber-300">{cardTier}</strong>
+            </span>
           </div>
           <div className="text-right">
-            <span className="text-[11px] text-on-surface-variant uppercase font-semibold block">Prochain gain</span>
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full border inline-block bg-primary/15 text-primary border-primary/30">
+            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Prochain gain</span>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full border inline-block bg-primary/20 text-primary border-primary/40">
               +{fmtPts(summary?.next_gain ?? 0.5)} pt
             </span>
           </div>
         </div>
 
         {summary && (
-          <div className="space-y-1.5 pt-2 border-t border-white/10">
-            <div className="flex justify-between text-[11px] text-on-surface-variant font-medium">
-              <span>Encore {summary.payments_before_increase} paiement(s) avant +{fmtPts(summary.gain_after_increase)} pt par paiement</span>
-              <span>{summary.payments_counted} validé(s)</span>
+          <div className="relative z-10 space-y-1.5 pt-2 border-t border-white/10">
+            <div className="flex justify-between text-[11px] text-slate-300 font-medium">
+              <span>Encore {summary.payments_before_increase} commande(s) avant +{fmtPts(summary.gain_after_increase)} pt par commande livrée</span>
+              <span>{summary.payments_counted} validée(s)</span>
             </div>
-            <div className="w-full h-2 rounded-full bg-surface-container-highest overflow-hidden">
+            <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
               <div
-                className="h-full bg-primary rounded-full transition-all duration-500"
+                className="h-full bg-gradient-to-r from-amber-400 to-primary rounded-full transition-all duration-500"
                 style={{ width: `${((3 - summary.payments_before_increase) / 3) * 100}%` }}
               />
             </div>

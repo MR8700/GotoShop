@@ -103,9 +103,15 @@ def check_location(cities: List[Any], city_name: Optional[str], lat: Any, lng: A
 
 
 def alert_message(res: Dict[str, Any], city_name: Optional[str]) -> str:
-    if res["status"] == "MISMATCH":
-        return (f"Votre position GPS est à {res['distance_km']:g} km de « {city_name} » "
-                f"(zone de livraison : {res['radius_km']:g} km).")
-    if res["status"] == "OUT_OF_ZONE":
+    status = res.get("status")
+    if status == "MISMATCH":
+        dist = res.get("distance_km")
+        rad = res.get("radius_km")
+        dist_str = f"{dist:g}" if dist is not None else "?"
+        rad_str = f"{rad:g}" if rad is not None else "?"
+        target_city = city_name or "la zone choisie"
+        return f"Votre position GPS est à {dist_str} km de « {target_city} » (zone de livraison : {rad_str} km)."
+    if status == "OUT_OF_ZONE":
         return "Votre position GPS est en dehors des zones livrées par cette boutique."
     return ""
+

@@ -4,6 +4,7 @@ import {
   updateCustomerProfile,
   getMediaUrl,
   fetchCustomerLoyaltyCard,
+  fetchCustomerLoyaltyCards,
   fetchCustomerLoyaltyHistory,
   fetchCustomerLoyaltyCoupons,
 } from "../api/client";
@@ -25,6 +26,7 @@ export default function ClientProfilePage({
   onOpenAuth,
   onOpenOwnerLogin,
   onOpenVerify,
+  onNavigateToShop,
   showToast,
 }) {
   // Navigation subtabs: "carte" | "historique" | "coupons" | "coordonnees"
@@ -47,7 +49,9 @@ export default function ClientProfilePage({
   const [isSaving, setIsSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
-  // Loyalty Card & Ledger State
+  // Loyalty Card & Multi-store state
+  const [allCards, setAllCards] = useState([]);
+  const [selectedCardIndex, setSelectedCardIndex] = useState(0);
   const [cardData, setCardData] = useState(null);
   const [frontSvg, setFrontSvg] = useState("");
   const [backSvg, setBackSvg] = useState("");
@@ -66,19 +70,37 @@ export default function ClientProfilePage({
   const currentCountry =
     WEST_AFRICAN_COUNTRIES.find((c) => c.code === selectedCountryCode) || WEST_AFRICAN_COUNTRIES[0];
 
-  const loadCard = async () => {
+  const handleSelectCard = (index, cardsList = allCards) => {
+    setSelectedCardIndex(index);
+    const card = cardsList[index];
+    if (card) {
+      setCardData(card);
+      setFrontSvg(cardSvg(card, {}, "front"));
+      setBackSvg(cardSvg(card, {}, "back"));
+    }
+  };
+
+  const loadCards = async () => {
     try {
       setCardLoading(true);
-      const data = await fetchCustomerLoyaltyCard();
-      if (data) {
-        setCardData(data);
-        const fSvg = cardSvg(data, {}, "front");
-        const bSvg = cardSvg(data, {}, "back");
-        setFrontSvg(fSvg);
-        setBackSvg(bSvg);
+      const cards = await fetchCustomerLoyaltyCards();
+      if (Array.isArray(cards) && cards.length > 0) {
+        setAllCards(cards);
+        handleSelectCard(0, cards);
+      } else {
+        const single = await fetchCustomerLoyaltyCard();
+        if (single) {
+          setAllCards([single]);
+          handleSelectCard(0, [single]);
+        } else {
+          setAllCards([]);
+          setCardData(null);
+        }
       }
     } catch (err) {
-      console.error("Failed to load loyalty card:", err);
+      console.error("Failed to load loyalty cards:", err);
+      setAllCards([]);
+      setCardData(null);
     } finally {
       setCardLoading(false);
     }
@@ -110,7 +132,7 @@ export default function ClientProfilePage({
 
   useEffect(() => {
     if (customer) {
-      loadCard();
+      loadCards();
     }
   }, [customer?.id, customer?.session_token]);
 
@@ -186,23 +208,50 @@ export default function ClientProfilePage({
       return;
     }
     setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude.toFixed(6);
-        const lng = position.coords.longitude.toFixed(6);
-        const coords = `${lat}, ${lng}`;
-        const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
-        setGpsCoordinates(coords);
-        setGpsLocationUrl(mapsUrl);
-        setIsLocating(false);
-        showToast?.("Position GPS capturée avec succès !");
-      },
-      () => {
-        setIsLocating(false);
-        showToast?.("Impossible d'accéder au GPS. Veuillez autoriser la localisation.");
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    showToast?.("Recherche de votre position GPS exacte...");
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          try {
+            const rawLat = position?.coords?.latitude;
+            const rawLng = position?.coords?.longitude;
+            if (rawLat != null && rawLng != null && !isNaN(rawLat) && !isNaN(rawLng)) {
+              const lat = parseFloat(Number(rawLat).toFixed(6));
+              const lng = parseFloat(Number(rawLng).toFixed(6));
+              const coords = `${lat}, ${lng}`;
+              const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+              setGpsCoordinates(coords);
+              setGpsLocationUrl(mapsUrl);
+              setIsLocating(false);
+              showToast?.("Position GPS capturée avec succès !");
+            } else {
+              setIsLocating(false);
+              showToast?.("Position GPS imprécise, veuillez réessayer.");
+            }
+          } catch (e) {
+            console.error("GPS coords processing error:", e);
+            setIsLocating(false);
+          }
+        },
+        (err) => {
+          setIsLocating(false);
+          let msg = "Impossible d'accéder au GPS.";
+          if (err?.code === 1) {
+            msg = "Localisation bloquée. Cliquez sur le cadenas 🔒 ou paramètres du site à gauche de l'adresse web pour autoriser la position.";
+          } else if (err?.code === 2) {
+            msg = "Signal GPS indisponible. Activez le GPS de votre appareil.";
+          } else if (err?.code === 3) {
+            msg = "Délai GPS dépassé. Veuillez réessayer.";
+          }
+          showToast?.(msg);
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    } catch (e) {
+      console.error("GPS invocation error:", e);
+      setIsLocating(false);
+      showToast?.("Erreur lors de l'activation du GPS");
+    }
   };
 
   const handleSaveProfile = async (e) => {
@@ -387,7 +436,37 @@ export default function ClientProfilePage({
       {/* TAB 1: MA CARTE & STATUT */}
       {profileTab === "carte" && (
         <div className="space-y-5 animate-fadeIn">
-          {/* 3D Flip Card Container */}
+          {/* Multi-Store Cards Selector */}
+          {allCards.length > 1 && (
+            <div className="bg-surface-container rounded-2xl p-3 border border-subtle flex items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1">
+                <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+                  <Icon name="storefront" className="text-primary text-[15px]" />
+                  <span>Boutiques ({allCards.length}) :</span>
+                </span>
+                {allCards.map((c, idx) => (
+                  <button
+                    key={c.card_number || idx}
+                    type="button"
+                    onClick={() => handleSelectCard(idx)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
+                      selectedCardIndex === idx
+                        ? "bg-primary text-white shadow-sm ring-2 ring-primary/30"
+                        : "bg-surface-container-high/80 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest"
+                    }`}
+                  >
+                    <span>{c.store?.name || `Boutique ${idx + 1}`}</span>
+                    <span className="text-[10px] font-mono opacity-85">({fmtPt(c.points)} pt)</span>
+                  </button>
+                ))}
+              </div>
+              <span className="text-[11px] font-mono font-bold text-on-surface-variant shrink-0 bg-surface-container-highest px-2 py-0.5 rounded-md">
+                {selectedCardIndex + 1}/{allCards.length}
+              </span>
+            </div>
+          )}
+
+          {/* 3D Realistic Physical Flip Card Container */}
           <div className="bg-surface-container rounded-2xl p-4 sm:p-6 shadow-sm border border-subtle">
             <div className="flex items-center justify-between mb-3 text-xs">
               <span className="text-on-surface-variant font-medium flex items-center gap-1.5">
@@ -395,6 +474,7 @@ export default function ClientProfilePage({
                 <span>Cliquez sur la carte pour voir le verso</span>
               </span>
               <button
+                type="button"
                 onClick={() => setIsFlipped(!isFlipped)}
                 className="text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
               >
@@ -403,50 +483,74 @@ export default function ClientProfilePage({
               </button>
             </div>
 
-            {/* Realistic Card Scene */}
+            {/* Realistic 3D Card Scene */}
             {cardLoading ? (
-              <div className="w-full max-w-sm sm:max-w-md mx-auto aspect-[85.6/53.98] rounded-2xl bg-surface-container-high/80 animate-pulse flex items-center justify-center text-on-surface-variant text-sm">
-                <span>Génération de votre carte sécurisée...</span>
+              <div className="w-full max-w-sm sm:max-w-md mx-auto aspect-[85.6/53.98] rounded-2xl bg-surface-container-high/80 animate-pulse flex flex-col items-center justify-center text-on-surface-variant text-sm gap-2">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span>Chargement de votre carte sécurisée...</span>
               </div>
             ) : cardData ? (
               <div
-                className="relative w-full max-w-sm sm:max-w-md mx-auto aspect-[85.6/53.98] select-none"
-                style={{ perspective: "1200px" }}
+                className="relative w-full max-w-sm sm:max-w-md mx-auto aspect-[85.6/53.98] select-none group"
+                style={{ perspective: "1400px" }}
               >
                 <div
                   onClick={() => setIsFlipped(!isFlipped)}
-                  className="relative w-full h-full cursor-pointer transition-transform duration-700 shadow-2xl rounded-2xl group"
+                  className="relative w-full h-full cursor-pointer transition-transform duration-700 ease-out rounded-2xl shadow-[0_20px_45px_-12px_rgba(0,0,0,0.5),0_0_20px_rgba(234,179,8,0.12)] hover:shadow-[0_25px_50px_-10px_rgba(0,0,0,0.6),0_0_25px_rgba(234,179,8,0.2)] transition-shadow"
                   style={{
                     transformStyle: "preserve-3d",
                     transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
                   }}
                   title="Cliquer pour retourner la carte"
                 >
-                  {/* Front */}
+                  {/* Front Face */}
                   <div
-                    className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden shadow-lg border border-white/10"
+                    className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden border border-white/20 dark:border-white/10"
                     style={{
                       backfaceVisibility: "hidden",
                       WebkitBackfaceVisibility: "hidden",
                     }}
-                    dangerouslySetInnerHTML={{ __html: frontSvg }}
-                  />
+                  >
+                    <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: frontSvg }} />
+                    {/* Realistic Glossy Sheen Overlay */}
+                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-60 group-hover:opacity-90 transition-opacity duration-300" />
+                  </div>
 
-                  {/* Back */}
+                  {/* Back Face */}
                   <div
-                    className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden shadow-lg border border-white/10"
+                    className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden border border-white/20 dark:border-white/10"
                     style={{
                       backfaceVisibility: "hidden",
                       WebkitBackfaceVisibility: "hidden",
                       transform: "rotateY(180deg)",
                     }}
-                    dangerouslySetInnerHTML={{ __html: backSvg }}
-                  />
+                  >
+                    <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: backSvg }} />
+                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-50" />
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="p-8 text-center text-on-surface-variant text-sm">
-                Impossible de charger votre carte pour le moment.
+              <div className="p-6 sm:p-8 rounded-2xl bg-surface-container-high/40 border border-white/10 text-center space-y-3.5 max-w-md mx-auto my-2">
+                <div className="w-14 h-14 rounded-2xl bg-primary/15 text-primary flex items-center justify-center mx-auto shadow-inner">
+                  <Icon name="credit_card" className="text-[28px]" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-bold text-base text-on-surface">Aucune carte de fidélité active pour le moment</h4>
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    Vos cartes de fidélité se créent automatiquement dès votre première commande dans chaque boutique partenaire GotoShop. Cumulez des points et profitez de privilèges exclusifs !
+                  </p>
+                </div>
+                {onNavigateToShop && (
+                  <button
+                    type="button"
+                    onClick={onNavigateToShop}
+                    className="px-4 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:brightness-110 active:scale-95 transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    <Icon name="storefront" className="text-[16px]" />
+                    <span>Découvrir les boutiques</span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -490,7 +594,7 @@ export default function ClientProfilePage({
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase font-bold text-on-surface-variant tracking-wider">
-                  Votre Statut Actuel
+                  Votre Statut Actuel {cardData?.store?.name ? `(${cardData.store.name})` : ""}
                 </span>
                 <h3 className="font-bold text-lg text-on-surface flex items-center gap-2 mt-0.5">
                   <span>Niveau {tierName}</span>
@@ -522,32 +626,38 @@ export default function ClientProfilePage({
                   Plus que <strong className="text-on-surface">{fmtPt(cardData?.points_to_next)} pt gagnés</strong> pour atteindre le statut {nextTier}. Dépenser vos points ne fait pas baisser votre statut.
                 </p>
               </div>
-            ) : (
+            ) : tierName === "Platine" ? (
               <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-semibold flex items-center gap-2">
                 <Icon name="workspace_premium" className="text-[18px]" />
-                <span>Félicitations ! Vous avez atteint le statut le plus élevé de la boutique.</span>
+                <span>Félicitations ! Vous avez atteint le palier maximal Platine. Remise maximale garantie sur toutes vos commandes !</span>
+              </div>
+            ) : (
+              <div className="space-y-2 p-3.5 rounded-xl bg-surface-container-high/60 border border-white/5">
+                <p className="text-xs text-on-surface-variant">
+                  Passez commande pour progresser vers le statut Argent (50 pts) et débloquer plus de privilèges.
+                </p>
               </div>
             )}
 
             {/* Tiers privileges overview grid */}
             <div>
-              <p className="text-xs font-bold text-on-surface mb-2.5">Statuts (selon les points gagnés depuis le début)</p>
+              <p className="text-xs font-bold text-on-surface mb-2.5">Grille des Privilèges de Fidélité</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 <div className={`p-2.5 rounded-xl border ${tierName === "Bronze" ? "bg-amber-950/40 border-amber-600/50" : "bg-surface-container-high/40 border-white/5"}`}>
                   <p className="font-bold text-amber-500">Bronze (0 pt)</p>
                   <p className="text-[11px] text-on-surface-variant mt-0.5">Accès catalogue &amp; suivi 24h</p>
                 </div>
                 <div className={`p-2.5 rounded-xl border ${tierName === "Argent" ? "bg-slate-800/60 border-slate-400/50" : "bg-surface-container-high/40 border-white/5"}`}>
-                  <p className="font-bold text-slate-300">Argent (10 pt)</p>
-                  <p className="text-[11px] text-on-surface-variant mt-0.5">Statut Argent</p>
+                  <p className="font-bold text-slate-300">Argent (50 pt)</p>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">-3% sur les commandes</p>
                 </div>
                 <div className={`p-2.5 rounded-xl border ${tierName === "Or" ? "bg-amber-950/50 border-amber-400" : "bg-surface-container-high/40 border-white/5"}`}>
-                  <p className="font-bold text-yellow-400">Or (30 pt)</p>
-                  <p className="text-[11px] text-on-surface-variant mt-0.5">Support prioritaire</p>
+                  <p className="font-bold text-yellow-400">Or (150 pt)</p>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">-5% + support prioritaire</p>
                 </div>
                 <div className={`p-2.5 rounded-xl border ${tierName === "Platine" ? "bg-indigo-950/50 border-sky-400" : "bg-surface-container-high/40 border-white/5"}`}>
-                  <p className="font-bold text-sky-300">Platine (60 pt)</p>
-                  <p className="text-[11px] text-on-surface-variant mt-0.5">Livraisons express</p>
+                  <p className="font-bold text-sky-300">Platine (400 pt)</p>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">-8% + livraisons express</p>
                 </div>
               </div>
             </div>

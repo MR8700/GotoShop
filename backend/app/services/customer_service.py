@@ -288,6 +288,7 @@ class CustomerService:
             prod_name = ", ".join([f"{it.product_name} ({it.quantity})" for it in o.items]) if o.items else "Commande GotoShop"
             prod_img = first_item.product.primary_image_url if first_item and getattr(first_item, "product", None) else None
             store_slug = o.store.slug if o.store else "shop"
+            store_name = o.store.name if o.store else "Boutique"
 
             results.append(CustomerOrderItem(
                 id=o.id,
@@ -316,6 +317,8 @@ class CustomerService:
                 customer_coordinates=f"{o.delivery.latitude}, {o.delivery.longitude}" if o.delivery and o.delivery.latitude else None,
                 items=items_list,
                 conversation_id=conv_id,
+                store_name=store_name,
+                store_slug=store_slug,
                 is_client_archived=bool(getattr(o, "is_client_archived", False)),
                 is_client_hidden=bool(getattr(o, "is_client_hidden", False)),
                 created_at=o.created_at,
@@ -336,6 +339,7 @@ class CustomerService:
             prod_img = i.product.primary_image_url if i.product else None
             is_sold = i.sale_confirmation.is_sold if i.sale_confirmation else None
             store_slug = i.store.slug if i.store else "shop"
+            store_name = i.store.name if i.store else "Boutique"
 
             results.append(CustomerOrderItem(
                 id=i.id,
@@ -361,6 +365,8 @@ class CustomerService:
                 customer_coordinates=i.customer_coordinates,
                 items=None,
                 conversation_id=None,
+                store_name=store_name,
+                store_slug=store_slug,
                 is_client_archived=bool(getattr(i, "is_client_archived", False)),
                 is_client_hidden=bool(getattr(i, "is_client_hidden", False)),
                 created_at=i.created_at,

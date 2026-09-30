@@ -184,7 +184,13 @@ class OrderService:
             # on ne rattache pas la commande au compte existant et on ne lui fait pas adopter un jeton.
             from app.services.customer_service import CustomerService as _CS
             customer_token = _CS.effective_token(customer_token)
-            if cust and not (_tok_ok(customer_token) and _CS.token_matches(cust, customer_token)):
+            verified_caller = _CS.get_by_token(db, customer_token) if _tok_ok(customer_token) else None
+            clean_cust_phone = re.sub(r"[^\d+]", "", customer_phone or "")
+            caller_owns_phone = bool(
+                verified_caller and clean_cust_phone and
+                (re.sub(r"[^\d+]", "", verified_caller.phone or "") == clean_cust_phone)
+            )
+            if cust and not (_tok_ok(customer_token) and (_CS.token_matches(cust, customer_token) or caller_owns_phone)):
                 cust = None
                 customer_phone_taken = True
             else:

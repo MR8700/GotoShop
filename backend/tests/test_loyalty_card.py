@@ -55,4 +55,11 @@ def test_loyalty_card_flow():
 
     # Merchant endpoint requires a token
     assert c.get(f"/api/customer/merchant/clients/{cust.id}/loyalty-card").status_code == 401
+
+    # Multi-store loyalty cards endpoint
+    r_multi = c.get("/api/customer/loyalty-cards", headers={"Authorization": f"Bearer {tok}"})
+    assert r_multi.status_code == 200, r_multi.text
+    cards_list = r_multi.json()
+    assert isinstance(cards_list, list) and len(cards_list) >= 1
+    assert cards_list[0]["card_number"] == no
     db.close()

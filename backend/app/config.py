@@ -116,8 +116,8 @@ class Settings:
     CUSTOMER_COOKIE_NAME: str = os.getenv("CUSTOMER_COOKIE_NAME", "gs_customer")
     CUSTOMER_COOKIE_SAMESITE: str = os.getenv("CUSTOMER_COOKIE_SAMESITE", "Lax")  # "None" si l'API est sur un autre site
     CUSTOMER_COOKIE_SECURE: bool = os.getenv("CUSTOMER_COOKIE_SECURE", "false" if os.getenv("APP_ENV", "dev") == "dev" else "true").lower() in ("true", "1", "yes")
-    # false (défaut) = le jeton n'est JAMAIS renvoyé au JavaScript (cookie HttpOnly seul). true = compat. ancien frontend.
-    CUSTOMER_TOKEN_IN_BODY: bool = os.getenv("CUSTOMER_TOKEN_IN_BODY", "false").lower() in ("true", "1", "yes")
+    # false = le jeton n'est JAMAIS renvoyé au JavaScript (cookie HttpOnly seul). true (défaut) = renvoyé au frontend SPA.
+    CUSTOMER_TOKEN_IN_BODY: bool = os.getenv("CUSTOMER_TOKEN_IN_BODY", "true").lower() in ("true", "1", "yes")
     PASSWORD_RESET_OTP_TTL_MINUTES: int = int(os.getenv("PASSWORD_RESET_OTP_TTL_MINUTES", "10"))
     WALLET_COMMISSION_RATE: float = float(os.getenv("WALLET_COMMISSION_RATE", "0.0"))
     
