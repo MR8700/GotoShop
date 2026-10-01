@@ -91,7 +91,9 @@ export default function ConversationalOrderModal({
     }
     let alive = true;
     const timer = setTimeout(() => {
-      checkDeliveryLocation(key, { city: deliveryCity || defaultCity, latitude, longitude }).then((r) => alive && setLocCheck(r));
+      checkDeliveryLocation(key, { city: deliveryCity || defaultCity, latitude, longitude })
+        .then((r) => { if (alive && r && typeof r === "object") setLocCheck(r); })
+        .catch(() => { if (alive) setLocCheck(null); });
     }, 400);
     return () => { alive = false; clearTimeout(timer); };
   }, [store?.id, store?.slug, selectedSpot, gpsCaptured, latitude, longitude, deliveryCity, deliveryMode]);
@@ -891,14 +893,14 @@ export default function ConversationalOrderModal({
                 {locCheck && (locCheck.status === "MISMATCH" || locCheck.status === "OUT_OF_ZONE") && (
                   <div className="p-3 rounded-xl border border-red-400/40 bg-red-500/10 text-xs space-y-2" role="alert">
                     <p className="font-bold text-red-300">⚠️ Position et ville de livraison incohérentes</p>
-                    <p className="text-on-surface">{locCheck.message}</p>
-                    {locCheck.nearest && (
-                      <button type="button" onClick={() => setDeliveryCity(locCheck.nearest.name)}
-                        className="w-full py-2 rounded-lg bg-primary text-white font-bold">
-                        Passer à « {locCheck.nearest.display_label || locCheck.nearest.name} » ({locCheck.nearest.distance_km} km)
+                    <p className="text-on-surface">{locCheck.message || "Votre position actuelle semble distante de la ville choisie."}</p>
+                    {locCheck.nearest && typeof locCheck.nearest === "object" && (locCheck.nearest.name || locCheck.nearest.display_label) && (
+                      <button type="button" onClick={() => setDeliveryCity(locCheck.nearest.name || locCheck.nearest.display_label)}
+                        className="w-full py-2 rounded-lg bg-primary text-white font-bold cursor-pointer transition-transform active:scale-[0.99]">
+                        Passer à « {locCheck.nearest.display_label || locCheck.nearest.name} » {locCheck.nearest.distance_km != null ? `(${locCheck.nearest.distance_km} km)` : ""}
                       </button>
                     )}
-                    <label className="flex items-start gap-2 text-on-surface-variant">
+                    <label className="flex items-start gap-2 text-on-surface-variant cursor-pointer">
                       <input type="checkbox" checked={locAck} onChange={(e) => setLocAck(e.target.checked)} className="mt-0.5" />
                       <span>Je confirme cette adresse malgré l'écart (le commerçant sera alerté).</span>
                     </label>

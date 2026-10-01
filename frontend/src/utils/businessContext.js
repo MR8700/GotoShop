@@ -24,8 +24,8 @@ export const TERMINOLOGY_PROFILES = {
     item_plural: "Plats",
     catalog_title: "Menu & Spécialités",
     catalog_selection: "Plats de la sélection",
-    action_order: "Commander ce plat",
-    action_order_direct: "Commander en direct",
+    action_order: "Commander",
+    action_order_direct: "Commander",
     search_placeholder: "Rechercher un plat ou une spécialité...",
     empty_catalog: "Aucun plat disponible pour le moment.",
     customization_title: "Assaisonnements & Préférences",
@@ -44,8 +44,8 @@ export const TERMINOLOGY_PROFILES = {
     item_plural: "Articles",
     catalog_title: "Collection & Nouveautés",
     catalog_selection: "Articles de la sélection",
-    action_order: "Commander cet article",
-    action_order_direct: "Commander en direct",
+    action_order: "Commander",
+    action_order_direct: "Commander",
     search_placeholder: "Rechercher un vêtement, tissu, coupe...",
     empty_catalog: "Aucun article disponible pour le moment.",
     customization_title: "Personnalisation & Mesures",
@@ -64,8 +64,8 @@ export const TERMINOLOGY_PROFILES = {
     item_plural: "Produits",
     catalog_title: "Catalogue High-Tech",
     catalog_selection: "Produits de la sélection",
-    action_order: "Commander ce produit",
-    action_order_direct: "Commander en direct",
+    action_order: "Commander",
+    action_order_direct: "Commander",
     search_placeholder: "Rechercher un appareil, accessoire, modèle...",
     empty_catalog: "Aucun produit disponible pour le moment.",
     customization_title: "Options & Configuration",
@@ -84,8 +84,8 @@ export const TERMINOLOGY_PROFILES = {
     item_plural: "Prestations",
     catalog_title: "Prestations & Forfaits",
     catalog_selection: "Prestations sélectionnées",
-    action_order: "Réserver cette prestation",
-    action_order_direct: "Réserver en direct",
+    action_order: "Commander",
+    action_order_direct: "Commander",
     search_placeholder: "Rechercher une prestation ou un service...",
     empty_catalog: "Aucune prestation disponible pour le moment.",
     customization_title: "Détails de la prestation",
@@ -104,8 +104,8 @@ export const TERMINOLOGY_PROFILES = {
     item_plural: "Produits",
     catalog_title: "Catalogue & Nouveautés",
     catalog_selection: "Articles de la sélection",
-    action_order: "Commander cet article",
-    action_order_direct: "Commander en direct",
+    action_order: "Commander",
+    action_order_direct: "Commander",
     search_placeholder: "Rechercher dans la boutique...",
     empty_catalog: "Aucun produit disponible pour le moment.",
     customization_title: "Personnalisation de l'article",
@@ -176,10 +176,7 @@ export function getBusinessContext(store) {
       if (step !== "EDIT") return "Commande transmise !";
       return `Commander chez ${storeName}`;
     },
-    getOrderCtaLabel: (isCustomizable = false) => {
-      if (isCustomizable) {
-        return "Personnaliser & Commander";
-      }
+    getOrderCtaLabel: () => {
       return "Commander";
     },
     getDiscoverLabel: () => {

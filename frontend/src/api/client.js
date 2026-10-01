@@ -1110,11 +1110,17 @@ export async function fetchCustomerOrders() {
   return dataCache.swr(
     `customer:orders:${token}`,
     async () => {
-      const res = await fetch(`${API_BASE}/customer/orders`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return [];
-      return res.json();
+      try {
+        const res = await fetch(`${API_BASE}/customer/orders`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return [];
+        const data = await safeParseJson(res);
+        return Array.isArray(data) ? data : (Array.isArray(data?.orders) ? data.orders : []);
+      } catch (e) {
+        console.warn("fetchCustomerOrders fallback empty:", e);
+        return [];
+      }
     },
     { ttl: 20000, persist: true }
   );
@@ -1130,11 +1136,17 @@ export async function fetchCustomerStats({ force = false } = {}) {
   return dataCache.swr(
     cacheKey,
     async () => {
-      const res = await fetch(`${API_BASE}/customer/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return null;
-      return res.json();
+      try {
+        const res = await fetch(`${API_BASE}/customer/stats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return null;
+        const data = await safeParseJson(res);
+        return data && typeof data === "object" && !Array.isArray(data) && !data.detail ? data : null;
+      } catch (e) {
+        console.warn("fetchCustomerStats fallback null:", e);
+        return null;
+      }
     },
     { ttl: 60000, persist: true }
   );
@@ -1153,32 +1165,36 @@ export async function fetchCustomerLoyaltyCard(storeId = null) {
   const url = storeId
     ? `${API_BASE}/customer/loyalty-card?store_id=${encodeURIComponent(storeId)}`
     : `${API_BASE}/customer/loyalty-card`;
-  const res = await fetch(url, {
-    headers,
-    credentials: "include",
-  });
-  if (!res.ok) {
-    if (res.status === 404 || res.status === 401) return null;
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Impossible de charger la carte de fidélité");
+  try {
+    const res = await fetch(url, {
+      headers,
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    const data = await safeParseJson(res);
+    return data && data.card_number ? data : null;
+  } catch (e) {
+    console.warn("fetchCustomerLoyaltyCard notice:", e);
+    return null;
   }
-  return res.json();
 }
 
 export async function fetchCustomerLoyaltyCards() {
   const token = getCustomerToken();
   const headers = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/customer/loyalty-cards`, {
-    headers,
-    credentials: "include",
-  });
-  if (!res.ok) {
-    if (res.status === 404 || res.status === 401) return [];
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Impossible de charger vos cartes de fidélité");
+  try {
+    const res = await fetch(`${API_BASE}/customer/loyalty-cards`, {
+      headers,
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    const data = await safeParseJson(res);
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.warn("fetchCustomerLoyaltyCards notice:", e);
+    return [];
   }
-  return res.json();
 }
 
 export async function fetchMerchantClientLoyaltyCard(customerId) {
@@ -1362,7 +1378,9 @@ export async function checkDeliveryLocation(storeId, { city, latitude, longitude
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ city, latitude, longitude }),
     });
-    return res.ok ? res.json() : null;
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    return data && typeof data === "object" ? data : null;
   } catch {
     return null;
   }

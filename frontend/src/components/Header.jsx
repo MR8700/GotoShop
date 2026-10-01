@@ -6,6 +6,7 @@ import NotificationBell from "./NotificationBell";
 
 export default function Header({
   store,
+  viewMode = "store",
   activeTab,
   onShare,
   onNavigate,
@@ -33,8 +34,24 @@ export default function Header({
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showToolsMenu, setShowToolsMenu] = useState(false);
 
+  const isOutsideStore = viewMode === "explorer" || !store;
+
   const getTabTitle = () => {
     if (isTunnel) return "Commande";
+    if (isOutsideStore) {
+      switch (activeTab) {
+        case "commandes":
+          return "Mes Commandes";
+        case "chat":
+          return "Messages";
+        case "stats":
+          return "Mes Avantages";
+        case "reglages":
+          return "Mon Profil";
+        default:
+          return "Toutes les Boutiques";
+      }
+    }
     if (mode === "client") {
       switch (activeTab) {
         case "commandes":
@@ -66,6 +83,15 @@ export default function Header({
     }
   };
 
+  const handleLogoClick = () => {
+    if (isOutsideStore) {
+      if (onOpenExplorer) onOpenExplorer();
+      else onNavigate("boutique");
+    } else {
+      onNavigate("boutique");
+    }
+  };
+
   return (
     <>
       <header className="fixed top-0 inset-x-0 z-40 bg-surface/90 backdrop-blur-md border-b border-subtle pt-safe transition-all duration-200">
@@ -82,55 +108,71 @@ export default function Header({
               </button>
             )}
 
-            {/* Logo */}
+            {/* Logo GotoShop / Store Logo */}
             <div
-              onClick={() => onNavigate("boutique")}
+              onClick={handleLogoClick}
               className="relative shrink-0 cursor-pointer group"
-              title={store?.name || "Boutique"}
+              title={isOutsideStore ? "GotoShop • Commerce local" : (store?.name || "Boutique")}
             >
               <img
-                alt=""
-                src={getMediaUrl(store?.logo_url) || "/media/store/logo.jpg"}
+                alt="GotoShop"
+                src={isOutsideStore ? "/media/store/logo.jpg" : (getMediaUrl(store?.logo_url) || "/media/store/logo.jpg")}
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.style.display = "none";
                   if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
                 }}
-                className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 object-cover rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-container shadow-xs group-hover:border-primary/40 transition-all"
+                className="w-8 h-8 sm:w-9 sm:h-9 object-cover rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-container shadow-xs group-hover:border-primary/40 transition-all"
               />
-              <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-primary/10 text-primary hidden items-center justify-center font-bold text-xs">
-                {store?.name ? store.name.charAt(0).toUpperCase() : "G"}
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-primary/10 text-primary hidden items-center justify-center font-bold text-xs">
+                G
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-secondary ring-2 ring-surface" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-surface" />
             </div>
 
-            {/* Store title & micro status */}
-            <div
-              onClick={() => onNavigate("boutique")}
-              className="flex flex-col min-w-0 cursor-pointer"
-            >
-              <div className="flex items-center gap-1 sm:gap-1.5">
-                <span className="font-semibold text-xs sm:text-sm md:text-[15px] text-on-surface tracking-tight truncate max-w-[85px] xs:max-w-[130px] sm:max-w-[200px] md:max-w-[260px]">
-                  {getTabTitle()}
+            {/* If outside store: Show "Toutes les Boutiques" CTA / Indicator */}
+            {isOutsideStore ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenExplorer) onOpenExplorer();
+                  else onNavigate("boutique");
+                }}
+                className="h-8.5 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 flex items-center gap-1.5 font-bold text-xs sm:text-sm transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
+                title="Toutes les Boutiques"
+              >
+                <Icon name="storefront" className="text-[17px] sm:text-[18px]" />
+                <span className="inline">Toutes les Boutiques</span>
+              </button>
+            ) : (
+              /* Inside store: Store title & micro status */
+              <div
+                onClick={() => onNavigate("boutique")}
+                className="flex flex-col min-w-0 cursor-pointer"
+              >
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <span className="font-semibold text-xs sm:text-sm md:text-[15px] text-on-surface tracking-tight truncate max-w-[85px] xs:max-w-[130px] sm:max-w-[200px] md:max-w-[260px]">
+                    {getTabTitle()}
+                  </span>
+                  {store?.is_verified && (
+                    <Icon name="verified" className="text-[14px] sm:text-[15px] text-secondary shrink-0" style={{ fontVariationSettings: "'FILL' 1" }} title="Boutique vérifiée" aria-hidden="true" />
+                  )}
+                </div>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-on-surface-variant font-normal">
+                  {mode === "owner" ? (
+                    <span className="text-secondary font-medium">Administration commerçante</span>
+                  ) : (
+                    <span>{store?.delivery_city?.split("(")[0]?.trim() || "Burkina Faso"} • Commande directe</span>
+                  )}
                 </span>
-                {store?.is_verified && (
-                  <Icon name="verified" className="text-[14px] sm:text-[15px] text-secondary shrink-0" style={{ fontVariationSettings: "'FILL' 1" }} title="Boutique vérifiée" aria-hidden="true" />
-                )}
               </div>
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-on-surface-variant font-normal">
-                {mode === "owner" ? (
-                  <span className="text-secondary font-medium">Administration commerçante</span>
-                ) : (
-                  <span>{store?.delivery_city?.split("(")[0]?.trim() || "Burkina Faso"} • Commande directe</span>
-                )}
-              </span>
-            </div>
+            )}
           </div>
 
           {/* Right: Actions & Navigation */}
-          <div className="flex items-center gap-2 xs:gap-2.5 sm:gap-3 md:gap-3.5 shrink-0 ml-auto">
-            {/* Explorer button (Shown ONLY for non-authenticated guests/clients) */}
-            {onOpenExplorer && !authStatus?.is_authenticated && (
+          <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 md:gap-3 shrink-0 ml-auto">
+            {/* Explorer button inside a store */}
+            {!isOutsideStore && onOpenExplorer && !authStatus?.is_authenticated && (
               <button
                 onClick={onOpenExplorer}
                 className="h-8.5 sm:h-9.5 px-2 xs:px-2.5 sm:px-3 rounded-xl bg-surface-secondary hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface text-xs font-medium border border-slate-300 dark:border-slate-700 flex items-center gap-1.5 transition-all active:scale-95 shrink-0 cursor-pointer"
@@ -346,8 +388,8 @@ export default function Header({
               />
             )}
 
-            {/* Direct Theme Toggle button in header - hidden on extra narrow devices to prevent overflow */}
-            <div className="hidden xs:flex">
+            {/* Direct Theme Toggle button in header - always visible */}
+            <div className="flex shrink-0">
               <ThemeToggle />
             </div>
 
@@ -375,15 +417,28 @@ export default function Header({
                   </div>
 
                   <div className="py-1 space-y-0.5">
+                    {onOpenRegisterStore && (
+                      <button
+                        onClick={() => {
+                          setShowToolsMenu(false);
+                          onOpenRegisterStore();
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-bold flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Icon name="add_business" className="text-[17px]" />
+                        <span>Ouvrir ma boutique</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => {
                         setShowToolsMenu(false);
                         onShare();
                       }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface transition-colors"
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-secondary flex items-center gap-2.5 text-on-surface transition-colors cursor-pointer"
                     >
                       <Icon name="share" className="text-[16px] text-primary" />
-                      <span>Partager la vitrine</span>
+                      <span>{isOutsideStore ? "Partager GotoShop" : "Partager la vitrine"}</span>
                     </button>
 
                     {onOpenMyStores && (

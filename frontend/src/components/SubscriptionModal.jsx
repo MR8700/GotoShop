@@ -451,16 +451,16 @@ export default function SubscriptionModal({
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md overflow-y-auto"
     >
-      <div className="relative w-full max-w-2xl bg-surface-card border border-subtle rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
-        {/* Header bar */}
-        <div className="px-5 py-4 bg-surface-secondary border-b border-subtle text-on-surface flex items-center justify-between flex-shrink-0">
+      <div className="relative w-full max-w-2xl bg-surface-card gs-3d-panel rounded-3xl overflow-hidden my-auto max-h-[92vh] flex flex-col border-2 border-primary/30 ring-1 ring-white/20 dark:ring-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.65),0_0_35px_rgba(234,179,8,0.18)]">
+        {/* Header bar with 3D gradient & depth */}
+        <div className="px-5 py-4 bg-gradient-to-r from-primary/10 via-surface-secondary to-primary/5 border-b-2 border-subtle text-on-surface flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+            <div className="gs-3d-panel-sm w-11 h-11 rounded-2xl bg-primary/15 border-2 border-primary/40 text-primary flex items-center justify-center flex-shrink-0 shadow-sm">
               <Icon name={mode === "NEW_STORE" ? "add_business" : "workspace_premium"} className="text-[22px]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-on-surface tracking-tight leading-snug">
+                <h2 className="text-base font-bold text-on-surface tracking-tight leading-snug">
                   {mode === "NEW_STORE"
                     ? "Ouvrir ma Boutique en Ligne"
                     : mode === "UPGRADE"
@@ -468,7 +468,7 @@ export default function SubscriptionModal({
                     : "Renouveler mon Abonnement"}
                 </h2>
                 {mode === "NEW_STORE" && (
-                  <span className="hidden xs:inline-flex px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-semibold">
+                  <span className="hidden xs:inline-flex px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 text-[10px] font-bold shadow-xs animate-pulse">
                     14 Jours Gratuits
                   </span>
                 )}
@@ -482,7 +482,7 @@ export default function SubscriptionModal({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-surface-card hover:bg-surface-elevated border border-subtle flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+            className="gs-3d-btn w-8 h-8 rounded-xl bg-surface-card flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
             aria-label="Fermer"
           >
             <Icon name="close" className="text-[18px]" />
@@ -501,8 +501,8 @@ export default function SubscriptionModal({
           ) : submitSuccess ? (
             /* SUCCESS CONFIRMATION SCREEN */
             <div className="text-center py-4 px-2 space-y-5 animate-fade-in">
-              <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border-2 border-amber-500/30 text-amber-500 flex items-center justify-center mx-auto shadow-md">
-                <Icon name="hourglass_top" className="text-[36px] animate-pulse" />
+              <div className="w-16 h-16 rounded-3xl bg-amber-500/15 border-2 border-amber-500/40 text-amber-500 flex items-center justify-center mx-auto shadow-lg gs-3d-panel-sm">
+                <Icon name="hourglass_top" className="text-[34px] animate-pulse" />
               </div>
 
               <div className="space-y-3">
@@ -514,8 +514,8 @@ export default function SubscriptionModal({
                   Félicitations {ownerName} ! Votre boutique est enregistrée.
                 </h3>
                 
-                {/* 24H Admin Validation Explainer Card */}
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-2.5 max-w-lg mx-auto">
+                {/* 24H Admin Validation Explainer Card with 3D styling */}
+                <div className="gs-3d-panel-sm p-4 rounded-2xl bg-gradient-to-br from-amber-500/15 via-surface-card to-amber-500/5 border-2 border-amber-500/30 text-left space-y-2.5 max-w-lg mx-auto shadow-sm">
                   <div className="flex items-start gap-2.5">
                     <Icon name="verified_user" className="text-amber-500 text-lg shrink-0 mt-0.5" />
                     <p className="text-xs text-on-surface leading-relaxed">
@@ -538,12 +538,12 @@ export default function SubscriptionModal({
               </div>
 
               {/* Public Store Link Card */}
-              <div className="bg-surface-secondary border border-subtle p-4 rounded-xl text-left space-y-3 max-w-lg mx-auto">
+              <div className="gs-3d-panel-sm bg-surface-secondary border-2 border-subtle p-4 rounded-2xl text-left space-y-3 max-w-lg mx-auto shadow-sm">
                 <div>
                   <label className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider block mb-1">
                     Lien unique d'accès à votre boutique :
                   </label>
-                  <div className="flex items-center gap-2 bg-surface-card p-2 rounded-xl border border-subtle">
+                  <div className="gs-3d-inset flex items-center gap-2 bg-surface-card p-2 rounded-xl border border-subtle">
                     <Icon name="link" className="text-primary text-[18px]" />
                     <input
                       type="text"
@@ -554,7 +554,7 @@ export default function SubscriptionModal({
                     <button
                       type="button"
                       onClick={() => copyToClipboard(fullStorePublicUrl, "url")}
-                      className="px-3 py-1.5 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-xs font-semibold text-on-surface border border-subtle flex items-center gap-1 transition-all cursor-pointer"
+                      className="gs-3d-btn px-3 py-1.5 rounded-lg bg-surface-secondary hover:bg-surface-elevated text-xs font-semibold text-on-surface border border-subtle flex items-center gap-1 transition-all cursor-pointer"
                     >
                       <Icon name={copiedUrl ? "check" : "content_copy"} className="text-[14px]" />
                       <span>{copiedUrl ? "Copié !" : "Copier"}</span>
@@ -563,7 +563,7 @@ export default function SubscriptionModal({
                 </div>
 
                 {/* Login credentials notice */}
-                <div className="p-3 bg-surface-card/60 rounded-xl border border-subtle text-xs space-y-1.5">
+                <div className="gs-3d-inset p-3 bg-surface-card/60 rounded-xl border border-subtle text-xs space-y-1.5">
                   <div className="font-semibold text-on-surface flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-primary">
                     <Icon name="vpn_key" className="text-[16px]" />
                     <span>Vos accès commerçant :</span>
@@ -593,7 +593,7 @@ export default function SubscriptionModal({
                 <button
                   type="button"
                   onClick={() => handleFinishAndEnterStore(true)}
-                  className="px-5 py-3 rounded-xl bg-primary hover:brightness-105 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+                  className="gs-3d-btn gs-3d-btn--primary px-5 py-3 rounded-xl bg-primary hover:brightness-105 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
                 >
                   <Icon name="dashboard" className="text-[18px]" />
                   <span>Ouvrir mon Espace Commerçant 🚀</span>
@@ -602,7 +602,7 @@ export default function SubscriptionModal({
                 <button
                   type="button"
                   onClick={() => handleFinishAndEnterStore(false)}
-                  className="px-4 py-3 rounded-xl bg-surface-secondary hover:bg-surface-elevated border border-subtle text-on-surface font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  className="gs-3d-btn px-4 py-3 rounded-xl bg-surface-secondary hover:bg-surface-elevated border border-subtle text-on-surface font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Icon name="storefront" className="text-[18px]" />
                   <span>Voir la vitrine client</span>
@@ -629,44 +629,44 @@ export default function SubscriptionModal({
                     <span>Formule d'Activation de la Boutique</span>
                   </label>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {/* Track 1: Paid Subscription with OTP 1st Position (Recommended) */}
                     <div
                       onClick={() => setOnboardingTrack("PAID")}
-                      className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                      className={`gs-3d-panel-sm relative p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer flex flex-col justify-between ${
                         onboardingTrack === "PAID"
-                          ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-sm"
-                          : "bg-surface-card border-subtle hover:border-strong opacity-80"
+                          ? "border-primary ring-2 ring-primary/40 -translate-y-0.5 shadow-[0_10px_25px_-5px_rgba(234,179,8,0.25)] bg-gradient-to-br from-primary/10 via-surface-card to-primary/5"
+                          : "bg-surface-card border-subtle hover:border-strong opacity-80 hover:opacity-100 hover:-translate-y-0.5"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-xs text-on-surface">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-xs text-on-surface">
                               Forfait Mobile Money Direct
                             </span>
-                            <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
+                            <span className="px-2 py-0.5 rounded-full bg-primary/20 border border-primary/40 text-primary text-[10px] font-bold shadow-xs">
                               Recommandé ⭐
                             </span>
                           </div>
-                          <p className="text-[11px] text-on-surface-variant mt-1 leading-snug">
+                          <p className="text-[11px] text-on-surface-variant mt-1.5 leading-snug">
                             À partir de 1 000 FCFA/mois. Validation instantanée par code OTP (Orange Money, Moov Money, LigdiCash).
                           </p>
                         </div>
                         <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
                             onboardingTrack === "PAID"
-                              ? "border-primary bg-primary"
-                              : "border-subtle"
+                              ? "border-primary bg-primary text-white shadow-xs"
+                              : "border-subtle bg-surface-secondary"
                           }`}
                         >
                           {onboardingTrack === "PAID" && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-surface" />
+                            <Icon name="check" className="text-[12px] font-bold" />
                           )}
                         </div>
                       </div>
-                      <div className="text-[10px] text-primary font-semibold mt-2.5 flex items-center gap-1">
-                        <Icon name="verified" className="text-[13px]" />
+                      <div className="text-[10px] text-primary font-bold mt-3 flex items-center gap-1.5">
+                        <Icon name="verified" className="text-[14px]" />
                         <span>Paiement OTP direct en 1ère position</span>
                       </div>
                     </div>
@@ -674,40 +674,40 @@ export default function SubscriptionModal({
                     {/* Track 2: Free Trial (Immediate) */}
                     <div
                       onClick={() => setOnboardingTrack("TRIAL")}
-                      className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                      className={`gs-3d-panel-sm relative p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer flex flex-col justify-between ${
                         onboardingTrack === "TRIAL"
-                          ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-sm"
-                          : "bg-surface-card border-subtle hover:border-strong opacity-80"
+                          ? "border-primary ring-2 ring-primary/40 -translate-y-0.5 shadow-[0_10px_25px_-5px_rgba(234,179,8,0.25)] bg-gradient-to-br from-primary/10 via-surface-card to-primary/5"
+                          : "bg-surface-card border-subtle hover:border-strong opacity-80 hover:opacity-100 hover:-translate-y-0.5"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-xs text-on-surface">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-xs text-on-surface">
                               Essai Gratuit 14 Jours
                             </span>
-                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 text-[10px] font-bold">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-500 text-[10px] font-bold shadow-xs">
                               Gratuit
                             </span>
                           </div>
-                          <p className="text-[11px] text-on-surface-variant mt-1 leading-snug">
+                          <p className="text-[11px] text-on-surface-variant mt-1.5 leading-snug">
                             Zéro paiement aujourd'hui. Boutique immédiatement active en mode découverte sans engagement.
                           </p>
                         </div>
                         <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
                             onboardingTrack === "TRIAL"
-                              ? "border-primary bg-primary"
-                              : "border-subtle"
+                              ? "border-primary bg-primary text-white shadow-xs"
+                              : "border-subtle bg-surface-secondary"
                           }`}
                         >
                           {onboardingTrack === "TRIAL" && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-surface" />
+                            <Icon name="check" className="text-[12px] font-bold" />
                           )}
                         </div>
                       </div>
-                      <div className="text-[10px] text-on-surface-variant font-medium mt-2.5 flex items-center gap-1">
-                        <Icon name="bolt" className="text-[13px]" />
+                      <div className="text-[10px] text-on-surface-variant font-medium mt-3 flex items-center gap-1.5">
+                        <Icon name="bolt" className="text-[14px] text-emerald-500" />
                         <span>Activation immédiate 14 jours</span>
                       </div>
                     </div>
@@ -725,10 +725,10 @@ export default function SubscriptionModal({
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Store Logo (Facultatif mais très conseillé) */}
-                  <div className="sm:col-span-2 p-3.5 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 transition-colors">
+                  {/* Store Logo (Facultatif mais très conseillé) with 3D panel */}
+                  <div className="gs-3d-panel-sm sm:col-span-2 p-4 rounded-2xl border-2 border-dashed border-primary/40 bg-gradient-to-r from-primary/5 via-surface-card to-primary/10 transition-colors shadow-xs">
                     <div className="flex flex-col sm:flex-row items-center gap-3.5">
-                      <div className="relative w-16 h-16 rounded-2xl bg-surface border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+                      <div className="gs-3d-panel relative w-16 h-16 rounded-2xl bg-surface flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
                         {logoPreview ? (
                           <img
                             src={logoPreview}
@@ -964,8 +964,8 @@ export default function SubscriptionModal({
                     </span>
                   </div>
 
-                  {/* Plan Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Plan Grid with 3D cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                     {plans.map((p) => {
                       const isSelected = selectedPlanCode === p.code;
                       const features = parseFeatures(p.features);
@@ -973,49 +973,49 @@ export default function SubscriptionModal({
                         <div
                           key={p.id}
                           onClick={() => setSelectedPlanCode(p.code)}
-                          className={`relative rounded-xl p-3 border transition-all cursor-pointer flex flex-col justify-between ${
+                          className={`gs-3d-panel-sm relative rounded-2xl p-3.5 border-2 transition-all duration-200 cursor-pointer flex flex-col justify-between ${
                             isSelected
-                              ? "bg-primary/5 border-primary ring-1 ring-primary/40 shadow-sm"
-                              : "bg-surface-card border-subtle hover:border-strong"
+                              ? "border-primary ring-2 ring-primary/50 -translate-y-1 shadow-[0_12px_28px_-6px_rgba(234,179,8,0.35)] bg-gradient-to-b from-primary/15 via-surface-card to-surface-card"
+                              : "bg-surface-card border-subtle hover:border-strong hover:-translate-y-0.5"
                           }`}
                         >
                           {p.is_popular && (
-                            <div className="absolute -top-2.5 right-2 px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-[9px] font-semibold text-primary uppercase">
+                            <div className="absolute -top-3 right-3 px-2.5 py-0.5 rounded-full gs-3d-btn gs-3d-btn--primary text-[9px] font-bold text-white uppercase shadow-md animate-pulse">
                               Populaire
                             </div>
                           )}
                           <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-semibold text-xs text-on-surface">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="font-bold text-xs text-on-surface">
                                 {p.name.replace(/\(.*\)/, "").trim()}
                               </span>
                               <div
-                                className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
                                   isSelected
-                                    ? "border-primary bg-primary"
-                                    : "border-subtle"
+                                    ? "border-primary bg-primary text-white shadow-xs"
+                                    : "border-subtle bg-surface-secondary"
                                 }`}
                               >
                                 {isSelected && (
-                                  <div className="w-1.5 h-1.5 rounded-full bg-surface" />
+                                  <Icon name="check" className="text-[10px] font-bold" />
                                 )}
                               </div>
                             </div>
-                            <div className="text-base font-bold text-on-surface my-0.5">
+                            <div className="text-base font-extrabold text-on-surface my-1">
                               {Number(p?.price || 0).toLocaleString("fr-FR")}{" "}
-                              <span className="text-[10px] font-normal text-on-surface-variant">
+                              <span className="text-[10px] font-semibold text-primary">
                                 FCFA / mois
                               </span>
                             </div>
-                            <p className="text-[10px] text-on-surface-variant leading-tight mb-2">
+                            <p className="text-[10px] text-on-surface-variant leading-tight mb-2.5">
                               {p.description}
                             </p>
                           </div>
 
-                          <ul className="space-y-1 text-[10px] text-on-surface-variant border-t border-subtle pt-2">
+                          <ul className="space-y-1.5 text-[10px] text-on-surface-variant border-t-2 border-subtle pt-2.5">
                             {features.slice(0, 2).map((f, idx) => (
-                              <li key={idx} className="flex items-center gap-1">
-                                <Icon name="check" className="text-[12px] text-primary shrink-0" />
+                              <li key={idx} className="flex items-center gap-1.5">
+                                <Icon name="check_circle" className="text-[13px] text-primary shrink-0" />
                                 <span className="truncate">{f}</span>
                               </li>
                             ))}
@@ -1025,14 +1025,14 @@ export default function SubscriptionModal({
                     })}
                   </div>
 
-                  {/* Payment Mode Selector Tabs (OTP 1st Position vs Capture Fallback) */}
-                  <div className="bg-surface-secondary/70 p-1 rounded-xl border border-subtle flex items-center gap-1">
+                  {/* Payment Mode Selector Tabs (OTP 1st Position vs Capture Fallback) with 3D tactile inset */}
+                  <div className="gs-3d-inset bg-surface-secondary/80 p-1.5 rounded-2xl border border-subtle flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setPaymentMethod("OTP")}
-                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                      className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                         paymentMethod === "OTP"
-                          ? "bg-surface-elevated text-primary shadow-xs border border-primary/30"
+                          ? "gs-3d-btn gs-3d-btn--primary text-white shadow-md border-0"
                           : "text-on-surface-variant hover:text-on-surface"
                       }`}
                     >
@@ -1043,9 +1043,9 @@ export default function SubscriptionModal({
                     <button
                       type="button"
                       onClick={() => setPaymentMethod("CAPTURE")}
-                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                      className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                         paymentMethod === "CAPTURE"
-                          ? "bg-surface-elevated text-amber-500 shadow-xs border border-amber-500/30"
+                          ? "gs-3d-btn bg-amber-500 text-white shadow-md border-0"
                           : "text-on-surface-variant hover:text-on-surface"
                       }`}
                     >
@@ -1058,75 +1058,75 @@ export default function SubscriptionModal({
                   {/* VIEW 1: OTP PAYMENT FLOW (1ÈRE POSITION - PRINCIPAL)     */}
                   {/* ======================================================== */}
                   {paymentMethod === "OTP" && (
-                    <div className="space-y-3.5 p-3.5 rounded-2xl bg-surface-card border border-subtle shadow-xs">
+                    <div className="gs-3d-panel-sm space-y-4 p-4 rounded-2xl bg-surface-card border-2 border-subtle shadow-sm">
                       {/* Amount Banner in LigdiCash style */}
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-surface-secondary border border-subtle">
-                        <div className="text-xs text-on-surface-variant">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-primary/10 via-surface-secondary to-primary/5 border-2 border-subtle shadow-xs">
+                        <div className="text-xs font-medium text-on-surface">
                           Total à régler pour {activePlan?.name || "cette formule"} :
                         </div>
-                        <div className="text-base sm:text-lg font-bold text-red-600 dark:text-red-400">
+                        <div className="text-base sm:text-lg font-extrabold text-red-600 dark:text-red-400">
                           {activePlanPrice.toLocaleString("fr-FR")} Francs
                         </div>
                       </div>
 
                       {/* Operator Cards with Logos */}
                       <div>
-                        <label className="block text-xs font-medium text-on-surface-variant mb-1.5">
+                        <label className="block text-xs font-semibold text-on-surface mb-2">
                           Sélectionnez votre opérateur Mobile Money <span className="text-primary">*</span>
                         </label>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-3 gap-2.5">
                           {/* Orange Money */}
                           <button
                             type="button"
                             onClick={() => setSelectedOperator("ORANGE")}
-                            className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
+                            className={`gs-3d-panel-sm p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
                               selectedOperator === "ORANGE"
-                                ? "bg-primary/10 border-primary ring-1 ring-primary/40 shadow-xs"
-                                : "bg-surface-secondary border-subtle hover:border-strong opacity-80"
+                                ? "border-primary ring-2 ring-primary/40 bg-primary/10 shadow-xs -translate-y-0.5"
+                                : "bg-surface-secondary border-subtle hover:border-strong opacity-80 hover:opacity-100"
                             }`}
                           >
                             <img
                               src="/orangeMoney.png"
                               alt="Orange Money"
-                              className="w-8 h-8 rounded-lg object-contain bg-black/5 p-0.5"
+                              className="w-9 h-9 rounded-xl object-contain bg-black/5 p-1 shadow-xs"
                             />
-                            <span className="text-[11px] font-semibold text-on-surface">Orange Money</span>
+                            <span className="text-[11px] font-bold text-on-surface">Orange Money</span>
                           </button>
 
                           {/* Moov Money */}
                           <button
                             type="button"
                             onClick={() => setSelectedOperator("MOOV")}
-                            className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
+                            className={`gs-3d-panel-sm p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
                               selectedOperator === "MOOV"
-                                ? "bg-primary/10 border-primary ring-1 ring-primary/40 shadow-xs"
-                                : "bg-surface-secondary border-subtle hover:border-strong opacity-80"
+                                ? "border-primary ring-2 ring-primary/40 bg-primary/10 shadow-xs -translate-y-0.5"
+                                : "bg-surface-secondary border-subtle hover:border-strong opacity-80 hover:opacity-100"
                             }`}
                           >
                             <img
                               src="/MoovMoney.png"
                               alt="Moov Money"
-                              className="w-8 h-8 rounded-lg object-contain bg-white p-0.5"
+                              className="w-9 h-9 rounded-xl object-contain bg-white p-1 shadow-xs"
                             />
-                            <span className="text-[11px] font-semibold text-on-surface">Moov Money</span>
+                            <span className="text-[11px] font-bold text-on-surface">Moov Money</span>
                           </button>
 
                           {/* LigdiCash */}
                           <button
                             type="button"
                             onClick={() => setSelectedOperator("LIGDICASH")}
-                            className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
+                            className={`gs-3d-panel-sm p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
                               selectedOperator === "LIGDICASH"
-                                ? "bg-primary/10 border-primary ring-1 ring-primary/40 shadow-xs"
-                                : "bg-surface-secondary border-subtle hover:border-strong opacity-80"
+                                ? "border-primary ring-2 ring-primary/40 bg-primary/10 shadow-xs -translate-y-0.5"
+                                : "bg-surface-secondary border-subtle hover:border-strong opacity-80 hover:opacity-100"
                             }`}
                           >
                             <img
                               src="/media/payments/ligdicash.svg"
                               alt="LigdiCash"
-                              className="w-8 h-8 rounded-lg object-contain bg-white p-0.5"
+                              className="w-9 h-9 rounded-xl object-contain bg-white p-1 shadow-xs"
                             />
-                            <span className="text-[11px] font-semibold text-on-surface">LigdiCash</span>
+                            <span className="text-[11px] font-bold text-on-surface">LigdiCash</span>
                           </button>
                         </div>
                       </div>
@@ -1385,12 +1385,12 @@ export default function SubscriptionModal({
                 </div>
               )}
 
-              {/* Submit Button Bar */}
-              <div className="border-t border-subtle pt-4 flex items-center justify-end gap-3">
+              {/* Submit Button Bar with 3D tactile buttons */}
+              <div className="border-t-2 border-subtle pt-4 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-elevated border border-subtle text-on-surface font-medium text-xs transition-colors cursor-pointer"
+                  className="gs-3d-btn px-4 py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-elevated border border-subtle text-on-surface font-semibold text-xs transition-colors cursor-pointer"
                 >
                   Annuler
                 </button>
@@ -1403,13 +1403,13 @@ export default function SubscriptionModal({
                     !ownerName.trim() ||
                     !ownerPhone.trim()
                   }
-                  className={`px-5 py-2.5 rounded-xl font-semibold text-xs shadow-md flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`gs-3d-btn px-6 py-3 rounded-xl font-bold text-xs shadow-lg flex items-center gap-2 transition-all cursor-pointer ${
                     isSubmitting ||
                     !storeName.trim() ||
                     !ownerName.trim() ||
                     !ownerPhone.trim()
                       ? "bg-surface-secondary text-on-surface-variant/40 border border-subtle cursor-not-allowed"
-                      : "bg-primary hover:brightness-105 text-white active:scale-98"
+                      : "gs-3d-btn--primary bg-primary hover:brightness-105 text-white active:scale-98 shadow-primary/30"
                   }`}
                 >
                   {isSubmitting ? (

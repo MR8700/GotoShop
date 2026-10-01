@@ -289,15 +289,15 @@ export default function App() {
       if (profile) {
         setCustomer(profile);
         const orders = await fetchCustomerOrders();
-        setClientOrdersCount(orders.length);
+        setClientOrdersCount(Array.isArray(orders) ? orders.length : (orders?.length || 0));
       } else {
         const guestOrders = getLocalGuestOrders();
-        setClientOrdersCount(guestOrders.length);
+        setClientOrdersCount(Array.isArray(guestOrders) ? guestOrders.length : (guestOrders?.length || 0));
       }
     } catch (e) {
       console.error("Customer profile check failed:", e);
       const guestOrders = getLocalGuestOrders();
-      setClientOrdersCount(guestOrders.length);
+      setClientOrdersCount(Array.isArray(guestOrders) ? guestOrders.length : (guestOrders?.length || 0));
     }
   };
 
@@ -668,7 +668,7 @@ export default function App() {
         }
       }
       const orders = await fetchCustomerOrders();
-      setClientOrdersCount(orders.length);
+      setClientOrdersCount(Array.isArray(orders) ? orders.length : (orders?.length || 0));
     } catch (e) {
       console.error("Linking guest orders failed:", e);
     }
@@ -1070,6 +1070,7 @@ export default function App() {
       {/* Universal Fixed Header */}
       <Header
         store={store}
+        viewMode={viewMode}
         activeTab={activeTab}
         onShare={handleShare}
         onNavigate={handleSelectTab}

@@ -115,11 +115,20 @@ export async function loginWithPasskey() {
 export const consumeRecoveryCode = (phone, code) =>
   call("/auth/recovery-codes/use", { method: "POST", auth: false, body: { phone, code } });
 export const useRecoveryCode = consumeRecoveryCode;
-export const listPasskeys = () => call("/auth/passkeys").then((d) => d.passkeys);
+export const listPasskeys = () =>
+  call("/auth/passkeys")
+    .then((d) => (Array.isArray(d?.passkeys) ? d.passkeys : []))
+    .catch(() => []);
 export const renamePasskey = (id, friendly_name) => call(`/auth/passkeys/${id}`, { method: "PATCH", body: { friendly_name } });
 export const revokePasskey = (id) => call(`/auth/passkeys/${id}`, { method: "DELETE" });
-export const generateRecoveryCodes = () => call("/auth/recovery-codes/generate", { method: "POST" }).then((d) => d.codes);
-export const recoveryCodesStatus = () => call("/auth/recovery-codes/status");
+export const generateRecoveryCodes = () =>
+  call("/auth/recovery-codes/generate", { method: "POST" })
+    .then((d) => (Array.isArray(d?.codes) ? d.codes : []))
+    .catch(() => []);
+export const recoveryCodesStatus = () =>
+  call("/auth/recovery-codes/status")
+    .then((d) => ({ remaining: typeof d?.remaining === "number" ? d.remaining : 0 }))
+    .catch(() => ({ remaining: 0 }));
 export const revokeAllSessions = () => call("/auth/sessions/revoke-all", { method: "POST" });
 
 function guessDeviceName() {

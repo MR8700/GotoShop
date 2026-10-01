@@ -202,13 +202,16 @@ export default function ClientProfilePage({
     reader.readAsDataURL(file);
   };
 
+  const [gpsBlockedNotice, setGpsBlockedNotice] = useState(false);
+
   const handleCaptureGPS = () => {
     if (!navigator.geolocation) {
       showToast?.("La géolocalisation n'est pas supportée par votre appareil");
       return;
     }
     setIsLocating(true);
-    showToast?.("Recherche de votre position GPS exacte...");
+    setGpsBlockedNotice(false);
+    showToast?.("Demande d'autorisation & recherche de position GPS...");
     try {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -223,7 +226,8 @@ export default function ClientProfilePage({
               setGpsCoordinates(coords);
               setGpsLocationUrl(mapsUrl);
               setIsLocating(false);
-              showToast?.("Position GPS capturée avec succès !");
+              setGpsBlockedNotice(false);
+              showToast?.("📍 Position GPS capturée avec succès !");
             } else {
               setIsLocating(false);
               showToast?.("Position GPS imprécise, veuillez réessayer.");
@@ -237,7 +241,8 @@ export default function ClientProfilePage({
           setIsLocating(false);
           let msg = "Impossible d'accéder au GPS.";
           if (err?.code === 1) {
-            msg = "Localisation bloquée. Cliquez sur le cadenas 🔒 ou paramètres du site à gauche de l'adresse web pour autoriser la position.";
+            setGpsBlockedNotice(true);
+            msg = "Localisation bloquée. Autorisez la position via l'icône 🔒 à gauche de l'adresse web.";
           } else if (err?.code === 2) {
             msg = "Signal GPS indisponible. Activez le GPS de votre appareil.";
           } else if (err?.code === 3) {
@@ -318,24 +323,59 @@ export default function ClientProfilePage({
   }
 
   // Tier info helpers
-  const tierName = cardData?.tier_name || "Bronze";
-  const points = Number(cardData?.points || 0).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+  const numericPoints = Number(cardData?.points || 0);
+  const tierName =
+    cardData?.tier_name ||
+    (numericPoints >= 400 ? "Platine" : numericPoints >= 150 ? "Or" : numericPoints >= 50 ? "Argent" : "Bronze");
+  const points = numericPoints.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
   const fmtPt = (n) => Number(n || 0).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
-  const nextTier = cardData?.next_tier;
-  const nextProgress = cardData?.next_tier_progress || 0;
+
+  // Calculate next tier & progress cleanly
+  const nextTier =
+    cardData?.next_tier !== undefined
+      ? cardData.next_tier
+      : tierName === "Bronze"
+      ? "Argent"
+      : tierName === "Argent"
+      ? "Or"
+      : tierName === "Or"
+      ? "Platine"
+      : null;
+
+  const pointsToNext =
+    cardData?.points_to_next !== undefined && cardData.points_to_next > 0
+      ? cardData.points_to_next
+      : tierName === "Bronze"
+      ? Math.max(0, 50 - numericPoints)
+      : tierName === "Argent"
+      ? Math.max(0, 150 - numericPoints)
+      : tierName === "Or"
+      ? Math.max(0, 400 - numericPoints)
+      : 0;
+
+  const nextProgress =
+    cardData?.next_tier_progress !== undefined
+      ? cardData.next_tier_progress
+      : tierName === "Bronze"
+      ? Math.min(100, Math.max(0, Math.round((numericPoints / 50) * 100)))
+      : tierName === "Argent"
+      ? Math.min(100, Math.max(0, Math.round(((numericPoints - 50) / 100) * 100)))
+      : tierName === "Or"
+      ? Math.min(100, Math.max(0, Math.round(((numericPoints - 150) / 250) * 100)))
+      : 100;
 
   const getTierBadgeStyle = (tier) => {
     const t = String(tier).toLowerCase();
     if (t.includes("plat")) {
-      return "bg-gradient-to-r from-slate-200 via-sky-100 to-indigo-200 text-slate-900 border-sky-300";
+      return "bg-gradient-to-r from-slate-200 via-sky-100 to-indigo-200 text-slate-900 border-sky-300 shadow-sm";
     }
     if (t.includes("gold") || t.includes("or")) {
-      return "bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 border-amber-300";
+      return "bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 border-amber-300 shadow-sm";
     }
     if (t.includes("silver") || t.includes("argent")) {
-      return "bg-gradient-to-r from-slate-200 via-slate-100 to-slate-300 text-slate-900 border-slate-300";
+      return "bg-gradient-to-r from-slate-200 via-slate-100 to-slate-300 text-slate-900 border-slate-300 shadow-sm";
     }
-    return "bg-gradient-to-r from-amber-800/80 via-amber-700/80 to-amber-900/80 text-amber-100 border-amber-600/50";
+    return "bg-gradient-to-r from-amber-800/80 via-amber-700/80 to-amber-900/80 text-amber-100 border-amber-600/50 shadow-sm";
   };
 
   return (
@@ -436,13 +476,23 @@ export default function ClientProfilePage({
       {/* TAB 1: MA CARTE & STATUT */}
       {profileTab === "carte" && (
         <div className="space-y-5 animate-fadeIn">
-          {/* Multi-Store Cards Selector */}
-          {allCards.length > 1 && (
-            <div className="bg-surface-container rounded-2xl p-3 border border-subtle flex items-center justify-between gap-3 shadow-xs">
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1">
-                <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+          {/* Multi-Store Cards Selector & Pagination */}
+          {(allCards?.length || 0) > 1 && (
+            <div className="bg-surface-container rounded-2xl p-3 border-2 border-slate-200 dark:border-slate-800 shadow-[0_4px_15px_rgba(0,0,0,0.06)] flex items-center justify-between gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleSelectCard(Math.max(0, selectedCardIndex - 1))}
+                disabled={selectedCardIndex === 0}
+                className="w-8 h-8 rounded-xl bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-on-surface transition-all active:scale-90 shrink-0 cursor-pointer"
+                title="Carte précédente"
+              >
+                <Icon name="chevron_left" className="text-[20px]" />
+              </button>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1 justify-center">
+                <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider shrink-0 mr-1 hidden sm:flex items-center gap-1">
                   <Icon name="storefront" className="text-primary text-[15px]" />
-                  <span>Boutiques ({allCards.length}) :</span>
+                  <span>Cartes ({allCards.length}) :</span>
                 </span>
                 {allCards.map((c, idx) => (
                   <button
@@ -451,7 +501,7 @@ export default function ClientProfilePage({
                     onClick={() => handleSelectCard(idx)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
                       selectedCardIndex === idx
-                        ? "bg-primary text-white shadow-sm ring-2 ring-primary/30"
+                        ? "bg-primary text-white shadow-md ring-2 ring-primary/40 scale-102"
                         : "bg-surface-container-high/80 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest"
                     }`}
                   >
@@ -460,14 +510,26 @@ export default function ClientProfilePage({
                   </button>
                 ))}
               </div>
-              <span className="text-[11px] font-mono font-bold text-on-surface-variant shrink-0 bg-surface-container-highest px-2 py-0.5 rounded-md">
-                {selectedCardIndex + 1}/{allCards.length}
-              </span>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[11px] font-mono font-bold text-on-surface-variant bg-surface-container-highest px-2 py-1 rounded-lg">
+                  {selectedCardIndex + 1}/{allCards.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleSelectCard(Math.min(allCards.length - 1, selectedCardIndex + 1))}
+                  disabled={selectedCardIndex === allCards.length - 1}
+                  className="w-8 h-8 rounded-xl bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-on-surface transition-all active:scale-90 shrink-0 cursor-pointer"
+                  title="Carte suivante"
+                >
+                  <Icon name="chevron_right" className="text-[20px]" />
+                </button>
+              </div>
             </div>
           )}
 
           {/* 3D Realistic Physical Flip Card Container */}
-          <div className="bg-surface-container rounded-2xl p-4 sm:p-6 shadow-sm border border-subtle">
+          <div className="bg-surface-container rounded-3xl p-4 sm:p-6 shadow-[0_12px_30px_-8px_rgba(0,0,0,0.15)] border-2 border-slate-200/90 dark:border-slate-800">
             <div className="flex items-center justify-between mb-3 text-xs">
               <span className="text-on-surface-variant font-medium flex items-center gap-1.5">
                 <Icon name="touch_app" className="text-[16px] text-primary" />
@@ -487,7 +549,7 @@ export default function ClientProfilePage({
             {cardLoading ? (
               <div className="w-full max-w-sm sm:max-w-md mx-auto aspect-[85.6/53.98] rounded-2xl bg-surface-container-high/80 animate-pulse flex flex-col items-center justify-center text-on-surface-variant text-sm gap-2">
                 <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <span>Chargement de votre carte sécurisée...</span>
+                <span>Chargement instantané de votre carte...</span>
               </div>
             ) : cardData ? (
               <div
@@ -531,14 +593,14 @@ export default function ClientProfilePage({
                 </div>
               </div>
             ) : (
-              <div className="p-6 sm:p-8 rounded-2xl bg-surface-container-high/40 border border-white/10 text-center space-y-3.5 max-w-md mx-auto my-2">
+              <div className="p-6 sm:p-8 rounded-2xl bg-surface-container-high/40 border-2 border-primary/20 text-center space-y-3.5 max-w-md mx-auto my-2 shadow-[0_10px_25px_rgba(0,0,0,0.08)]">
                 <div className="w-14 h-14 rounded-2xl bg-primary/15 text-primary flex items-center justify-center mx-auto shadow-inner">
                   <Icon name="credit_card" className="text-[28px]" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="font-bold text-base text-on-surface">Aucune carte de fidélité active pour le moment</h4>
+                  <h4 className="font-bold text-base text-on-surface">Vous n'avez pas encore de carte de fidélité active</h4>
                   <p className="text-xs text-on-surface-variant leading-relaxed">
-                    Vos cartes de fidélité se créent automatiquement dès votre première commande dans chaque boutique partenaire GotoShop. Cumulez des points et profitez de privilèges exclusifs !
+                    Vos cartes de fidélité sont personnalisées par boutique et se créent automatiquement dès votre première commande validée. Explorez les boutiques pour cumuler vos premiers points !
                   </p>
                 </div>
                 {onNavigateToShop && (
@@ -589,8 +651,8 @@ export default function ClientProfilePage({
             )}
           </div>
 
-          {/* Tier Status & Progress Card */}
-          <div className="bg-surface-container rounded-2xl p-4 sm:p-5 shadow-sm border border-subtle space-y-4">
+          {/* Tier Status & Progress Card with 3D contours */}
+          <div className="bg-surface-container rounded-3xl p-4 sm:p-5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.12)] border-2 border-slate-200/90 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase font-bold text-on-surface-variant tracking-wider">
@@ -608,7 +670,7 @@ export default function ClientProfilePage({
 
             {/* Next tier progress bar */}
             {nextTier ? (
-              <div className="space-y-2 p-3.5 rounded-xl bg-surface-container-high/60 border border-white/5">
+              <div className="space-y-2 p-3.5 rounded-2xl bg-surface-container-high/60 border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-on-surface font-semibold flex items-center gap-1.5">
                     <Icon name="trending_up" className="text-[16px] text-primary" />
@@ -616,23 +678,23 @@ export default function ClientProfilePage({
                   </span>
                   <span className="font-mono font-bold text-primary">{nextProgress}%</span>
                 </div>
-                <div className="w-full h-2.5 rounded-full bg-surface-container-lowest overflow-hidden">
+                <div className="w-full h-2.5 rounded-full bg-surface-container-lowest overflow-hidden border border-white/5">
                   <div
                     className="h-full bg-gradient-to-r from-primary to-amber-400 rounded-full transition-all duration-500"
                     style={{ width: `${Math.max(4, Math.min(100, nextProgress))}%` }}
                   />
                 </div>
                 <p className="text-[11px] text-on-surface-variant">
-                  Plus que <strong className="text-on-surface">{fmtPt(cardData?.points_to_next)} pt gagnés</strong> pour atteindre le statut {nextTier}. Dépenser vos points ne fait pas baisser votre statut.
+                  Plus que <strong className="text-on-surface">{fmtPt(pointsToNext)} pt gagnés</strong> pour atteindre le statut {nextTier}. Dépenser vos points ne fait pas baisser votre statut.
                 </p>
               </div>
-            ) : tierName === "Platine" ? (
-              <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-semibold flex items-center gap-2">
-                <Icon name="workspace_premium" className="text-[18px]" />
+            ) : tierName === "Platine" && numericPoints >= 400 ? (
+              <div className="p-3.5 rounded-2xl bg-primary/10 border-2 border-primary/30 text-xs text-primary font-semibold flex items-center gap-2 shadow-xs">
+                <Icon name="workspace_premium" className="text-[20px]" />
                 <span>Félicitations ! Vous avez atteint le palier maximal Platine. Remise maximale garantie sur toutes vos commandes !</span>
               </div>
             ) : (
-              <div className="space-y-2 p-3.5 rounded-xl bg-surface-container-high/60 border border-white/5">
+              <div className="space-y-2 p-3.5 rounded-2xl bg-surface-container-high/60 border border-slate-200 dark:border-slate-800">
                 <p className="text-xs text-on-surface-variant">
                   Passez commande pour progresser vers le statut Argent (50 pts) et débloquer plus de privilèges.
                 </p>
@@ -643,19 +705,19 @@ export default function ClientProfilePage({
             <div>
               <p className="text-xs font-bold text-on-surface mb-2.5">Grille des Privilèges de Fidélité</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                <div className={`p-2.5 rounded-xl border ${tierName === "Bronze" ? "bg-amber-950/40 border-amber-600/50" : "bg-surface-container-high/40 border-white/5"}`}>
+                <div className={`p-2.5 rounded-xl border-2 transition-all ${tierName === "Bronze" ? "bg-amber-950/40 border-amber-600/70 shadow-sm" : "bg-surface-container-high/40 border-slate-200 dark:border-slate-800/60"}`}>
                   <p className="font-bold text-amber-500">Bronze (0 pt)</p>
                   <p className="text-[11px] text-on-surface-variant mt-0.5">Accès catalogue &amp; suivi 24h</p>
                 </div>
-                <div className={`p-2.5 rounded-xl border ${tierName === "Argent" ? "bg-slate-800/60 border-slate-400/50" : "bg-surface-container-high/40 border-white/5"}`}>
+                <div className={`p-2.5 rounded-xl border-2 transition-all ${tierName === "Argent" ? "bg-slate-800/60 border-slate-300 shadow-sm" : "bg-surface-container-high/40 border-slate-200 dark:border-slate-800/60"}`}>
                   <p className="font-bold text-slate-300">Argent (50 pt)</p>
                   <p className="text-[11px] text-on-surface-variant mt-0.5">-3% sur les commandes</p>
                 </div>
-                <div className={`p-2.5 rounded-xl border ${tierName === "Or" ? "bg-amber-950/50 border-amber-400" : "bg-surface-container-high/40 border-white/5"}`}>
+                <div className={`p-2.5 rounded-xl border-2 transition-all ${tierName === "Or" ? "bg-amber-950/50 border-amber-400 shadow-sm" : "bg-surface-container-high/40 border-slate-200 dark:border-slate-800/60"}`}>
                   <p className="font-bold text-yellow-400">Or (150 pt)</p>
                   <p className="text-[11px] text-on-surface-variant mt-0.5">-5% + support prioritaire</p>
                 </div>
-                <div className={`p-2.5 rounded-xl border ${tierName === "Platine" ? "bg-indigo-950/50 border-sky-400" : "bg-surface-container-high/40 border-white/5"}`}>
+                <div className={`p-2.5 rounded-xl border-2 transition-all ${tierName === "Platine" ? "bg-indigo-950/50 border-sky-400 shadow-sm" : "bg-surface-container-high/40 border-slate-200 dark:border-slate-800/60"}`}>
                   <p className="font-bold text-sky-300">Platine (400 pt)</p>
                   <p className="text-[11px] text-on-surface-variant mt-0.5">-8% + livraisons express</p>
                 </div>

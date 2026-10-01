@@ -50,8 +50,11 @@ export default function PasskeySecurityPanel({ showToast }) {
   const refresh = useCallback(async () => {
     try {
       const [p, r] = await Promise.all([listPasskeys(), recoveryCodesStatus()]);
-      setItems(p); setRemaining(r.remaining);
-    } catch { /* session absente : rien à afficher */ }
+      setItems(Array.isArray(p) ? p : []);
+      setRemaining(typeof r?.remaining === "number" ? r.remaining : null);
+    } catch {
+      setItems([]);
+    }
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -65,6 +68,8 @@ export default function PasskeySecurityPanel({ showToast }) {
   if (codes) return <RecoveryCodesView codes={codes} onDone={() => setCodes(null)} />;
   if (!passkeysSupported()) return <p className="text-sm text-slate-600">Les Passkeys ne sont pas disponibles sur ce navigateur.</p>;
 
+  const passkeyList = Array.isArray(items) ? items : [];
+
   return (
     <section className="space-y-5">
       <div className="flex items-start gap-3">
@@ -77,9 +82,9 @@ export default function PasskeySecurityPanel({ showToast }) {
 
       <div>
         <h4 className="mb-2 text-sm font-semibold text-slate-900">Mes appareils et Passkeys</h4>
-        {items.length === 0 && <p className="text-sm text-slate-500">Aucune Passkey configurée.</p>}
+        {passkeyList.length === 0 && <p className="text-sm text-slate-500">Aucune Passkey configurée.</p>}
         <ul className="space-y-2">
-          {items.map((p) => (
+          {passkeyList.map((p) => (
             <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
               <span className="text-xl text-slate-700"><Icon name="smartphone" /></span>
               <div className="min-w-0 flex-1">
@@ -101,7 +106,7 @@ export default function PasskeySecurityPanel({ showToast }) {
           const r = await registerPasskey();
           if (r.recovery_codes) setCodes(r.recovery_codes);
         }, "Passkey configurée.")} className="mt-3 w-full rounded-2xl bg-slate-900 py-3.5 text-sm font-bold text-white disabled:opacity-60">
-          {items.length ? "Ajouter un appareil" : "Configurer ma Passkey"}
+          {passkeyList.length ? "Ajouter un appareil" : "Configurer ma Passkey"}
         </button>
       </div>
 
@@ -111,7 +116,7 @@ export default function PasskeySecurityPanel({ showToast }) {
           {remaining === null ? "" : remaining > 0 ? `${remaining} code${remaining > 1 ? "s" : ""} disponible${remaining > 1 ? "s" : ""}.` : "Aucun code disponible."}
           {" "}En générer de nouveaux invalide les anciens.
         </p>
-        <button type="button" disabled={busy || items.length === 0} onClick={() => window.confirm("Les anciens codes ne fonctionneront plus. Continuer ?") && run(async () => setCodes(await generateRecoveryCodes()))}
+        <button type="button" disabled={busy || passkeyList.length === 0} onClick={() => window.confirm("Les anciens codes ne fonctionneront plus. Continuer ?") && run(async () => setCodes(await generateRecoveryCodes()))}
           className="w-full rounded-2xl border border-slate-300 py-3 text-sm font-semibold disabled:opacity-50">Générer de nouveaux codes</button>
       </div>
 
