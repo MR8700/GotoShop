@@ -13,15 +13,30 @@ from urllib.parse import urlparse
 
 from sqlalchemy import update
 from sqlalchemy.orm import Session
-from webauthn import (
-    generate_registration_options, verify_registration_response,
-    generate_authentication_options, verify_authentication_response, options_to_json,
-)
-from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
-from webauthn.helpers.structs import (
-    AuthenticatorSelectionCriteria, ResidentKeyRequirement, UserVerificationRequirement,
-    PublicKeyCredentialDescriptor,
-)
+try:
+    from webauthn import (
+        generate_registration_options, verify_registration_response,
+        generate_authentication_options, verify_authentication_response, options_to_json,
+    )
+    from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
+    from webauthn.helpers.structs import (
+        AuthenticatorSelectionCriteria, ResidentKeyRequirement, UserVerificationRequirement,
+        PublicKeyCredentialDescriptor,
+    )
+    WEBAUTHN_AVAILABLE = True
+except ImportError:
+    WEBAUTHN_AVAILABLE = False
+    generate_registration_options = None
+    verify_registration_response = None
+    generate_authentication_options = None
+    verify_authentication_response = None
+    options_to_json = None
+    base64url_to_bytes = None
+    bytes_to_base64url = None
+    AuthenticatorSelectionCriteria = None
+    ResidentKeyRequirement = None
+    UserVerificationRequirement = None
+    PublicKeyCredentialDescriptor = None
 
 from app.config import settings
 from app.core.clock import utcnow

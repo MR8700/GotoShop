@@ -24,6 +24,9 @@ router = APIRouter(prefix="/auth", tags=["Passkeys"])
 def _require_enabled():
     if not settings.PASSKEY_ENABLED:
         raise HTTPException(status_code=404, detail="Authentification par Passkey désactivée.")
+    from app.services.passkey_service import WEBAUTHN_AVAILABLE
+    if not WEBAUTHN_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Passkeys indisponibles sur cette instance serveur.")
 
 
 def _meta(request: Request):
