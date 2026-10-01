@@ -22,6 +22,8 @@ import MobileMoneyPaymentModal from "./MobileMoneyPaymentModal";
 export default function ClientCommandesPage({
   customer,
   store,
+  viewMode = "explorer",
+  isInsideStore = false,
   onOpenAuth,
   onNavigateToShop,
   showToast,
@@ -205,13 +207,15 @@ export default function ClientCommandesPage({
       o.status === "SOLD");
 
   // Store filtering
-  const [selectedStoreFilter, setSelectedStoreFilter] = useState("ALL");
+  const [selectedStoreFilter, setSelectedStoreFilter] = useState(() => (isInsideStore && store?.slug ? store.slug : "ALL"));
 
   useEffect(() => {
-    if (store?.slug) {
+    if (isInsideStore && store?.slug) {
       setSelectedStoreFilter(store.slug);
+    } else {
+      setSelectedStoreFilter("ALL");
     }
-  }, [store?.slug]);
+  }, [isInsideStore, store?.slug]);
 
   const storeFilters = React.useMemo(() => {
     const map = new Map();
@@ -225,11 +229,12 @@ export default function ClientCommandesPage({
         map.get(sSlug).count += 1;
       }
     });
-    if (store?.slug && !map.has(store.slug)) {
+    // ONLY include current store if user actually entered that specific boutique
+    if (isInsideStore && store?.slug && !map.has(store.slug)) {
       map.set(store.slug, { slug: store.slug, name: store.name, count: 0 });
     }
     return Array.from(map.values());
-  }, [orders, store]);
+  }, [orders, store, isInsideStore]);
 
   // Client soft-lifecycle: exclude hidden orders, partition active vs archived
   const visibleOrders = orders.filter((o) => !o.is_client_hidden);
@@ -595,7 +600,7 @@ export default function ClientCommandesPage({
 
           {storeFilters.map((sf) => {
             const isSelected = selectedStoreFilter === sf.slug;
-            const isCurrent = store && store.slug === sf.slug;
+            const isCurrent = isInsideStore && store && store.slug === sf.slug;
             return (
               <button
                 key={sf.slug}

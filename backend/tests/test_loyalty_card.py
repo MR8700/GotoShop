@@ -22,7 +22,9 @@ def test_loyalty_card_flow():
     if not cust:
         cust = Customer(store_id=store.id, name="Awa Koné", phone="+22670000001", session_token=hash_session_token("tok-test-card"))
         db.add(cust); db.commit()
-    cust.session_token = hash_session_token("tok-test-card"); db.commit()
+    cust.session_token = hash_session_token("tok-test-card")
+    cust.bonus_points = 50
+    db.commit()
     tok = "tok-test-card"
 
     c = TestClient(app, base_url="https://gotoshop.example")

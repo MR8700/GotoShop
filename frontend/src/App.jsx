@@ -1192,6 +1192,8 @@ export default function App() {
             <ClientCommandesPage
               customer={customer}
               store={store}
+              viewMode={viewMode}
+              isInsideStore={viewMode === "store" && !!store}
               onOpenAuth={() => setIsCustomerAuthOpen(true)}
               onNavigateToShop={() => {
                 if (viewMode === "explorer" || !store) {
@@ -1235,6 +1237,8 @@ export default function App() {
             <ClientStatsPage
               customer={customer}
               store={store}
+              viewMode={viewMode}
+              isInsideStore={viewMode === "store" && !!store}
               onOpenAuth={() => setIsCustomerAuthOpen(true)}
               onNavigateToShop={() => {
                 if (viewMode === "explorer" || !store) {
@@ -1274,6 +1278,8 @@ export default function App() {
             <ClientProfilePage
               customer={customer}
               store={store}
+              viewMode={viewMode}
+              isInsideStore={viewMode === "store" && !!store}
               onUpdateCustomer={(c) => {
                 setCustomer(c);
                 showToast("Profil client mis à jour");

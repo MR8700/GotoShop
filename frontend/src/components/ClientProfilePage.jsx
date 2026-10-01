@@ -21,6 +21,8 @@ import PasskeySecurityPanel from "./PasskeySecurityPanel";
 export default function ClientProfilePage({
   customer,
   store: _store,
+  viewMode = "explorer",
+  isInsideStore = false,
   onUpdateCustomer,
   onLogoutCustomer,
   onOpenAuth,
@@ -86,16 +88,17 @@ export default function ClientProfilePage({
       const cards = await fetchCustomerLoyaltyCards();
       if (Array.isArray(cards) && cards.length > 0) {
         setAllCards(cards);
-        handleSelectCard(0, cards);
-      } else {
-        const single = await fetchCustomerLoyaltyCard();
-        if (single) {
-          setAllCards([single]);
-          handleSelectCard(0, [single]);
-        } else {
-          setAllCards([]);
-          setCardData(null);
+        let initialIdx = 0;
+        if (isInsideStore && _store?.id) {
+          const matchIdx = cards.findIndex(
+            (c) => c.store_id === _store.id || (_store.slug && c.store_slug === _store.slug)
+          );
+          if (matchIdx !== -1) initialIdx = matchIdx;
         }
+        handleSelectCard(initialIdx, cards);
+      } else {
+        setAllCards([]);
+        setCardData(null);
       }
     } catch (err) {
       console.error("Failed to load loyalty cards:", err);
@@ -332,7 +335,7 @@ export default function ClientProfilePage({
 
   // Calculate next tier & progress cleanly
   const nextTier =
-    cardData?.next_tier !== undefined
+    cardData?.next_tier
       ? cardData.next_tier
       : tierName === "Bronze"
       ? "Argent"
@@ -343,8 +346,8 @@ export default function ClientProfilePage({
       : null;
 
   const pointsToNext =
-    cardData?.points_to_next !== undefined && cardData.points_to_next > 0
-      ? cardData.points_to_next
+    Number(cardData?.points_to_next) > 0
+      ? Number(cardData.points_to_next)
       : tierName === "Bronze"
       ? Math.max(0, 50 - numericPoints)
       : tierName === "Argent"
@@ -354,8 +357,8 @@ export default function ClientProfilePage({
       : 0;
 
   const nextProgress =
-    cardData?.next_tier_progress !== undefined
-      ? cardData.next_tier_progress
+    Number(cardData?.next_tier_progress) > 0
+      ? Number(cardData.next_tier_progress)
       : tierName === "Bronze"
       ? Math.min(100, Math.max(0, Math.round((numericPoints / 50) * 100)))
       : tierName === "Argent"
@@ -729,8 +732,8 @@ export default function ClientProfilePage({
 
       {/* TAB 2: HISTORIQUE DES POINTS */}
       {profileTab === "historique" && (
-        <div className="bg-surface-container rounded-2xl p-4 sm:p-5 shadow-sm border border-subtle space-y-4 animate-fadeIn">
-          <div className="flex items-center justify-between">
+        <div className="gs-3d-panel rounded-3xl p-4 sm:p-6 bg-surface-container shadow-[0_12px_30px_-8px_rgba(0,0,0,0.15)] border-2 border-slate-200/90 dark:border-slate-800 space-y-4 animate-fadeIn">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
             <div>
               <h3 className="font-bold text-on-surface text-base">Historique des Points &amp; Mouvements</h3>
               <p className="text-xs text-on-surface-variant">Livre de compte horodaté et sécurisé de votre fidélité</p>
@@ -738,7 +741,7 @@ export default function ClientProfilePage({
             <button
               onClick={loadLedger}
               disabled={ledgerLoading}
-              className="p-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant cursor-pointer transition-colors"
+              className="p-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant cursor-pointer transition-all active:scale-95 shadow-xs"
               title="Rafraîchir"
             >
               <Icon name="refresh" className={`text-[18px] ${ledgerLoading ? "animate-spin" : ""}`} />
@@ -748,30 +751,46 @@ export default function ClientProfilePage({
           {ledgerLoading ? (
             <div className="py-12 text-center text-xs text-on-surface-variant space-y-2">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-              <p>Chargement des mouvements...</p>
+              <p>Chargement instantané des mouvements...</p>
             </div>
           ) : ledgerHistory.length === 0 ? (
-            <div className="py-12 text-center text-xs text-on-surface-variant space-y-2 bg-surface-container-high/40 rounded-xl border border-dashed border-white/10">
-              <Icon name="receipt_long" className="text-[32px] text-on-surface-variant/40 mx-auto" />
-              <p>Aucun mouvement de points pour l'instant.</p>
-              <p className="text-[11px]">Vos points seront crédités automatiquement dès la livraison de vos commandes !</p>
+            <div className="py-12 px-4 text-center text-xs text-on-surface-variant space-y-3 bg-gradient-to-b from-surface-container-high/60 to-surface-container-high/20 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 shadow-inner">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto shadow-xs">
+                <Icon name="receipt_long" className="text-[28px]" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h4 className="font-bold text-sm text-on-surface">Aucun mouvement de points pour l'instant</h4>
+                <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                  Vos points fidélité seront crédités automatiquement dès la livraison effective de vos commandes dans chaque boutique partenaire !
+                </p>
+              </div>
+              {onNavigateToShop && (
+                <button
+                  type="button"
+                  onClick={onNavigateToShop}
+                  className="px-4 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:brightness-110 active:scale-95 transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer mt-1"
+                >
+                  <Icon name="storefront" className="text-[16px]" />
+                  <span>Passer ma première commande</span>
+                </button>
+              )}
             </div>
           ) : (
-            <div className="divide-y divide-subtle">
+            <div className="space-y-2.5">
               {ledgerHistory.map((item) => {
                 const isEarned = item.points > 0;
                 return (
-                  <div key={item.id} className="py-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                  <div key={item.id} className="p-3 rounded-2xl bg-surface-container-high/60 border-2 border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-3 shadow-xs">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                          isEarned ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
+                          isEarned ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : "bg-rose-500/15 text-rose-400 border border-rose-500/30"
                         }`}
                       >
                         <Icon name={isEarned ? "add_circle" : "remove_circle"} className="text-[20px]" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-xs text-on-surface">{item.description}</p>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-xs text-on-surface truncate">{item.description}</p>
                         <p className="text-[10px] text-on-surface-variant font-mono">
                           {item.created_at ? new Date(item.created_at).toLocaleDateString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "--"}
                           {item.expires_at ? ` • Expire le ${new Date(item.expires_at).toLocaleDateString("fr-FR")}` : ""}
@@ -796,8 +815,8 @@ export default function ClientProfilePage({
 
       {/* TAB 3: MES COUPONS & RÉCOMPENSES */}
       {profileTab === "coupons" && (
-        <div className="bg-surface-container rounded-2xl p-4 sm:p-5 shadow-sm border border-subtle space-y-4 animate-fadeIn">
-          <div className="flex items-center justify-between">
+        <div className="gs-3d-panel rounded-3xl p-4 sm:p-6 bg-surface-container shadow-[0_12px_30px_-8px_rgba(0,0,0,0.15)] border-2 border-slate-200/90 dark:border-slate-800 space-y-4 animate-fadeIn">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
             <div>
               <h3 className="font-bold text-on-surface text-base">Vos Coupons &amp; Codes Promos</h3>
               <p className="text-xs text-on-surface-variant">Saisissez ces codes à la commande. Un coupon ne se cumule pas avec vos points.</p>
@@ -805,7 +824,7 @@ export default function ClientProfilePage({
             <button
               onClick={loadCoupons}
               disabled={couponsLoading}
-              className="p-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant cursor-pointer transition-colors"
+              className="p-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant cursor-pointer transition-all active:scale-95 shadow-xs"
               title="Rafraîchir"
             >
               <Icon name="refresh" className={`text-[18px] ${couponsLoading ? "animate-spin" : ""}`} />
@@ -818,39 +837,55 @@ export default function ClientProfilePage({
               <p>Recherche de vos récompenses...</p>
             </div>
           ) : coupons.length === 0 ? (
-            <div className="py-12 text-center text-xs text-on-surface-variant space-y-2 bg-surface-container-high/40 rounded-xl border border-dashed border-white/10">
-              <Icon name="local_offer" className="text-[32px] text-on-surface-variant/40 mx-auto" />
-              <p>Aucun coupon actif pour le moment.</p>
-              <p className="text-[11px]">Vos points, eux, se dépensent directement sur un produit au moment de la commande.</p>
+            <div className="py-12 px-4 text-center text-xs text-on-surface-variant space-y-3 bg-gradient-to-b from-surface-container-high/60 to-surface-container-high/20 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 shadow-inner">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto shadow-xs">
+                <Icon name="local_offer" className="text-[28px]" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h4 className="font-bold text-sm text-on-surface">Aucun coupon actif pour le moment</h4>
+                <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                  Continuez vos achats pour débloquer des bons de réduction exclusifs et des privilèges VIP. Vos points acquis peuvent aussi se déduire directement à la commande !
+                </p>
+              </div>
+              {onNavigateToShop && (
+                <button
+                  type="button"
+                  onClick={onNavigateToShop}
+                  className="px-4 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:brightness-110 active:scale-95 transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer mt-1"
+                >
+                  <Icon name="shopping_bag" className="text-[16px]" />
+                  <span>Découvrir les offres des boutiques</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {coupons.map((c) => (
                 <div
                   key={c.id}
-                  className="p-3.5 rounded-xl bg-surface-container-high/60 border border-primary/20 flex flex-col justify-between gap-3 hover:border-primary/40 transition-colors"
+                  className="p-4 rounded-2xl bg-gradient-to-br from-surface-container-high/90 to-surface-container-high/50 border-2 border-dashed border-primary/30 flex flex-col justify-between gap-3 hover:border-primary/60 transition-all shadow-sm group"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Coupon Privilège</span>
-                      <h4 className="font-bold text-sm text-on-surface mt-0.5">{c.title || "Remise Exceptionnelle"}</h4>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">Coupon Privilège</span>
+                      <h4 className="font-bold text-sm text-on-surface mt-1.5">{c.title || "Remise Exceptionnelle"}</h4>
                       <p className="text-xs font-extrabold text-emerald-400 mt-1">
-                        {c.discount_percent > 0 ? `-${c.discount_percent}% de remise` : `-${c.discount_amount} FCFA de remise`}
+                        {c.discount_percent > 0 ? `-${c.discount_percent}% de remise` : `-${Number(c.discount_amount).toLocaleString("fr-FR")} FCFA de remise`}
                       </p>
                     </div>
-                    <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
-                      <Icon name="confirmation_number" className="text-[20px]" />
+                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0 shadow-inner group-hover:scale-105 transition-transform">
+                      <Icon name="confirmation_number" className="text-[22px]" />
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
-                    <span className="text-on-surface-variant">
+                  <div className="pt-2.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px]">
+                    <span className="text-on-surface-variant font-medium">
                       {c.min_order_amount > 0 ? `Dès ${Number(c.min_order_amount).toLocaleString("fr-FR")} F` : "Sans minimum"}
                       {c.expires_at ? ` · jusqu'au ${new Date(c.expires_at).toLocaleDateString("fr-FR")}` : ""}
                     </span>
                     <button
                       onClick={() => handleCopyCoupon(c.code)}
-                      className="px-2.5 py-1 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary font-mono font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      className="px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 text-primary font-mono font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 shadow-xs"
                     >
                       <Icon name={copiedCoupon === c.code ? "check" : "content_copy"} className="text-[13px]" />
                       <span>{copiedCoupon === c.code ? "Copié !" : c.code}</span>
@@ -1019,7 +1054,7 @@ export default function ClientProfilePage({
           </div>
 
           {/* GPS Saved Coordinates Card */}
-          <div className="p-3.5 rounded-xl bg-surface-container-high/60 border border-primary/20 space-y-2.5">
+          <div className="gs-3d-panel-sm p-4 rounded-2xl bg-surface-container-high/60 border-2 border-primary/20 space-y-3 shadow-xs">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
                 <Icon name="pin_drop" className="text-[16px]" />
@@ -1029,28 +1064,51 @@ export default function ClientProfilePage({
                 type="button"
                 onClick={handleCaptureGPS}
                 disabled={isLocating}
-                className="px-2.5 py-1 rounded-lg bg-primary text-white text-[11px] font-bold hover:brightness-110 active:scale-95 flex items-center gap-1 cursor-pointer transition-all"
+                className="px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-bold hover:brightness-110 active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
               >
                 <Icon name="my_location" className="text-[14px]" />
                 <span>{isLocating ? "Détection..." : "Activer GPS Actuel"}</span>
               </button>
             </div>
 
+            {gpsBlockedNotice && (
+              <div className="p-3.5 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 text-xs space-y-2 text-on-surface animate-fadeIn">
+                <div className="flex items-center gap-2 font-bold text-amber-500">
+                  <Icon name="warning" className="text-[18px]" />
+                  <span>Autorisation GPS bloquée par votre navigateur</span>
+                </div>
+                <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                  Pour réactiver l'accès : cliquez sur l'icône de cadenas 🔒 ou paramètres du site à gauche de la barre d'adresse de votre navigateur, autorisez la <strong>Position géographique</strong>, puis recliquez sur le bouton ci-dessous.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCaptureGPS}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 hover:brightness-110 active:scale-95 transition-all cursor-pointer shadow-xs"
+                >
+                  <Icon name="refresh" className="text-[16px]" />
+                  <span>Réessayer l'activation du GPS</span>
+                </button>
+              </div>
+            )}
+
             {gpsCoordinates ? (
-              <div className="flex items-center justify-between p-2 rounded-lg bg-surface-container-lowest text-xs">
-                <span className="text-on-surface font-mono">{gpsCoordinates}</span>
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-lowest text-xs border border-white/5">
+                <span className="text-on-surface font-mono font-bold flex items-center gap-1.5">
+                  <Icon name="near_me" className="text-emerald-400 text-[14px]" />
+                  {gpsCoordinates}
+                </span>
                 <a
                   href={gpsLocationUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-secondary hover:underline flex items-center gap-1 font-semibold"
+                  className="text-secondary hover:underline flex items-center gap-1 font-semibold text-xs"
                 >
                   <span>Voir Maps</span>
                   <Icon name="open_in_new" className="text-[14px]" />
                 </a>
               </div>
             ) : (
-              <p className="text-[11px] text-on-surface-variant">
+              <p className="text-[11px] text-on-surface-variant leading-relaxed">
                 Enregistrez votre position GPS une fois pour l'inclure en 1 clic dans toutes vos futures commandes de livraison express.
               </p>
             )}

@@ -137,6 +137,15 @@ def get_my_loyalty_card(
         raise HTTPException(status_code=404, detail="Boutique introuvable")
     c_store = db.query(Customer).filter(Customer.store_id == store.id, Customer.phone == customer.phone).first() or customer
     stats = CustomerService.get_customer_stats(db, c_store)
+    if not store_id:
+        from app.models.order import Order
+        has_orders = db.query(Order.id).filter(
+            Order.store_id == store.id,
+            (Order.customer_phone == customer.phone) | (Order.customer_id == customer.id)
+        ).first() is not None
+        has_points = (stats.loyalty_points or 0) > 0 or (c_store.bonus_points or 0) > 0
+        if not has_orders and not has_points:
+            raise HTTPException(status_code=404, detail="Aucune carte de fidélité active pour ce compte.")
     return card_service.build_card_payload(db, c_store, store, stats, card_service.public_origin(request))
 
 @router.get("/loyalty-cards", summary="Toutes mes cartes de fidélité par boutique")
@@ -149,34 +158,56 @@ def get_my_loyalty_cards(
     from app.models.order import Order
     from app.services import card_service
 
-    visited_store_ids = set()
-    if customer.store_id:
-        visited_store_ids.add(customer.store_id)
-
-    other_custs = db.query(Customer).filter(Customer.phone == customer.phone).all()
-    for c in other_custs:
-        if c.store_id:
-            visited_store_ids.add(c.store_id)
-
+    # Collect stores where the customer has actually placed orders
     order_stores = db.query(Order.store_id).filter(
         (Order.customer_phone == customer.phone) | (Order.customer_id == customer.id)
     ).distinct().all()
-    for (sid,) in order_stores:
-        if sid:
-            visited_store_ids.add(sid)
+    candidate_store_ids = {sid for (sid,) in order_stores if sid}
+
+    # Also check if any customer record for this phone has bonus_points > 0 (or lifetime points > 0)
+    other_custs = db.query(Customer).filter(Customer.phone == customer.phone).all()
+    for c in other_custs:
+        if c.store_id and ((c.bonus_points or 0) > 0 or getattr(c, "lifetime_points", 0) > 0):
+            candidate_store_ids.add(c.store_id)
 
     cards = []
     origin = card_service.public_origin(request)
-    for sid in visited_store_ids:
+    for sid in candidate_store_ids:
         store = db.query(Store).filter(Store.id == sid).first()
         if not store:
             continue
         c_store = db.query(Customer).filter(Customer.store_id == sid, Customer.phone == customer.phone).first() or customer
         stats = CustomerService.get_customer_stats(db, c_store)
+
+        # Check if customer has orders or points in this store
+        has_orders = db.query(Order.id).filter(
+            Order.store_id == sid,
+            (Order.customer_phone == customer.phone) | (Order.customer_id == customer.id)
+        ).first() is not None
+        has_points = (stats.loyalty_points or 0) > 0 or (c_store.bonus_points or 0) > 0
+
+        # Only grant a card if customer actually ordered or received points/advantages in this store
+        if not has_orders and not has_points:
+            continue
+
         payload = card_service.build_card_payload(db, c_store, store, stats, origin)
+        act_type = getattr(store, "activity_type", None) or "GENERAL_COMMERCE"
+        category_map = {
+            "FOOD": "Restauration & Saveurs",
+            "RESTAURANT": "Restauration & Saveurs",
+            "FASHION": "Mode & Créations",
+            "MODE": "Mode & Créations",
+            "ELECTRONICS": "High-Tech & Électronique",
+            "TECH": "High-Tech & Électronique",
+            "BEAUTY": "Beauté & Soins",
+            "SERVICE": "Services & Prestations",
+            "SERVICES": "Services & Prestations",
+            "GENERAL_COMMERCE": "Commerce Général",
+        }
+        payload["category"] = category_map.get(act_type.upper(), "Commerce Général")
         cards.append(payload)
 
-    cards.sort(key=lambda x: (x.get("store", {}).get("id") == customer.store_id, x.get("points", 0)), reverse=True)
+    cards.sort(key=lambda x: (x.get("points", 0), x.get("tier_rank", 0)), reverse=True)
     return cards
 
 
