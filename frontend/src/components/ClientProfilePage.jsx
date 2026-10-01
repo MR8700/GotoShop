@@ -18,6 +18,25 @@ import {
 import { WEST_AFRICAN_COUNTRIES } from "../utils/locations";
 import PasskeySecurityPanel from "./PasskeySecurityPanel";
 
+class PasskeyErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error) {
+    console.warn("PasskeySecurityPanel isolated error:", error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
+
 export default function ClientProfilePage({
   customer,
   store: _store,
@@ -50,6 +69,7 @@ export default function ClientProfilePage({
   const [avatarData, setAvatarData] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [gpsBlockedNotice, setGpsBlockedNotice] = useState(false);
 
   // Loyalty Card & Multi-store state
   const [allCards, setAllCards] = useState([]);
@@ -69,8 +89,27 @@ export default function ClientProfilePage({
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [copiedCoupon, setCopiedCoupon] = useState(null);
 
+  // Sync profile form states when customer object loads or updates
+  useEffect(() => {
+    if (customer) {
+      if (customer.name && !name) setName(customer.name);
+      if (customer.country_code) setSelectedCountryCode(customer.country_code);
+      if (customer.phone && !phone) setPhone(customer.phone);
+      if (customer.email && !email) setEmail(customer.email);
+      if (customer.city) setCity(customer.city);
+      if (customer.delivery_address && !deliveryAddress) setDeliveryAddress(customer.delivery_address);
+      if (customer.gps_coordinates && !gpsCoordinates) setGpsCoordinates(customer.gps_coordinates);
+      if (customer.gps_location_url && !gpsLocationUrl) setGpsLocationUrl(customer.gps_location_url);
+      if (customer.preferred_channel) setPreferredChannel(customer.preferred_channel);
+      if (customer.notes && !notes) setNotes(customer.notes);
+      if (customer.avatar_url && !avatarPreview) setAvatarPreview(customer.avatar_url);
+    }
+  }, [customer]);
+
   const currentCountry =
-    WEST_AFRICAN_COUNTRIES.find((c) => c.code === selectedCountryCode) || WEST_AFRICAN_COUNTRIES[0];
+    (WEST_AFRICAN_COUNTRIES && WEST_AFRICAN_COUNTRIES.find((c) => c.code === selectedCountryCode)) ||
+    (WEST_AFRICAN_COUNTRIES && WEST_AFRICAN_COUNTRIES[0]) ||
+    { code: "BF", dial: "+226", flag: "🇧🇫", name: "Burkina Faso", cities: ["Ouagadougou", "Bobo-Dioulasso", "Autre"] };
 
   const handleSelectCard = (index, cardsList = allCards) => {
     setSelectedCardIndex(index);
@@ -195,17 +234,18 @@ export default function ClientProfilePage({
   };
 
   const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
+    const file = e?.target?.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setAvatarPreview(ev.target.result);
-      setAvatarData(ev.target.result);
+      const res = ev?.target?.result;
+      if (res && typeof res === "string") {
+        setAvatarPreview(res);
+        setAvatarData(res);
+      }
     };
     reader.readAsDataURL(file);
   };
-
-  const [gpsBlockedNotice, setGpsBlockedNotice] = useState(false);
 
   const handleCaptureGPS = () => {
     if (!navigator.geolocation) {
@@ -905,7 +945,7 @@ export default function ClientProfilePage({
           <div className="flex items-center gap-4 p-3 rounded-xl bg-surface-container-high/60 border border-white/5">
             <div className="relative group shrink-0">
               <div className="w-16 h-16 rounded-full overflow-hidden bg-primary-container text-on-primary-container flex items-center justify-center ring-2 ring-primary shadow-md">
-                {avatarPreview ? (
+                {avatarPreview && typeof avatarPreview === "string" ? (
                   <img
                     src={avatarPreview.startsWith("data:") ? avatarPreview : getMediaUrl(avatarPreview)}
                     alt=""
@@ -917,7 +957,7 @@ export default function ClientProfilePage({
                     }}
                   />
                 ) : null}
-                <div className={`w-full h-full flex items-center justify-center ${avatarPreview ? "hidden" : "flex"}`}>
+                <div className={`w-full h-full flex items-center justify-center ${avatarPreview && typeof avatarPreview === "string" ? "hidden" : "flex"}`}>
                   <Icon name="person" className="text-[32px]" />
                 </div>
               </div>
@@ -992,7 +1032,7 @@ export default function ClientProfilePage({
                   onChange={(e) => setCity(e.target.value)}
                   className="w-full h-11 px-3 rounded-xl bg-surface-container-high border border-outline-variant/30 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
                 >
-                  {currentCountry.cities.map((ct) => (
+                  {(currentCountry?.cities || ["Ouagadougou", "Autre"]).map((ct) => (
                     <option key={ct} value={ct}>
                       {ct}
                     </option>
@@ -1151,7 +1191,9 @@ export default function ClientProfilePage({
       )}
       {profileTab === "coordonnees" && (
         <div className="mt-4 bg-surface-container rounded-2xl p-4 sm:p-5 shadow-sm border border-subtle">
-          <PasskeySecurityPanel showToast={showToast} />
+          <PasskeyErrorBoundary>
+            <PasskeySecurityPanel showToast={showToast} />
+          </PasskeyErrorBoundary>
         </div>
       )}
 

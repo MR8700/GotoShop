@@ -5,11 +5,13 @@ import { API_BASE, getCustomerToken, markCustomerSession, dataCache, dispatchSta
 import safeStorage from "../utils/safeStorage";
 
 const b64urlToBuf = (s) => {
+  if (!s || typeof s !== "string") return new ArrayBuffer(0);
   const pad = "=".repeat((4 - (s.length % 4)) % 4);
   const bin = atob((s + pad).replace(/-/g, "+").replace(/_/g, "/"));
   return Uint8Array.from(bin, (c) => c.charCodeAt(0)).buffer;
 };
 const bufToB64url = (buf) => {
+  if (!buf) return "";
   const bytes = new Uint8Array(buf);
   let bin = "";
   bytes.forEach((b) => (bin += String.fromCharCode(b)));
