@@ -131,6 +131,16 @@ export default function TunnelHandoffModal({
     requestNotificationPermission().catch(() => {});
   }, []);
 
+  // Sync customer prop with local form fields
+  useEffect(() => {
+    if (customer?.name) setCustomerName(customer.name);
+    if (customer?.phone) setCustomerPhone(customer.phone);
+    if (customer?.city) setSelectedCity(customer.city);
+    if (customer?.delivery_address || customer?.delivery_neighborhood) {
+      setCustomLocality(customer.delivery_address || customer.delivery_neighborhood);
+    }
+  }, [customer]);
+
   const handleUpdateItemQuantity = (index, delta) => {
     setItems((prev) => {
       const updated = [...prev];
@@ -304,7 +314,10 @@ export default function TunnelHandoffModal({
         url: window.location.origin,
       });
 
-      showToast?.(`Commande #${orderResult.order_number} transmise avec succès ! Redirection vers vos commandes...`);
+      const successMessage = orderResult._isResilient
+        ? `Commande #${orderResult.order_number} enregistrée en mode direct sécurisé ! Redirection...`
+        : `Commande #${orderResult.order_number} validée et transmise avec succès ! Redirection...`;
+      showToast?.(successMessage);
       if (onOrderCreated) onOrderCreated(orderResult);
       if (onNavigateToOrders) onNavigateToOrders();
       onClose?.();
@@ -315,26 +328,36 @@ export default function TunnelHandoffModal({
     }
   };
 
-  // Handle direct order creation on GotoShop (100% on platform, with mandatory account validation)
+  // Handle direct order creation on GotoShop (100% on platform, with mandatory field controls)
   const handleConfirmOrder = async () => {
     if (items.length === 0) {
-      showToast?.("Votre panier est vide");
+      showToast?.("Votre panier est vide. Ajoutez au moins un article.");
+      return;
+    }
+
+    const trimmedName = (customer?.name || customerName || "").trim();
+    const trimmedPhone = (customer?.phone || customerPhone || "").trim();
+    const digits = trimmedPhone.replace(/\D/g, "");
+
+    // Validation of mandatory delivery fields
+    if (!trimmedName || trimmedName.length < 2) {
+      showToast?.("Veuillez renseigner votre nom complet pour la livraison.");
+      return;
+    }
+
+    if (!trimmedPhone || digits.length < 8) {
+      showToast?.("Veuillez renseigner un numéro de téléphone valide (au moins 8 chiffres, ex: 65 71 17 41).");
+      return;
+    }
+
+    if (!selectedCity?.trim()) {
+      showToast?.("Veuillez sélectionner votre ville de livraison.");
       return;
     }
 
     // MANDATORY ACCOUNT CHECK:
-    // If not authenticated, we MUST authenticate/register to place and track order
+    // If not authenticated, activate account or suggest prompt
     if (!customer) {
-      const trimmedName = customerName.trim();
-      const trimmedPhone = customerPhone.trim();
-
-      if (!trimmedName || !trimmedPhone) {
-        showToast?.("Compte obligatoire : veuillez renseigner votre nom et votre numéro de téléphone pour valider.");
-        setAuthModalOpen(true);
-        return;
-      }
-
-      // If user provided name and phone in delivery form, suggest activating account directly with these details!
       setAccountPromptOpen(true);
       return;
     }

@@ -248,45 +248,126 @@ export default function ClientStatsPage({
               <button
                 type="button"
                 onClick={onNavigateToShop}
-                className="gs-3d-btn gs-3d-btn--primary w-full h-12 rounded-xl text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition-all"
+                className="gs-3d-btn gs-3d-btn--primary bg-primary hover:bg-primary-hover active:bg-primary-hover w-full h-12 rounded-xl text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition-all"
               >
                 <Icon name="storefront" className="text-[20px]" />
-                <span>Explorer les Boutiques &amp; Découvrir les Offres 🛍️</span>
+                <span className="text-white">Explorer les Boutiques &amp; Découvrir les Offres 🛍️</span>
               </button>
             </div>
           </div>
 
-          {/* Grille des Paliers & Avantages Universels GotoShop */}
-          <div className="gs-3d-panel-sm rounded-3xl p-5 bg-surface-container border-2 border-slate-200/90 dark:border-slate-800 space-y-3 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Icon name="workspace_premium" className="text-amber-500 text-[20px]" />
-              <h4 className="font-bold text-xs uppercase tracking-wider text-on-surface">
-                Grille des Privilèges Universels GotoShop
-              </h4>
-            </div>
-            <p className="text-xs text-on-surface-variant">
-              Toutes vos boutiques partenaires suivent la même échelle de progression garantie :
-            </p>
+          {/* Privilège Universel Actif GotoShop (Affichage exclusif du palier actif) */}
+          {(() => {
+            const tiers = [
+              {
+                id: "BRONZE",
+                name: "Bronze",
+                minPts: 0,
+                maxPts: 49,
+                label: "Bronze (dès 0 pt)",
+                perk: "Accès catalogue & suivi 24h garanti",
+                border: "border-amber-600/70",
+                bg: "bg-amber-500/10 dark:bg-amber-950/40",
+                text: "text-amber-600 dark:text-amber-400",
+                icon: "shield",
+              },
+              {
+                id: "ARGENT",
+                name: "Argent",
+                minPts: 50,
+                maxPts: 149,
+                label: "Argent (dès 50 pts)",
+                perk: "-3% de remise directe sur les commandes",
+                border: "border-slate-300 dark:border-slate-600",
+                bg: "bg-slate-500/10 dark:bg-slate-800/50",
+                text: "text-slate-700 dark:text-slate-200",
+                icon: "workspace_premium",
+              },
+              {
+                id: "OR",
+                name: "Or",
+                minPts: 150,
+                maxPts: 399,
+                label: "Or (dès 150 pts)",
+                perk: "-5% de remise directe + support prioritaire",
+                border: "border-amber-400 dark:border-amber-500",
+                bg: "bg-amber-500/15 dark:bg-amber-950/50",
+                text: "text-amber-600 dark:text-yellow-400",
+                icon: "military_tech",
+              },
+              {
+                id: "PLATINE",
+                name: "Platine",
+                minPts: 400,
+                maxPts: Infinity,
+                label: "Platine (dès 400 pts)",
+                perk: "-8% de remise directe + livraisons express offertes",
+                border: "border-sky-400 dark:border-sky-500",
+                bg: "bg-sky-500/15 dark:bg-indigo-950/50",
+                text: "text-sky-600 dark:text-sky-300",
+                icon: "diamond",
+              },
+            ];
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div className="p-2.5 rounded-xl border-2 bg-amber-950/40 border-amber-600/70 shadow-xs">
-                <p className="font-bold text-amber-500">Bronze (0 pt)</p>
-                <p className="text-[11px] text-on-surface-variant mt-0.5">Accès catalogue &amp; suivi 24h</p>
+            const activeTierIndex = tiers.findIndex((t) => cardPoints >= t.minPts && cardPoints <= t.maxPts);
+            const activeTier = activeTierIndex !== -1 ? tiers[activeTierIndex] : tiers[0];
+            const nextTier = activeTierIndex < tiers.length - 1 ? tiers[activeTierIndex + 1] : null;
+            const ptsNeeded = nextTier ? Math.max(0, nextTier.minPts - cardPoints) : 0;
+
+            return (
+              <div className="gs-3d-panel-sm rounded-3xl p-5 bg-surface-container border-2 border-slate-200/90 dark:border-slate-800 space-y-3 shadow-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Icon name="workspace_premium" className="text-amber-500 text-[22px]" />
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-on-surface">
+                      Votre Privilège Actif GotoShop
+                    </h4>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <Icon name="check_circle" className="text-[12px]" />
+                    Actif actuellement
+                  </span>
+                </div>
+
+                <p className="text-xs text-on-surface-variant">
+                  Votre fidélité vous accorde les privilèges suivants dans toutes vos boutiques :
+                </p>
+
+                {/* Un seul palier affiché : Le palier actuellement actif */}
+                <div className={`p-4 rounded-2xl border-2 ${activeTier.border} ${activeTier.bg} shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3`}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/80 dark:bg-black/40 flex items-center justify-center shrink-0 border border-current shadow-xs">
+                      <Icon name={activeTier.icon} className={`text-[24px] ${activeTier.text}`} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-black text-sm ${activeTier.text}`}>
+                          Palier {activeTier.name}
+                        </span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-white/70 dark:bg-black/30 border border-current text-on-surface">
+                          {fmtPts(cardPoints)} pt{cardPoints > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <p className="text-xs font-semibold text-on-surface mt-0.5">
+                        {activeTier.perk}
+                      </p>
+                    </div>
+                  </div>
+
+                  {nextTier && (
+                    <div className="text-left sm:text-right shrink-0 border-t sm:border-t-0 sm:border-l border-slate-200 dark:border-slate-700/60 pt-2 sm:pt-0 sm:pl-3">
+                      <span className="text-[10px] text-on-surface-variant font-medium block">
+                        Prochain palier : <strong className="text-on-surface">{nextTier.name}</strong>
+                      </span>
+                      <span className="text-[11px] font-bold text-primary">
+                        +{fmtPts(ptsNeeded)} pt{ptsNeeded > 1 ? "s" : ""} pour {nextTier.perk.split("+")[0]}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="p-2.5 rounded-xl border-2 bg-slate-800/60 border-slate-300 shadow-xs">
-                <p className="font-bold text-slate-300">Argent (50 pts)</p>
-                <p className="text-[11px] text-on-surface-variant mt-0.5">-3% sur les commandes</p>
-              </div>
-              <div className="p-2.5 rounded-xl border-2 bg-amber-950/50 border-amber-400 shadow-xs">
-                <p className="font-bold text-yellow-400">Or (150 pts)</p>
-                <p className="text-[11px] text-on-surface-variant mt-0.5">-5% + support prioritaire</p>
-              </div>
-              <div className="p-2.5 rounded-xl border-2 bg-indigo-950/50 border-sky-400 shadow-xs">
-                <p className="font-bold text-sky-300">Platine (400 pts)</p>
-                <p className="text-[11px] text-on-surface-variant mt-0.5">-8% + livraisons express</p>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       ) : (
         /* CASE B: ACTIVE CARDS PRESENT */

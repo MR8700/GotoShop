@@ -118,6 +118,18 @@ export default function ConversationalOrderModal({
   );
   const [registerAccount, setRegisterAccount] = useState(!customer);
 
+  // Sync customer prop changes with form inputs
+  useEffect(() => {
+    if (customer?.name) setCustomerName(customer.name);
+    if (customer?.phone) setCustomerPhone(customer.phone);
+    if (customer?.city) setCustomerCity(customer.city);
+    if (customer?.country) setCustomerCountry(customer.country);
+    if (customer?.delivery_address || customer?.delivery_neighborhood) {
+      setDeliveryNeighborhood(customer.delivery_neighborhood || customer.delivery_address);
+      setDeliveryAddress(customer.delivery_address || customer.delivery_neighborhood);
+    }
+  }, [customer]);
+
   // Flow State: "EDIT" | "SUCCESS"
   const [step, setStep] = useState("EDIT");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -360,7 +372,10 @@ export default function ConversationalOrderModal({
       if (result?.customer && onCustomerAuthenticated) {
         onCustomerAuthenticated(result.customer);
       }
-      showToast?.(`Commande #${result?.order_number || ""} transmise avec succès !`);
+      const msg = result?._isResilient
+        ? `Commande #${result?.order_number || ""} enregistrée en mode direct sécurisé !`
+        : `Commande #${result?.order_number || ""} validée et transmise avec succès !`;
+      showToast?.(msg);
       if (onOrderCreated) {
         onOrderCreated(result);
       }
@@ -386,12 +401,23 @@ export default function ConversationalOrderModal({
       return;
     }
 
-    if (!customerName.trim()) {
-      const msg = "Veuillez renseigner votre nom";
+    const activeName = (customer?.name || customerName || "").trim();
+    if (!activeName || activeName.length < 2) {
+      const msg = "Veuillez renseigner votre nom complet pour la livraison";
       setErrorMessage(msg);
       showToast?.(msg);
       return;
     }
+
+    const activePhone = (customer?.phone || customerPhone || "").trim();
+    const digits = activePhone.replace(/\D/g, "");
+    if (!activePhone || digits.length < 8) {
+      const msg = "Veuillez renseigner un numéro de téléphone valide (au moins 8 chiffres, ex: 65 71 17 41)";
+      setErrorMessage(msg);
+      showToast?.(msg);
+      return;
+    }
+
     if (!selectedSpot && deliveryMode !== "EXACT_GPS" && !deliveryAddress.trim() && !deliveryNeighborhood.trim()) {
       const msg = "Veuillez préciser votre adresse ou repère de livraison";
       setErrorMessage(msg);
@@ -408,13 +434,6 @@ export default function ConversationalOrderModal({
 
     // MANDATORY ACCOUNT CHECK
     if (!customer) {
-      if (!customerName.trim() || !customerPhone.trim()) {
-        const msg = "Compte obligatoire pour commander : veuillez renseigner votre nom et votre numéro de téléphone.";
-        setErrorMessage(msg);
-        showToast?.(msg);
-        setAuthModalOpen(true);
-        return;
-      }
       setAccountPromptOpen(true);
       return;
     }

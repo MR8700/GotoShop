@@ -24,6 +24,157 @@ import {
 import { formatSalesQuantity } from "../utils/salesEngine";
 import MobileMoneyPaymentModal from "./MobileMoneyPaymentModal";
 
+function CommanderAvantCauserIllustration({ isCompact = false }) {
+  const width = isCompact ? 220 : 280;
+  const height = isCompact ? 120 : 150;
+
+  return (
+    <div className="relative flex items-center justify-center select-none py-2">
+      <svg
+        width={width}
+        height={height}
+        viewBox="0 0 280 150"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="overflow-visible"
+      >
+        <defs>
+          <linearGradient id="gsFlameGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+            <stop offset="0%" stopColor="#f97316" stopOpacity="0" />
+            <stop offset="60%" stopColor="#ea580c" />
+            <stop offset="100%" stopColor="#facc15" />
+          </linearGradient>
+          <linearGradient id="gsHullGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="60%" stopColor="#f8fafc" />
+            <stop offset="100%" stopColor="#cbd5e1" />
+          </linearGradient>
+          <linearGradient id="gsBasketGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#fb923c" />
+            <stop offset="100%" stopColor="#c2410c" />
+          </linearGradient>
+          <filter id="gsGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        {/* Trajectory dotted curve */}
+        <path
+          d="M 30 115 C 60 25, 140 10, 222 108"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          className="text-primary/45 gs-anim-trajectory"
+        />
+
+        {/* Sparkling star particles along trajectory */}
+        <circle cx="85" cy="48" r="2" fill="#f59e0b" className="animate-pulse" />
+        <circle cx="150" cy="32" r="2.5" fill="#f97316" className="animate-pulse" style={{ animationDelay: "0.5s" }} />
+        <circle cx="185" cy="62" r="1.5" fill="#eab308" className="animate-pulse" style={{ animationDelay: "1s" }} />
+
+        {/* Shopping Basket at the landing point */}
+        <g className="gs-anim-basket" transform="translate(195, 90)">
+          <ellipse cx="28" cy="44" rx="26" ry="6" fill="black" opacity="0.18" />
+          <path
+            d="M 12 18 C 12 0, 44 0, 44 18"
+            fill="none"
+            stroke="#9a3412"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+          <path
+            d="M 6 18 L 12 40 C 12.5 42, 14 43, 16 43 L 40 43 C 42 43, 43.5 42, 44 40 L 50 18 C 50.5 16, 49 15, 47 15 L 9 15 C 7 15, 5.5 16, 6 18 Z"
+            fill="url(#gsBasketGrad)"
+            stroke="#7c2d12"
+            strokeWidth="1.5"
+          />
+          <line x1="14" y1="20" x2="18" y2="40" stroke="#ffedd5" strokeWidth="1.5" strokeOpacity="0.7" />
+          <line x1="28" y1="18" x2="28" y2="42" stroke="#ffedd5" strokeWidth="1.5" strokeOpacity="0.7" />
+          <line x1="42" y1="20" x2="38" y2="40" stroke="#ffedd5" strokeWidth="1.5" strokeOpacity="0.7" />
+          <line x1="8" y1="28" x2="48" y2="28" stroke="#ffedd5" strokeWidth="1.5" strokeOpacity="0.7" />
+        </g>
+
+        {/* Flying Rocket following the trajectory */}
+        <g className="gs-anim-rocket">
+          <path
+            d="M -12 0 C -18 -4, -26 -1, -22 0 C -26 1, -18 4, -12 0 Z"
+            fill="url(#gsFlameGrad)"
+            className="gs-anim-flame"
+            filter="url(#gsGlow)"
+          />
+          <path d="M -8 -8 L -2 -3 L -8 0 Z" fill="#c2410c" />
+          <path d="M -8 8 L -2 3 L -8 0 Z" fill="#c2410c" />
+          <path
+            d="M -8 -4 C -4 -5, 10 -4, 18 0 C 10 4, -4 5, -8 4 Z"
+            fill="url(#gsHullGrad)"
+            stroke="#94a3b8"
+            strokeWidth="0.8"
+          />
+          <path
+            d="M 10 -2.8 C 14 -1.5, 18 0, 18 0 C 18 0, 14 1.5, 10 2.8 Z"
+            fill="#ea580c"
+          />
+          <circle cx="3" cy="0" r="2.4" fill="#0284c7" stroke="#ffffff" strokeWidth="0.8" />
+        </g>
+
+        {/* Circled Animated Checkmark Badge above the basket */}
+        <g transform="translate(223, 76)">
+          <circle cx="0" cy="0" r="14" fill="none" stroke="#10b981" strokeWidth="2" className="gs-anim-halo" />
+          <circle cx="0" cy="0" r="12" fill="#10b981" className="gs-anim-check-badge" />
+          <circle cx="0" cy="0" r="10" fill="none" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.4" />
+          <path
+            d="M -5 0.5 L -1.5 4 L 5.5 -3.5"
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="gs-anim-check-check"
+          />
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+function CommanderAvantCauserEmptyState({ isCompact = false, onExplore }) {
+  return (
+    <div className={`flex flex-col items-center justify-center text-center select-none ${isCompact ? "p-4 py-8" : "p-6 sm:p-10 max-w-md mx-auto"}`}>
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20 mb-2 shadow-xs">
+        <Icon name="rocket_launch" className="text-[14px]" />
+        L'Échange commence par la Commande
+      </span>
+
+      <CommanderAvantCauserIllustration isCompact={isCompact} />
+
+      <h3 className="font-extrabold text-base sm:text-lg text-foreground mt-2 tracking-tight">
+        Commander avant de causer 🚀
+      </h3>
+
+      <p className="text-xs sm:text-sm text-foreground-muted leading-relaxed mt-2 max-w-xs sm:max-w-sm">
+        Sur <strong className="text-foreground">GotoShop</strong>, vos discussions directes avec les commerçants s'ouvrent dès qu'une commande est initiée.
+      </p>
+
+      <p className="text-[11px] sm:text-xs text-foreground-muted/80 leading-snug mt-1.5 max-w-xs">
+        Choisissez un article dans une boutique pour démarrer l'échange en direct et suivre votre livraison.
+      </p>
+
+      {onExplore && (
+        <button
+          type="button"
+          onClick={onExplore}
+          className="gs-3d-btn gs-3d-btn--primary bg-primary hover:bg-primary-hover active:bg-primary-hover text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl shadow-md flex items-center justify-center gap-2 mt-4 cursor-pointer active:scale-98 transition-all"
+        >
+          <Icon name="storefront" className="text-[18px]" />
+          <span>Explorer les Boutiques &amp; Commander</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function ChatPage({
   store,
   customer,
@@ -742,7 +893,10 @@ export default function ChatPage({
   };
 
   return (
-    <div className="fixed top-14 sm:top-16 bottom-15 inset-x-0 z-30 flex bg-background text-foreground antialiased overflow-hidden animate-fadeIn">
+    <div
+      className="fixed top-14 sm:top-16 inset-x-0 z-30 flex bg-background text-foreground antialiased overflow-hidden animate-fadeIn"
+      style={{ bottom: "calc(56px + env(safe-area-inset-bottom, 0px))" }}
+    >
       
       {/* ==================================================================== */}
       {/* COLUMN 1 : CONVERSATIONS & CALLS LIST (Desktop 320px / Mobile Full) */}
@@ -855,9 +1009,7 @@ export default function ChatPage({
               ))
             )
           ) : conversations.length === 0 ? (
-            <div className="p-8 text-center text-xs text-foreground-muted">
-              Aucune conversation trouvée
-            </div>
+            <CommanderAvantCauserEmptyState isCompact={true} onExplore={onClose} />
           ) : (
             conversations.map((c) => {
               const isSelected = c.id === activeConvId;
@@ -1615,14 +1767,8 @@ export default function ChatPage({
           </>
         ) : (
           /* Empty Active Room */
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-foreground-muted">
-            <div className="w-16 h-16 rounded-2xl bg-surface-elevated flex items-center justify-center text-primary mb-3">
-              <Icon name="chat" className="text-3xl" />
-            </div>
-            <h3 className="font-bold text-base text-foreground">Espace de Commerce Conversationnel</h3>
-            <p className="text-xs max-w-sm mt-1">
-              Sélectionnez une conversation pour échanger avec la boutique ou suivre une commande en direct.
-            </p>
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-foreground-muted">
+            <CommanderAvantCauserEmptyState isCompact={false} onExplore={onClose} />
           </div>
         )}
       </div>

@@ -35,7 +35,7 @@ export default function BottomNav({
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 pb-safe bg-surface/95 backdrop-blur-md border-t border-subtle shadow-lg">
-      <div className="flex justify-around items-center h-15 px-1 sm:px-3 max-w-lg mx-auto w-full">
+      <div className="flex justify-around items-center h-14 sm:h-16 px-1 sm:px-3 max-w-lg mx-auto w-full">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
