@@ -242,11 +242,15 @@ export default function TunnelHandoffModal({
 
     try {
       const resolvedStoreId = store?.id || store?.slug || "faso-danfani";
+      const resolvedStoreSlug = store?.slug || (typeof store?.id === "string" && !store.id.startsWith("store-") ? store.id : "faso-danfani");
+      const resolvedStoreName = store?.name || "Faso Danfani & Élégance";
       const targetCustomer = activeCustomer || customer;
       const targetToken = activeToken || (targetCustomer && targetCustomer.session_token) || getCustomerToken();
 
       const payload = {
         store_id: resolvedStoreId,
+        store_slug: resolvedStoreSlug,
+        store_name: resolvedStoreName,
         items: items.map((it) => ({
           product_id: it.product_id || it.id,
           product_name: it.name || it.product_name || "Produit",
@@ -289,7 +293,11 @@ export default function TunnelHandoffModal({
       // Persist in local guest orders for offline tracking
       saveLocalGuestOrder({
         id: orderResult.id,
-        reference_code: orderResult.order_number,
+        order_number: orderResult.order_number || orderResult.reference_code,
+        reference_code: orderResult.order_number || orderResult.reference_code,
+        store_id: orderResult.store_id || resolvedStoreId,
+        store_slug: orderResult.store_slug || resolvedStoreSlug,
+        store_name: orderResult.store_name || resolvedStoreName,
         product_name: items.map((it) => it.name).join(", "),
         product_image_url: items[0]?.primary_image_url || null,
         items: items,

@@ -146,6 +146,18 @@ export default function ClientCommandesPage({
         });
       }
 
+      // Auto-heal legacy orders missing explicit store information if currently inside a boutique
+      if (isInsideStore && store?.slug) {
+        combined.forEach((o) => {
+          if (!o.store_slug || o.store_slug === "default-store" || !o.store_name || o.store_name === "Boutique Partenaire GotoShop" || o.store_name === "Boutique") {
+            o.store_slug = store.slug;
+            o.store_id = store.id || store.slug;
+            o.store_name = store.name;
+            saveLocalGuestOrder(o);
+          }
+        });
+      }
+
       setOrders(combined);
     } catch  {
       showToast("Erreur lors du chargement des commandes");
@@ -220,8 +232,16 @@ export default function ClientCommandesPage({
   const storeFilters = React.useMemo(() => {
     const map = new Map();
     orders.forEach((o) => {
-      const sSlug = o.store_slug || (o.store_name ? o.store_name.toLowerCase().replace(/\s+/g, "-") : null);
-      const sName = o.store_name;
+      // Resolve store slug and name with robust fallbacks
+      let sSlug = o.store_slug || o.store_id || (o.store_name ? o.store_name.toLowerCase().replace(/[^a-z0-9]/g, "-") : null);
+      let sName = o.store_name;
+
+      // If store info is missing or generic and user is inside a boutique, attach to current boutique
+      if ((!sSlug || sSlug === "default-store" || !sName) && store?.slug && isInsideStore) {
+        sSlug = store.slug;
+        sName = store.name;
+      }
+
       if (sSlug && sName) {
         if (!map.has(sSlug)) {
           map.set(sSlug, { slug: sSlug, name: sName, count: 0 });
@@ -229,9 +249,19 @@ export default function ClientCommandesPage({
         map.get(sSlug).count += 1;
       }
     });
+
     // ONLY include current store if user actually entered that specific boutique
-    if (isInsideStore && store?.slug && !map.has(store.slug)) {
-      map.set(store.slug, { slug: store.slug, name: store.name, count: 0 });
+    if (isInsideStore && store?.slug) {
+      if (!map.has(store.slug)) {
+        // Count how many orders match current store
+        const count = orders.filter((o) => {
+          if (o.store_slug === store.slug || o.store_id === store.id || o.store_id === store.slug) return true;
+          if (o.store_name && store.name && o.store_name.toLowerCase() === store.name.toLowerCase()) return true;
+          if (!o.store_slug && !o.store_name) return true;
+          return false;
+        }).length;
+        map.set(store.slug, { slug: store.slug, name: store.name, count });
+      }
     }
     return Array.from(map.values());
   }, [orders, store, isInsideStore]);
@@ -239,18 +269,35 @@ export default function ClientCommandesPage({
   // Client soft-lifecycle: exclude hidden orders, partition active vs archived
   const visibleOrders = orders.filter((o) => !o.is_client_hidden);
   const allActiveOrders = visibleOrders.filter((o) => !o.is_client_archived);
-  const archivedOrders = visibleOrders.filter((o) => !!o.is_client_archived);
+  const allArchivedOrders = visibleOrders.filter((o) => !!o.is_client_archived);
+
+  // Helper to match an order against selected store filter
+  const matchesStoreFilter = React.useCallback((o) => {
+    if (selectedStoreFilter === "ALL") return true;
+    const target = String(selectedStoreFilter).toLowerCase().trim();
+    const oSlug = (o.store_slug || o.store_id || "").toLowerCase().trim();
+    const oName = (o.store_name || "").toLowerCase().replace(/[^a-z0-9]/g, "-");
+    if (oSlug === target || oSlug.includes(target) || target.includes(oSlug)) return true;
+    if (oName && (oName.includes(target) || target.includes(oName))) return true;
+    if (store && (store.slug === selectedStoreFilter || store.id === selectedStoreFilter)) {
+      if (o.store_id === store.id || o.store_id === store.slug) return true;
+      if (o.store_slug === store.slug || o.store_slug === store.id) return true;
+      if (o.store_name && store.name && o.store_name.toLowerCase() === store.name.toLowerCase()) return true;
+      // If order has generic or missing store info, associate with current boutique
+      if (!o.store_slug && !o.store_name) return true;
+      if (o.store_slug === "default-store" || o.store_name?.includes("Boutique")) return true;
+    }
+    return false;
+  }, [selectedStoreFilter, store]);
 
   // Filter by boutique if a store filter is active
   const activeOrders = React.useMemo(() => {
-    if (selectedStoreFilter === "ALL") return allActiveOrders;
-    return allActiveOrders.filter(
-      (o) =>
-        o.store_slug === selectedStoreFilter ||
-        (o.store_name && o.store_name.toLowerCase().replace(/\s+/g, "-") === selectedStoreFilter) ||
-        (store && store.slug === selectedStoreFilter && (o.store_name === store.name || o.store_slug === store.slug))
-    );
-  }, [allActiveOrders, selectedStoreFilter, store]);
+    return allActiveOrders.filter(matchesStoreFilter);
+  }, [allActiveOrders, matchesStoreFilter]);
+
+  const archivedOrders = React.useMemo(() => {
+    return allArchivedOrders.filter(matchesStoreFilter);
+  }, [allArchivedOrders, matchesStoreFilter]);
 
   // Counts for tabs
   const pendingOrders = activeOrders.filter(isOrderPending);
@@ -1158,8 +1205,8 @@ export default function ClientCommandesPage({
 
       {/* STRUCTURED ORDER DETAILS MODAL */}
       {selectedOrderDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="relative w-full max-w-lg bg-surface border-2 border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-foreground max-h-[92vh]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 pb-28 sm:pb-6 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-lg bg-surface border-2 border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-foreground max-h-[78vh] sm:max-h-[88vh] my-auto">
             {/* Header */}
             <div className="px-5 py-4 border-b border-subtle bg-surface-elevated flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -1343,7 +1390,7 @@ export default function ClientCommandesPage({
             </div>
 
             {/* Modal Footer Actions */}
-            <div className="p-4 border-t border-subtle bg-surface-elevated flex items-center gap-2.5">
+            <div className="p-4 border-t border-subtle bg-surface-elevated shrink-0 flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => setSelectedOrderDetail(null)}
@@ -1411,7 +1458,7 @@ export default function ClientCommandesPage({
 
       {/* Satisfaction Modal */}
       {actionType === "SATISFY" && actionOrder && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pb-24 sm:pb-4">
           <div className="rounded-2xl bg-surface-card border border-subtle p-6 max-w-sm w-full space-y-4 shadow-2xl animate-fadeIn">
             <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto">
               <Icon name="thumb_up" className="text-[32px]" />
@@ -1473,7 +1520,7 @@ export default function ClientCommandesPage({
 
       {/* Direct Cancellation Modal */}
       {actionType === "CANCEL" && actionOrder && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pb-24 sm:pb-4">
           <div className="rounded-2xl bg-surface-card border border-subtle p-6 max-w-sm w-full space-y-4 shadow-2xl animate-fadeIn">
             <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center mx-auto">
               <Icon name="close" className="text-[32px]" />

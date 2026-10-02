@@ -317,11 +317,15 @@ export default function ConversationalOrderModal({
       } : null;
 
       const resolvedStoreId = store?.id || store?.slug || getActiveStoreSlug() || "default-store";
+      const resolvedStoreSlug = store?.slug || getActiveStoreSlug() || String(resolvedStoreId);
+      const resolvedStoreName = store?.name || "Boutique Partenaire GotoShop";
       const targetCustomer = activeCustomer || customer;
       const targetToken = activeToken || (targetCustomer && targetCustomer.session_token) || getCustomerToken();
 
       const orderPayload = {
         store_id: resolvedStoreId,
+        store_slug: resolvedStoreSlug,
+        store_name: resolvedStoreName,
         items: [
           {
             product_id: product?.id || null,
